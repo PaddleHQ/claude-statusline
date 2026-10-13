@@ -29,13 +29,14 @@ type Params struct {
 	NoTarget bool
 }
 
-// ResponsiveWidth scales the configured width down for narrow terminals.
-func ResponsiveWidth(width, columns int) int {
+// WidthFor picks the bar width for a terminal: narrow below 120 columns, medium below 160, otherwise wide.
+func WidthFor(columns, wide, medium, narrow int) int {
+	width := wide
 	switch {
 	case columns < narrowCols:
-		width /= 2
+		width = narrow
 	case columns < mediumCols:
-		width = width * 7 / 10
+		width = medium
 	}
 	return min(max(width, minWidth), maxWidth)
 }

@@ -1,0 +1,1 @@
+transcript.jsonl={"type":"user","message":{"role":"user","content":"hi"}}\n{"type":"attachment","attachment":{"type":"hook_success","hookEvent":"SessionStart","content":"small output"}}\n{"type":"attachment","attachment":{"type":"hook_success","hookEvent":"PreToolUse","content":"<persisted-output> x"}}

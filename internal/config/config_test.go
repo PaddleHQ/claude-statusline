@@ -16,7 +16,7 @@ func TestDefaultsParse(t *testing.T) {
 	t.Parallel()
 
 	c := config.New("")
-	assert.Equal(t, "path model ctx tokens cache rate5h rate7d", c.String("segments"))
+	assert.Equal(t, "path model ctx tokens cache boot skills skills_stripped agent_skills mem rate5h rate7d", c.String("segments"))
 	assert.Equal(t, "·", c.String("separator"))
 	assert.Equal(t, "default", c.String("theme"))
 	assert.True(t, c.Bool("model.effort"))
@@ -27,7 +27,7 @@ func TestDefaultKeys(t *testing.T) {
 
 	keys := config.DefaultKeys()
 	slices.Sort(keys)
-	want := []string{"cache.warn", "ctx.bad", "ctx.warn", "ctx.width", "hooks.timeout", "hooks.ttl", "model.effort", "path.branch", "path.strip", "rate5h.bad", "rate5h.hard_cap", "rate5h.label", "rate5h.warn", "rate5h.width", "rate7d.bad", "rate7d.hard_cap", "rate7d.label", "rate7d.warn", "rate7d.width", "segments", "separator", "theme"}
+	want := []string{"cache.warn", "ctx.bad", "ctx.warn", "ctx.width", "ctx.width_medium", "ctx.width_narrow", "hooks.timeout", "hooks.ttl", "model.effort", "path.branch", "path.strip", "rate5h.bad", "rate5h.hard_cap", "rate5h.label", "rate5h.warn", "rate5h.width", "rate5h.width_medium", "rate5h.width_narrow", "rate7d.bad", "rate7d.hard_cap", "rate7d.label", "rate7d.warn", "rate7d.width", "rate7d.width_medium", "rate7d.width_narrow", "segments", "separator", "theme"}
 	assert.Equal(t, want, keys)
 }
 

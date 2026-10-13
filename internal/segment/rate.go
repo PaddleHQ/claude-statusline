@@ -25,7 +25,7 @@ func (r rate) Name() string { return r.name }
 func (r rate) Group() layout.Group { return layout.Rates }
 
 func (r rate) Keys() []string {
-	return []string{r.name + ".label", r.name + ".width", r.name + ".warn", r.name + ".bad", r.name + ".hard_cap"}
+	return []string{r.name + ".label", r.name + ".width", r.name + ".width_medium", r.name + ".width_narrow", r.name + ".warn", r.name + ".bad", r.name + ".hard_cap"}
 }
 
 func (r rate) Render(ctx *Context) string {
@@ -37,7 +37,7 @@ func (r rate) Render(ctx *Context) string {
 	b := bar.Render(bar.Params{
 		Usage:   int(reading.Used),
 		Target:  bar.ElapsedPercent(ctx.Now.Unix(), reading.ResetsAt, r.seconds),
-		Width:   bar.ResponsiveWidth(cfg.Int(r.name+".width"), ctx.Columns),
+		Width:   barWidth(ctx, r.name),
 		Warn:    cfg.Int(r.name + ".warn"),
 		Bad:     cfg.Int(r.name + ".bad"),
 		HardCap: cfg.Int(r.name + ".hard_cap"),

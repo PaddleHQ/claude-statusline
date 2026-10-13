@@ -4,12 +4,14 @@ package segment
 import (
 	"time"
 
+	"github.com/PaddleHQ/claude-statusline/internal/bar"
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/hook"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
+	"github.com/PaddleHQ/claude-statusline/internal/transcript"
 )
 
 // Segment renders one part of the line. Keys lists every config key Render reads,
@@ -34,6 +36,8 @@ type Context struct {
 	Home    string
 	// Hooks holds the output of the user's hook scripts, in filename order.
 	Hooks []hook.Result
+	// Transcript is what the session transcript revealed; zero when there is none.
+	Transcript transcript.Info
 }
 
 const (
@@ -49,6 +53,12 @@ var registry = map[string]Segment{
 	"cache":  cache{},
 	"rate5h": rate{name: "rate5h", seconds: fiveHourSeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.FiveHour }},
 	"rate7d": rate{name: "rate7d", seconds: sevenDaySeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.SevenDay }},
+}
+
+func init() {
+	for _, d := range diagnostics {
+		registry[d.name] = d
+	}
 }
 
 // Lookup returns the registered segment with the given name.
@@ -73,6 +83,12 @@ func Render(ctx *Context) string {
 		Separator: separator(ctx),
 		Anchor:    ctx.Theme.Paint(ctx.Theme.Muted, "↳"),
 	})
+}
+
+// barWidth reads the three widths configured for a bar and picks the one for the terminal.
+func barWidth(ctx *Context, name string) int {
+	cfg := ctx.Config
+	return bar.WidthFor(ctx.Columns, cfg.Int(name+".width"), cfg.Int(name+".width_medium"), cfg.Int(name+".width_narrow"))
 }
 
 func separator(ctx *Context) string {

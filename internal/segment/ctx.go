@@ -15,7 +15,9 @@ func (ctxBar) Name() string { return "ctx" }
 
 func (ctxBar) Group() layout.Group { return layout.Identity }
 
-func (ctxBar) Keys() []string { return []string{"ctx.width", "ctx.warn", "ctx.bad"} }
+func (ctxBar) Keys() []string {
+	return []string{"ctx.width", "ctx.width_medium", "ctx.width_narrow", "ctx.warn", "ctx.bad"}
+}
 
 func (ctxBar) Render(ctx *Context) string {
 	used := ctx.Payload.ContextWindow.UsedPercentage
@@ -26,7 +28,7 @@ func (ctxBar) Render(ctx *Context) string {
 	pct := int(math.RoundToEven(*used))
 	b := bar.Render(bar.Params{
 		Usage:    pct,
-		Width:    bar.ResponsiveWidth(cfg.Int("ctx.width"), ctx.Columns),
+		Width:    barWidth(ctx, "ctx"),
 		Warn:     cfg.Int("ctx.warn"),
 		Bad:      cfg.Int("ctx.bad"),
 		NoTarget: true,

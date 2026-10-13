@@ -1,0 +1,1 @@
+transcript.jsonl={"type":"user","message":{"role":"user","content":"hi"}}\n{"type":"attachment","attachment":{"type":"skill_listing","isInitial":true,"content":"- alpha: does a thing\u000a- beta: another\u000a- gamma: third thing here\u000a"}}

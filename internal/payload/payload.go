@@ -17,8 +17,9 @@ type Payload struct {
 	RateLimits RateLimits
 	Cwd        string
 	// SessionID is empty unless the payload's id is made only of letters, digits, hyphens and underscores.
-	SessionID     string
-	ContextWindow ContextWindow
+	SessionID      string
+	TranscriptPath string
+	ContextWindow  ContextWindow
 }
 
 // ContextWindow is the session's context and token usage; a nil field means the payload did not report it.
@@ -75,8 +76,9 @@ func Parse(data []byte) Payload {
 			FiveHour: window(root.Get("rate_limits.five_hour")),
 			SevenDay: window(root.Get("rate_limits.seven_day")),
 		},
-		Cwd:       cwd(root),
-		SessionID: sessionID(root),
+		Cwd:            cwd(root),
+		SessionID:      sessionID(root),
+		TranscriptPath: text(root.Get("transcript_path")),
 		ContextWindow: ContextWindow{
 			UsedPercentage: number(root.Get("context_window.used_percentage")),
 			TotalInput:     count(root.Get("context_window.total_input_tokens")),

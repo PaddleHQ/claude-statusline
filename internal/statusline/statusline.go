@@ -11,6 +11,7 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/segment"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
+	"github.com/PaddleHQ/claude-statusline/internal/transcript"
 )
 
 const (
@@ -42,14 +43,15 @@ func Build(input []byte, getenv func(string) string) string {
 	rates := ratecache.Sync(cachePath(getenv), ratecache.FromPayload(p.RateLimits)).Visible(at.Unix())
 
 	return segment.Render(&segment.Context{
-		Payload: p,
-		Rates:   rates,
-		Config:  cfg,
-		Theme:   th,
-		Now:     at,
-		Columns: columns(getenv),
-		Home:    getenv("HOME"),
-		Hooks:   runHooks(input, p, cfg, at, getenv),
+		Payload:    p,
+		Rates:      rates,
+		Config:     cfg,
+		Theme:      th,
+		Now:        at,
+		Columns:    columns(getenv),
+		Home:       getenv("HOME"),
+		Transcript: transcript.Read(p.TranscriptPath),
+		Hooks:      runHooks(input, p, cfg, at, getenv),
 	})
 }
 

@@ -33,6 +33,14 @@ func TestParse(t *testing.T) {
 	})
 }
 
+func TestParseTranscriptPath(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "/tmp/a.jsonl", payload.Parse([]byte(`{"transcript_path":"/tmp/a.jsonl"}`)).TranscriptPath)
+	assert.Empty(t, payload.Parse([]byte(`{"transcript_path":{"a":1}}`)).TranscriptPath)
+	assert.Empty(t, payload.Parse([]byte(`{}`)).TranscriptPath)
+}
+
 func TestParseSessionID(t *testing.T) {
 	t.Parallel()
 

@@ -10,30 +10,31 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 )
 
-func TestResponsiveWidth(t *testing.T) {
+func TestWidthFor(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name           string
-		width, columns int
-		want           int
+		name    string
+		columns int
+		want    int
 	}{
-		{"wide terminal keeps the width", 20, 200, 20},
-		{"exactly 160 keeps the width", 20, 160, 20},
-		{"medium terminal takes 70%", 20, 140, 14},
-		{"exactly 120 is medium", 20, 120, 14},
-		{"narrow terminal halves", 20, 100, 10},
-		{"floor of four", 6, 10, 4},
-		{"floor applies on wide terminals", 2, 999, 4},
-		{"cap of 200", 5000, 999, 200},
-		{"rounds down", 15, 140, 10},
+		{"wide terminal", 200, 20},
+		{"exactly 160 is wide", 160, 20},
+		{"159 is medium", 159, 14},
+		{"exactly 120 is medium", 120, 14},
+		{"119 is narrow", 119, 10},
+		{"tiny", 10, 10},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, bar.ResponsiveWidth(tt.width, tt.columns))
+			assert.Equal(t, tt.want, bar.WidthFor(tt.columns, 20, 14, 10))
 		})
 	}
+
+	assert.Equal(t, 4, bar.WidthFor(10, 20, 14, 2), "floor of four")
+	assert.Equal(t, 4, bar.WidthFor(999, 1, 1, 1), "floor applies on wide terminals")
+	assert.Equal(t, 200, bar.WidthFor(999, 5000, 5000, 5000), "cap of 200")
 }
 
 func TestElapsedPercent(t *testing.T) {

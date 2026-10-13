@@ -70,18 +70,18 @@ Configuration is optional. Your settings live in `~/.claude/claude-statusline/co
 
 | Key | Default | Meaning |
 |---|---|---|
-| `segments` | `path model ctx tokens cache rate5h rate7d` | Segments to show, in order. Unknown names are skipped. |
+| `segments` | `path model ctx tokens cache boot skills skills_stripped agent_skills mem rate5h rate7d` | Segments to show, in order. Unknown names are skipped. |
 | `separator` | `·` | Glyph drawn between segments. |
 | `theme` | `default` | Colour theme. Unknown names fall back to `default`. |
 | `path.strip` | empty | Directory prefixes to strip from the path, separated by spaces; a leading `~` means your home directory. |
 | `path.branch` | `true` | Show the git branch after the path (`true` or `false`). |
 | `model.effort` | `true` | Show the effort level after the model name (`true` or `false`). |
-| `ctx.width` | `10` | Context bar width in cells on a wide terminal. |
+| `ctx.width`, `ctx.width_medium`, `ctx.width_narrow` | `10`, `8`, `6` | Context bar width in cells at 160 columns or more, below 160, and below 120. |
 | `ctx.warn` | `50` | Context usage percentage at or above which the fill turns amber. |
 | `ctx.bad` | `90` | Context usage percentage at or above which the fill turns red. |
 | `cache.warn` | `5` | Prompt cache hit percentage below which the cache figure turns red. |
 | `rate5h.label`, `rate7d.label` | `5h`, `7d` | Text shown before the bar. |
-| `rate5h.width`, `rate7d.width` | `20` | Bar width in cells on a wide terminal. |
+| `rate5h.width`, `rate5h.width_medium`, `rate5h.width_narrow` (and the same for `rate7d`) | `20`, `14`, `10` | Bar width in cells at 160 columns or more, below 160, and below 120. |
 | `rate5h.warn`, `rate7d.warn` | `20`, `10` | Pace deviation, in percentage points, beyond which the fill turns amber. |
 | `rate5h.bad`, `rate7d.bad` | `40`, `20` | Pace deviation, in percentage points, beyond which the fill turns red. |
 | `rate5h.hard_cap`, `rate7d.hard_cap` | `95` | Usage percentage at or above which the fill is always red. |
@@ -98,13 +98,26 @@ The branch comes from reading `.git` files, never from running `git`. The status
 
 ### Context, tokens and cache
 
-The `ctx` segment draws context-window usage as a bar with no pace marker. The fill is green below `ctx.warn`, amber from `ctx.warn` and red from `ctx.bad`, and it narrows on small terminals in the same way as the rate-limit bars. The `tokens` segment shows session input and output totals as `↓ 1.5k · ↑ 23.4k`, truncating to one decimal place (`999`, `1.0k`, `999.9k`, `1.0M`); either half is left out when the payload does not report it. The `cache` segment shows `⧉ NN%`, the share of the latest request's input read from the prompt cache, in red when it falls below `cache.warn`. It is hidden when the request reported no input. Each segment is hidden when its data is missing.
+The `ctx` segment draws context-window usage as a bar with no pace marker. The fill is green below `ctx.warn`, amber from `ctx.warn` and red from `ctx.bad`, and its width follows the terminal in the same way as the rate-limit bars. The `tokens` segment shows session input and output totals as `↓ 1.5k · ↑ 23.4k`, truncating to one decimal place (`999`, `1.0k`, `999.9k`, `1.0M`); either half is left out when the payload does not report it. The `cache` segment shows `⧉ NN%`, the share of the latest request's input read from the prompt cache, in red when it falls below `cache.warn`. It is hidden when the request reported no input. Each segment is hidden when its data is missing.
 
 ### Rate-limit bars
 
-The `rate5h` and `rate7d` segments draw your 5 hour and 7 day usage as a bar followed by the percentage. The vertical marker `┃` sits at the point in the window you would reach if you spent your quota evenly. The fill is green while your usage is close to the marker, amber once it drifts more than `warn` points either way, and red beyond `bad` points or at `hard_cap`. A bar disappears once its window has reset. Bars narrow on small terminals: half width below 120 columns and 70% below 160 (`$COLUMNS`), never under 4 cells.
+The `rate5h` and `rate7d` segments draw your 5 hour and 7 day usage as a bar followed by the percentage. The vertical marker `┃` sits at the point in the window you would reach if you spent your quota evenly. The fill is green while your usage is close to the marker, amber once it drifts more than `warn` points either way, and red beyond `bad` points or at `hard_cap`. A bar disappears once its window has reset. Bars narrow on small terminals: each has a wide width, a `width_medium` used below 160 columns and a `width_narrow` used below 120 (`$COLUMNS`), and a bar is never under 4 or over 200 cells.
 
 Rate limits belong to your account, not to a session, and an idle session's payload goes stale. Readings are therefore shared between sessions through `~/.claude/claude-statusline/cache/ratelimits` (under `$CLAUDE_CONFIG_DIR` if set). A session replaces the cached reading only with a newer window, higher usage, or a drop of more than 10 points (a mid-window quota reset), and the line is always drawn from the merged value. The file is private state and may change between versions.
+
+### Transcript diagnostics
+
+These segments are read from the session transcript (`transcript_path` in the payload). Only its first 40 lines and last 200 lines are read, each within a few megabytes, so a huge transcript costs nothing extra; a missing or unreadable transcript simply hides them. The `model` segment also uses it, and the rest are in the usage group.
+
+| Segment | Shows | When |
+|---|---|---|
+| `model` | `Haiku (skill)` instead of the model name and effort | The latest assistant turn in the transcript ran a different model family (haiku, sonnet, opus, fable or mythos) than the session's, as happens when a skill or subagent sets its own model. |
+| `boot` | `⌂ 64.5k` | Prompt tokens on the first assistant turn: the system prompt, tools, skill listing and memory before you have said anything. |
+| `skills` | `⚙ 9.5k` | Size of the skill listing that is always loaded, as its length in characters divided by 4. |
+| `skills_stripped` | `✗ skills 3/12` in red | 3 of 12 listed skills had their descriptions stripped to fit the listing budget. |
+| `agent_skills` | `✗ agent skills 3/12` in amber | The same, for the subagent with the most stripped skills. |
+| `mem` | `✗ mem` in red | A `SessionStart` hook's output was too large to inject, so Claude Code replaced it with a short preview. |
 
 ## Wrapping
 
