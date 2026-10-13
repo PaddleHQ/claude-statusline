@@ -3,6 +3,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -14,8 +15,31 @@ type payload struct {
 	} `json:"model"`
 }
 
+// Set at build time via -ldflags -X; every target must exist or the stamp silently no-ops.
+var (
+	version = "dev"
+	commit  = ""
+	date    = ""
+)
+
 func main() {
-	run(os.Stdin, os.Stdout)
+	execute(os.Args[1:], os.Stdin, os.Stdout)
+}
+
+func execute(args []string, stdin io.Reader, stdout io.Writer) {
+	if len(args) > 0 && args[0] == "--version" {
+		_, _ = fmt.Fprintln(stdout, versionString())
+		return
+	}
+	run(stdin, stdout)
+}
+
+func versionString() string {
+	s := "claude-statusline " + version
+	if commit != "" {
+		s += " (" + commit + ", " + date + ")"
+	}
+	return s
 }
 
 // run never reports failures: a blank status line is better than a broken one.
