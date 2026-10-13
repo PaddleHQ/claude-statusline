@@ -3,6 +3,8 @@ package segment
 import (
 	"fmt"
 	"strings"
+
+	"github.com/PaddleHQ/claude-statusline/internal/layout"
 )
 
 const (
@@ -15,6 +17,8 @@ const (
 type tokens struct{}
 
 func (tokens) Name() string { return "tokens" }
+
+func (tokens) Group() layout.Group { return layout.Usage }
 
 func (tokens) Keys() []string { return nil }
 

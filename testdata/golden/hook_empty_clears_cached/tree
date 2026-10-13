@@ -1,0 +1,2 @@
++x statusline.d/10-c.sh=#!/bin/sh\nexit 0
+claude-statusline/cache/hooks/abc123/10-c.sh=1759999000\nstale

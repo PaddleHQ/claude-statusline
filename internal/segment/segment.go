@@ -2,10 +2,11 @@
 package segment
 
 import (
-	"strings"
 	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
+	"github.com/PaddleHQ/claude-statusline/internal/hook"
+	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
@@ -15,6 +16,8 @@ import (
 // so a test can check them against defaults.conf.
 type Segment interface {
 	Name() string
+	// Group says which part of the line the segment belongs to when it wraps.
+	Group() layout.Group
 	Keys() []string
 	Render(*Context) string
 }
@@ -29,6 +32,8 @@ type Context struct {
 	Now     time.Time
 	Columns int
 	Home    string
+	// Hooks holds the output of the user's hook scripts, in filename order.
+	Hooks []hook.Result
 }
 
 const (
@@ -61,20 +66,13 @@ func Keys() []string {
 	return keys
 }
 
-// Render joins the configured segments in order. Unknown names and empty renders are dropped.
+// Render lays out the configured segments and the user's hooks, wrapping onto further rows when they do not fit.
 func Render(ctx *Context) string {
-	sep := separator(ctx)
-	var parts []string
-	for _, name := range strings.Fields(ctx.Config.String(keySegments)) {
-		s, ok := Lookup(name)
-		if !ok {
-			continue
-		}
-		if out := s.Render(ctx); out != "" {
-			parts = append(parts, out)
-		}
-	}
-	return strings.Join(parts, sep)
+	return layout.Render(items(ctx), layout.Options{
+		Columns:   ctx.Columns,
+		Separator: separator(ctx),
+		Anchor:    ctx.Theme.Paint(ctx.Theme.Muted, "↳"),
+	})
 }
 
 func separator(ctx *Context) string {

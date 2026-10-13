@@ -1,0 +1,2 @@
++x statusline.d/10-ctxhook.sh=#!/bin/sh\nprintf 'ctx-hook'
++x statusline.d/11-second.sh=#!/bin/sh\nprintf 'second-hook'

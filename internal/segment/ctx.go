@@ -5,12 +5,15 @@ import (
 	"strconv"
 
 	"github.com/PaddleHQ/claude-statusline/internal/bar"
+	"github.com/PaddleHQ/claude-statusline/internal/layout"
 )
 
 // ctxBar draws context-window usage as "ctx: <bar> <NN>%", coloured by absolute usage.
 type ctxBar struct{}
 
 func (ctxBar) Name() string { return "ctx" }
+
+func (ctxBar) Group() layout.Group { return layout.Identity }
 
 func (ctxBar) Keys() []string { return []string{"ctx.width", "ctx.warn", "ctx.bad"} }
 

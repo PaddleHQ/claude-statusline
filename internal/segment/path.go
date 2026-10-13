@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/gitbranch"
+	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 )
 
@@ -11,6 +12,8 @@ import (
 type path struct{}
 
 func (path) Name() string { return "path" }
+
+func (path) Group() layout.Group { return layout.Identity }
 
 func (path) Keys() []string { return []string{"path.strip", "path.branch"} }
 

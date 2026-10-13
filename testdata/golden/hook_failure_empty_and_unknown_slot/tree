@@ -1,0 +1,3 @@
++x statusline.d/10-fail.sh=#!/bin/sh\nexit 1
++x statusline.d/20-empty.sh=#!/bin/sh\nexit 0
++x statusline.d/30-typo.sh=#!/bin/sh\n# statusline-slot: bogus\nprintf 'typo-slot'

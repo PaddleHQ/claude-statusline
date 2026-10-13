@@ -14,6 +14,7 @@ import (
 // Each testdata/golden/<case>/ holds input.json and expected, plus optional config, env, cache (seeded
 // before the run), tree (files created in the temp directory before the run) and expected_cache (compared after it).
 // Each tree line is path=content, relative to the temp directory; a path ending in / makes a directory.
+// A line starting with +x makes the file executable, as a hook script needs to be, and \n in content is a newline.
 // Escape bytes in the output are compared as the text \e, and @TMP@ stands for the case's temp directory
 // in input.json, config, tree and expected.
 func TestGolden(t *testing.T) {
@@ -67,14 +68,19 @@ func runGolden(t *testing.T, dir string) {
 			if line == "" {
 				continue
 			}
+			mode := os.FileMode(0o600)
+			if rest, ok := strings.CutPrefix(line, "+x "); ok {
+				line, mode = rest, 0o700
+			}
 			rel, content, _ := strings.Cut(line, "=")
+			content = strings.ReplaceAll(content, `\n`, "\n")
 			path := filepath.Join(tmp, rel)
 			if strings.HasSuffix(rel, "/") {
 				require.NoError(t, os.MkdirAll(path, 0o700))
 				continue
 			}
 			require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
-			require.NoError(t, os.WriteFile(path, []byte(strings.ReplaceAll(content, "@TMP@", tmp)+"\n"), 0o600))
+			require.NoError(t, os.WriteFile(path, []byte(strings.ReplaceAll(content, "@TMP@", tmp)+"\n"), mode))
 		}
 	}
 
@@ -90,7 +96,7 @@ func runGolden(t *testing.T, dir string) {
 	got := strings.ReplaceAll(out.String(), "\033", `\e`)
 	wantText := strings.TrimSuffix(strings.ReplaceAll(string(want), "@TMP@", tmp), "\n")
 	assert.Equal(t, wantText, got)
-	assert.NotContains(t, out.String(), "\n", "output contains a newline")
+	assert.NotRegexp(t, "[\x00-\x09\x0b-\x1a\x1c-\x1f\x7f]", out.String(), "output contains a control character other than newline and escape")
 	if wantCache, err := os.ReadFile(filepath.Join(dir, "expected_cache")); err == nil {
 		gotCache, _ := os.ReadFile(cacheFile)
 		assert.Equal(t, strings.TrimSpace(string(wantCache)), strings.TrimSpace(string(gotCache)), "cache mismatch")

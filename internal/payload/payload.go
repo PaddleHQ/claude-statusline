@@ -12,10 +12,12 @@ const maxCount = 1e15
 
 // Payload holds the fields the status line reads. Strings are safe to print.
 type Payload struct {
-	Model         Model
-	Effort        Effort
-	RateLimits    RateLimits
-	Cwd           string
+	Model      Model
+	Effort     Effort
+	RateLimits RateLimits
+	Cwd        string
+	// SessionID is empty unless the payload's id is made only of letters, digits, hyphens and underscores.
+	SessionID     string
 	ContextWindow ContextWindow
 }
 
@@ -73,7 +75,8 @@ func Parse(data []byte) Payload {
 			FiveHour: window(root.Get("rate_limits.five_hour")),
 			SevenDay: window(root.Get("rate_limits.seven_day")),
 		},
-		Cwd: cwd(root),
+		Cwd:       cwd(root),
+		SessionID: sessionID(root),
 		ContextWindow: ContextWindow{
 			UsedPercentage: number(root.Get("context_window.used_percentage")),
 			TotalInput:     count(root.Get("context_window.total_input_tokens")),
@@ -85,6 +88,22 @@ func Parse(data []byte) Payload {
 			},
 		},
 	}
+}
+
+func sessionID(root gjson.Result) string {
+	id := root.Get("session_id")
+	if id.Type != gjson.String || id.String() == "" || strings.ContainsFunc(id.String(), unsafeInPath) {
+		return ""
+	}
+	return id.String()
+}
+
+func unsafeInPath(r rune) bool {
+	switch {
+	case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_':
+		return false
+	}
+	return true
 }
 
 func cwd(root gjson.Result) string {

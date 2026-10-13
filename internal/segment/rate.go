@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/PaddleHQ/claude-statusline/internal/bar"
+	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 )
 
@@ -20,6 +21,8 @@ type rate struct {
 }
 
 func (r rate) Name() string { return r.name }
+
+func (r rate) Group() layout.Group { return layout.Rates }
 
 func (r rate) Keys() []string {
 	return []string{r.name + ".label", r.name + ".width", r.name + ".warn", r.name + ".bad", r.name + ".hard_cap"}

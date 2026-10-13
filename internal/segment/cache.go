@@ -1,6 +1,10 @@
 package segment
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/PaddleHQ/claude-statusline/internal/layout"
+)
 
 const percentScale = 100
 
@@ -8,6 +12,8 @@ const percentScale = 100
 type cache struct{}
 
 func (cache) Name() string { return "cache" }
+
+func (cache) Group() layout.Group { return layout.Usage }
 
 func (cache) Keys() []string { return []string{"cache.warn"} }
 

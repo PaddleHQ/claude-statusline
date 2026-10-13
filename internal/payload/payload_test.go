@@ -33,6 +33,31 @@ func TestParse(t *testing.T) {
 	})
 }
 
+func TestParseSessionID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"plain", `{"session_id":"abc-123_DEF"}`, "abc-123_DEF"},
+		{"missing", `{}`, ""},
+		{"path traversal", `{"session_id":"../../etc"}`, ""},
+		{"separator", `{"session_id":"a/b"}`, ""},
+		{"dot", `{"session_id":"."}`, ""},
+		{"control character", "{\"session_id\":\"a\\u001bb\"}", ""},
+		{"not a string", `{"session_id":123}`, ""},
+		{"empty", `{"session_id":""}`, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, payload.Parse([]byte(tt.input)).SessionID)
+		})
+	}
+}
+
 func TestParseRejectsBadRateValues(t *testing.T) {
 	t.Parallel()
 

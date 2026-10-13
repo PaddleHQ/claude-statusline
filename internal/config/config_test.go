@@ -27,7 +27,7 @@ func TestDefaultKeys(t *testing.T) {
 
 	keys := config.DefaultKeys()
 	slices.Sort(keys)
-	want := []string{"cache.warn", "ctx.bad", "ctx.warn", "ctx.width", "model.effort", "path.branch", "path.strip", "rate5h.bad", "rate5h.hard_cap", "rate5h.label", "rate5h.warn", "rate5h.width", "rate7d.bad", "rate7d.hard_cap", "rate7d.label", "rate7d.warn", "rate7d.width", "segments", "separator", "theme"}
+	want := []string{"cache.warn", "ctx.bad", "ctx.warn", "ctx.width", "hooks.timeout", "hooks.ttl", "model.effort", "path.branch", "path.strip", "rate5h.bad", "rate5h.hard_cap", "rate5h.label", "rate5h.warn", "rate5h.width", "rate7d.bad", "rate7d.hard_cap", "rate7d.label", "rate7d.warn", "rate7d.width", "segments", "separator", "theme"}
 	assert.Equal(t, want, keys)
 }
 
