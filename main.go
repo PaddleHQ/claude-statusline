@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/PaddleHQ/claude-statusline/internal/setup"
 )
 
 type payload struct {
@@ -31,7 +33,23 @@ func execute(args []string, stdin io.Reader, stdout io.Writer) {
 		_, _ = fmt.Fprintln(stdout, versionString())
 		return
 	}
+	if len(args) > 0 && args[0] == "setup" {
+		setup.Run(stdout, eventFlag(args[1:]), version)
+		return
+	}
 	run(stdin, stdout)
+}
+
+func eventFlag(args []string) string {
+	for _, a := range args {
+		if v, ok := strings.CutPrefix(a, "--event="); ok {
+			switch v {
+			case setup.EventInstalled, setup.EventUpdated:
+				return v
+			}
+		}
+	}
+	return setup.EventCurrent
 }
 
 func versionString() string {

@@ -42,14 +42,17 @@ bad() {
   echo "FAIL - $NAME: $1"
 }
 
-# Builds a fake release for version $1 and a plugin root pinned to $2.
+# The stand-in binary answers --version and records and echoes its setup arguments.
 make_release() {
   v="$1"
   d="$T/build-$v"
   mkdir -p "$d" "$T/releases/v$v"
   cat > "$d/claude-statusline" <<STUB
 #!/bin/sh
-[ "\$1" = --version ] && echo "claude-statusline $v (abc, 2026-01-01)"
+case "\$1" in
+  --version) echo "claude-statusline $v (abc, 2026-01-01)" ;;
+  setup) echo "\$*" >> "\$STUB_LOG"; echo "{\"systemMessage\":\"stub \$2\"}" ;;
+esac
 exit 0
 STUB
   chmod 755 "$d/claude-statusline"
@@ -68,201 +71,134 @@ pin() {
   fi
 }
 
-new_env() {
-  T="$WORK/$1"
+start() {
+  NAME="$1"
+  FAIL_START="$FAIL"
+  T="$WORK/$2"
   mkdir -p "$T/home" "$T/claude" "$T/plugin"
   : > "$T/checksums.all"
+  : > "$T/setup.log"
   cp -R "$ROOT/hooks" "$T/plugin/hooks"
   BIN="$T/claude/claude-statusline/bin/claude-statusline"
-  SETTINGS="$T/claude/settings.json"
 }
 
 run_hook() {
   HOME="$T/home" CLAUDE_CONFIG_DIR="$T/claude" CLAUDE_PLUGIN_ROOT="$T/plugin" \
-    CLAUDE_STATUSLINE_DOWNLOAD_BASE="file://$T/releases" \
+    CLAUDE_STATUSLINE_DOWNLOAD_BASE="file://$T/releases" STUB_LOG="$T/setup.log" \
     sh "$T/plugin/hooks/bootstrap.sh" > "$T/out" 2> "$T/err"
   RC=$?
-}
-
-assert_clean_exit() {
   [ "$RC" = 0 ] || bad "exit code $RC"
   [ ! -s "$T/err" ] || bad "stderr not empty: $(cat "$T/err")"
+}
+
+assert_setup_events() {
+  [ "$(cat "$T/setup.log")" = "$1" ] || bad "setup calls were '$(cat "$T/setup.log")', want '$1'"
 }
 
 assert_silent() {
   [ ! -s "$T/out" ] || bad "expected no output, got: $(cat "$T/out")"
 }
 
-message() {
-  jq -er '.systemMessage' "$T/out" 2>/dev/null
+assert_message() {
+  grep -q "^{\"systemMessage\":\".*$1.*\"}\$" "$T/out" || bad "output '$(cat "$T/out")' lacks message matching $1"
+  [ "$(wc -l < "$T/out" | tr -d ' ')" = 1 ] || bad "expected exactly one line of output"
 }
 
-assert_message_matches() {
-  msg=$(message) || { bad "output is not a systemMessage JSON: $(cat "$T/out")"; return; }
-  printf '%s' "$msg" | grep -Eq "$1" || bad "message '$msg' does not match $1"
-  [ "$(wc -l < "$T/out" | tr -d ' ')" = 1 ] || bad "expected exactly one line of output"
+assert_not_installed() {
+  [ ! -e "$BIN" ] || bad "binary was installed"
+  assert_setup_events ""
 }
 
 finish() {
   if [ "$FAIL" = "$FAIL_START" ]; then ok; fi
 }
 
-start() {
-  NAME="$1"
-  FAIL_START="$FAIL"
-  new_env "$2"
-}
-
-if ! command -v jq >/dev/null 2>&1; then
-  echo "jq is required to run these tests" >&2
-  exit 1
-fi
-
 start "empty pin is a silent no-op" t1
 pin ""
 run_hook
-assert_clean_exit
 assert_silent
+assert_setup_events ""
 [ ! -e "$T/claude/claude-statusline" ] || bad "created the app dir"
-[ ! -e "$SETTINGS" ] || bad "created settings.json"
 finish
 
-start "fresh install wires statusLine, backup and sentinel" t2
+start "fresh install runs setup with the installed event" t2
 make_release 1.2.3
 pin 1.2.3 y
-printf '{"theme":"dark"}\n' > "$SETTINGS"
 run_hook
-assert_clean_exit
-assert_message_matches 'v1\.2\.3 installed and enabled'
+assert_setup_events "setup --event=installed"
+assert_message 'stub --event=installed'
 [ -x "$BIN" ] || bad "binary not installed"
-[ -e "$T/claude/claude-statusline/.bootstrapped" ] || bad "no sentinel"
-[ "$(cat "$SETTINGS.bak")" = '{"theme":"dark"}' ] || bad "backup differs from original"
-[ "$(jq -r '.statusLine.command' "$SETTINGS")" = "$BIN" ] || bad "statusLine.command wrong"
-[ "$(jq -r '.statusLine.refreshInterval' "$SETTINGS")" = 60 ] || bad "refreshInterval wrong"
-[ "$(jq -r '.statusLine.type' "$SETTINGS")" = command ] || bad "type wrong"
-[ "$(jq -r '.theme' "$SETTINGS")" = dark ] || bad "existing settings lost"
 for left in "$T"/claude/claude-statusline/tmp.*; do [ ! -e "$left" ] || bad "temp dir left behind"; done
 finish
 
-start "second run is silent and does not touch the network" t3
+start "second run makes no network request and runs setup with the current event" t3
 make_release 1.2.3
 pin 1.2.3 y
 run_hook
-cp "$SETTINGS" "$T/settings.after1"
 rm -rf "$T/releases"
+: > "$T/setup.log"
 run_hook
-assert_clean_exit
-assert_silent
-cmp -s "$SETTINGS" "$T/settings.after1" || bad "settings changed on second run"
+assert_setup_events "setup --event=current"
 finish
 
-start "fresh install with no settings.json creates one" t4
-make_release 1.2.3
-pin 1.2.3 y
-run_hook
-assert_clean_exit
-[ "$(jq -r '.statusLine.command' "$SETTINGS")" = "$BIN" ] || bad "statusLine not set"
-finish
-
-start "existing user statusLine is left untouched" t5
-make_release 1.2.3
-pin 1.2.3 y
-printf '{"statusLine":{"type":"command","command":"/usr/bin/mine"}}\n' > "$SETTINGS"
-cp "$SETTINGS" "$T/settings.orig"
-run_hook
-assert_clean_exit
-assert_message_matches 'already have a statusLine'
-cmp -s "$SETTINGS" "$T/settings.orig" || bad "settings.json was modified"
-[ ! -e "$SETTINGS.bak" ] || bad "unexpected backup"
-[ -e "$T/claude/claude-statusline/.bootstrapped" ] || bad "no sentinel"
-[ -x "$BIN" ] || bad "binary not installed"
-finish
-
-start "checksum mismatch is not installed" t6
+start "checksum mismatch is not installed" t4
 make_release 1.2.3
 pin 1.2.3 y
 printf 'tampered' >> "$T/releases/v1.2.3/claude-statusline_1.2.3_${OS}_${ARCH}.tar.gz"
 run_hook
-assert_clean_exit
-assert_message_matches 'FAILED checksum verification and was NOT installed'
-[ ! -e "$BIN" ] || bad "binary was installed"
-[ ! -e "$SETTINGS" ] || bad "settings.json was created"
-[ ! -e "$T/claude/claude-statusline/.bootstrapped" ] || bad "sentinel created"
+assert_message 'FAILED checksum verification and was NOT installed'
+assert_not_installed
 finish
 
-start "missing checksum line gives a message" t7
+start "missing checksum line gives a message" t5
 make_release 1.2.3
 pin 1.2.3
 run_hook
-assert_clean_exit
-assert_message_matches 'no checksum is pinned'
-[ ! -e "$BIN" ] || bad "binary was installed"
+assert_message 'no checksum is pinned'
+assert_not_installed
 finish
 
-start "version bump replaces the binary and leaves settings alone" t8
+start "version bump replaces the binary and runs setup with the updated event" t6
 make_release 1.2.3
 make_release 1.2.4
 pin 1.2.3 y
 run_hook
-cp "$SETTINGS" "$T/settings.after1"
+: > "$T/setup.log"
 pin 1.2.4 y
 run_hook
-assert_clean_exit
-assert_message_matches 'updated to v1\.2\.4'
+assert_setup_events "setup --event=updated"
 [ "$("$BIN" --version | awk '{ print $2 }')" = 1.2.4 ] || bad "binary not upgraded"
-cmp -s "$SETTINGS" "$T/settings.after1" || bad "settings changed on upgrade"
 finish
 
-start "invalid version string gives a message" t9
-pin "1.2" y
-run_hook
-assert_clean_exit
-assert_message_matches 'invalid pinned version'
-[ ! -e "$T/claude/claude-statusline" ] || bad "created the app dir"
-finish
-
-start "failed upgrade keeps the previous binary" t10
+start "failed upgrade keeps the previous binary" t7
 make_release 1.2.3
 make_release 1.2.4
 pin 1.2.3 y
 run_hook
+: > "$T/setup.log"
 printf 'tampered' >> "$T/releases/v1.2.4/claude-statusline_1.2.4_${OS}_${ARCH}.tar.gz"
 pin 1.2.4 y
 run_hook
-assert_clean_exit
-assert_message_matches 'FAILED checksum verification'
+assert_message 'FAILED checksum verification'
+assert_setup_events ""
 [ "$("$BIN" --version | awk '{ print $2 }')" = 1.2.3 ] || bad "previous binary was replaced"
 finish
 
-start "invalid settings.json is left untouched" t11
-make_release 1.2.3
-pin 1.2.3 y
-printf 'not json' > "$SETTINGS"
+start "invalid version string gives a message" t8
+pin "1.2" y
 run_hook
-assert_clean_exit
-assert_message_matches 'not valid JSON'
-[ "$(cat "$SETTINGS")" = 'not json' ] || bad "settings.json was modified"
-[ ! -e "$T/claude/claude-statusline/.bootstrapped" ] || bad "sentinel created"
+assert_message 'invalid pinned version'
+assert_setup_events ""
+[ ! -e "$T/claude/claude-statusline" ] || bad "created the app dir"
 finish
 
-start "no jq on PATH prints the settings snippet" t12
+start "unreachable download gives a message and installs nothing" t9
 make_release 1.2.3
 pin 1.2.3 y
-printf '{"theme":"dark"}\n' > "$SETTINGS"
-NOJQ="$T/nojq"
-mkdir -p "$NOJQ"
-for tool in sh awk sed grep tr cat cp mv rm mkdir mktemp tar tail head cut uname dirname chmod touch curl shasum sha256sum wc ls date; do
-  p=$(command -v "$tool" 2>/dev/null) && ln -s "$p" "$NOJQ/$tool"
-done
-PATH="$NOJQ" HOME="$T/home" CLAUDE_CONFIG_DIR="$T/claude" CLAUDE_PLUGIN_ROOT="$T/plugin" \
-  CLAUDE_STATUSLINE_DOWNLOAD_BASE="file://$T/releases" \
-  "$NOJQ/sh" "$T/plugin/hooks/bootstrap.sh" > "$T/out" 2> "$T/err"
-RC=$?
-assert_clean_exit
-grep -q 'jq was not found' "$T/out" || bad "missing jq message: $(cat "$T/out")"
-jq -e '.systemMessage' "$T/out" >/dev/null || bad "output is not valid JSON"
-[ "$(cat "$SETTINGS")" = '{"theme":"dark"}' ] || bad "settings.json was modified"
-[ -e "$T/claude/claude-statusline/.bootstrapped" ] || bad "no sentinel"
+rm -rf "$T/releases"
+run_hook
+assert_message 'downloading v1.2.3 failed'
+assert_not_installed
 finish
 
 NAME="real Claude config dir untouched"

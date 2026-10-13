@@ -13,7 +13,7 @@ It is at a very early stage: for now it prints only the model name, for example 
 /plugin install statusline@claude-statusline
 ```
 
-On your next session start, a hook downloads the pinned release for your platform, checks its sha256 against the hashes committed in this repository, and installs it to `~/.claude/claude-statusline/bin`. It sets `statusLine` in `settings.json` only if you do not already have one, backing the file up first, and never touches it again. Once the right version is installed, later sessions make no network requests. Without `jq` the hook cannot edit `settings.json` and tells you what to add instead.
+On your next session start, a hook downloads the pinned release for your platform, checks its sha256 against the hashes committed in this repository, and installs it to `~/.claude/claude-statusline/bin`. It then runs `claude-statusline setup`, which sets `statusLine` in `settings.json` only if you do not already have one, backing the file up first, and never touches it again. Once the right version is installed, later sessions make no network requests.
 
 ### Manual install
 
