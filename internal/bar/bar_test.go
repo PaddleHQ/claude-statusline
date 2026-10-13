@@ -105,3 +105,27 @@ func TestRenderWidth(t *testing.T) {
 	assert.Len(t, []rune(got), 20, "bar = %q", got)
 	assert.Equal(t, 1, strings.Count(got, "M"), "bar should hold exactly one marker: %q", got)
 }
+
+func TestRenderNoTarget(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		usage int
+		want  string
+	}{
+		{"below warn is good", 49, "<g>F</><g>F</><d>E</><d>E</>"},
+		{"at warn is amber", 50, "<w>F</><w>F</><d>E</><d>E</>"},
+		{"just below bad is amber", 89, "<w>F</><w>F</><w>F</><w>4</>"},
+		{"at bad is red", 90, "<b>F</><b>F</><b>F</><b>5</>"},
+		{"empty has no marker", 0, "<d>E</><d>E</><d>E</><d>E</>"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := bar.Render(bar.Params{Usage: tt.usage, Target: 10, Width: 4, Warn: 50, Bad: 90, HardCap: 1, NoTarget: true}, markers)
+			assert.Equal(t, tt.want, got)
+			assert.NotContains(t, got, "M")
+		})
+	}
+}

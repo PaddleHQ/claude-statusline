@@ -1,0 +1,2 @@
+segments = path
+path.strip = /srv/work

@@ -45,6 +45,7 @@ func Build(input []byte, getenv func(string) string) string {
 		Theme:   th,
 		Now:     at,
 		Columns: columns(getenv),
+		Home:    getenv("HOME"),
 	})
 }
 

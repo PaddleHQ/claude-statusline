@@ -10,6 +10,7 @@ type Theme struct {
 	Warn   string
 	Bad    string
 	Marker string
+	Path   string
 	Reset  string
 
 	Full        string
@@ -28,6 +29,7 @@ var themes = map[string]Theme{
 		Warn:   "\033[33m",
 		Bad:    "\033[31m",
 		Marker: "\033[1m",
+		Path:   "\033[1m\033[38;5;33m",
 		Reset:  "\033[0m",
 
 		Full:        "█",
@@ -47,7 +49,7 @@ func Lookup(name string) Theme {
 
 // WithoutColor clears every colour and style, keeping the glyphs.
 func (t Theme) WithoutColor() Theme {
-	t.Text, t.Muted, t.Good, t.Warn, t.Bad, t.Marker, t.Reset = "", "", "", "", "", "", ""
+	t.Text, t.Muted, t.Good, t.Warn, t.Bad, t.Marker, t.Path, t.Reset = "", "", "", "", "", "", "", ""
 	return t
 }
 

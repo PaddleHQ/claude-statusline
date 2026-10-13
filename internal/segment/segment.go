@@ -28,6 +28,7 @@ type Context struct {
 	Theme   theme.Theme
 	Now     time.Time
 	Columns int
+	Home    string
 }
 
 const (
@@ -36,7 +37,11 @@ const (
 )
 
 var registry = map[string]Segment{
+	"path":   path{},
 	"model":  model{},
+	"ctx":    ctxBar{},
+	"tokens": tokens{},
+	"cache":  cache{},
 	"rate5h": rate{name: "rate5h", seconds: fiveHourSeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.FiveHour }},
 	"rate7d": rate{name: "rate7d", seconds: sevenDaySeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.SevenDay }},
 }
@@ -58,7 +63,7 @@ func Keys() []string {
 
 // Render joins the configured segments in order. Unknown names and empty renders are dropped.
 func Render(ctx *Context) string {
-	sep := " " + ctx.Theme.Paint(ctx.Theme.Muted, ctx.Config.String(keySeparator)) + " "
+	sep := separator(ctx)
 	var parts []string
 	for _, name := range strings.Fields(ctx.Config.String(keySegments)) {
 		s, ok := Lookup(name)
@@ -70,4 +75,8 @@ func Render(ctx *Context) string {
 		}
 	}
 	return strings.Join(parts, sep)
+}
+
+func separator(ctx *Context) string {
+	return " " + ctx.Theme.Paint(ctx.Theme.Muted, ctx.Config.String(keySeparator)) + " "
 }

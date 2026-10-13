@@ -2,7 +2,7 @@
 
 An open-source status line for Claude Code, written in Go.
 
-It is at an early stage: for now it prints the model, effort level and rate-limit usage bars, for example `Opus 4.7 [high]`. It reads the session JSON that Claude Code passes on stdin, prints one line with no trailing newline, and always exits 0. Control characters are stripped from every string taken from the session, and anything unexpected results in blank output rather than an error.
+It is at an early stage: for now it prints the working directory and git branch, model, context usage, token counts, prompt-cache hit rate and rate-limit usage bars, for example `~/code/app (main) · Opus 4.7 [high] · ctx: ████▎░░░░░ 42% · ↓ 1.5k · ↑ 23.4k · ⧉ 85% · 5h: ████████▌┃░░░░░░░░░ 45%`. It reads the session JSON that Claude Code passes on stdin, prints one line with no trailing newline, and always exits 0. Control characters are stripped from every string taken from the session, and anything unexpected results in blank output rather than an error.
 
 ## Install
 
@@ -70,10 +70,16 @@ Configuration is optional. Your settings live in `~/.claude/claude-statusline/co
 
 | Key | Default | Meaning |
 |---|---|---|
-| `segments` | `model rate5h rate7d` | Segments to show, in order. Unknown names are skipped. |
+| `segments` | `path model ctx tokens cache rate5h rate7d` | Segments to show, in order. Unknown names are skipped. |
 | `separator` | `·` | Glyph drawn between segments. |
 | `theme` | `default` | Colour theme. Unknown names fall back to `default`. |
+| `path.strip` | empty | Directory prefixes to strip from the path, separated by spaces; a leading `~` means your home directory. |
+| `path.branch` | `true` | Show the git branch after the path (`true` or `false`). |
 | `model.effort` | `true` | Show the effort level after the model name (`true` or `false`). |
+| `ctx.width` | `10` | Context bar width in cells on a wide terminal. |
+| `ctx.warn` | `50` | Context usage percentage at or above which the fill turns amber. |
+| `ctx.bad` | `90` | Context usage percentage at or above which the fill turns red. |
+| `cache.warn` | `5` | Prompt cache hit percentage below which the cache figure turns red. |
 | `rate5h.label`, `rate7d.label` | `5h`, `7d` | Text shown before the bar. |
 | `rate5h.width`, `rate7d.width` | `20` | Bar width in cells on a wide terminal. |
 | `rate5h.warn`, `rate7d.warn` | `20`, `10` | Pace deviation, in percentage points, beyond which the fill turns amber. |
@@ -81,6 +87,16 @@ Configuration is optional. Your settings live in `~/.claude/claude-statusline/co
 | `rate5h.hard_cap`, `rate7d.hard_cap` | `95` | Usage percentage at or above which the fill is always red. |
 
 Set `NO_COLOR` to any non-empty value to turn colour and styling off.
+
+### Path and branch
+
+The `path` segment shows the working directory (`workspace.current_dir`, else `cwd`). If it starts with one of the prefixes in `path.strip`, that prefix is removed (the longest match wins, and a prefix only matches whole directory names). Otherwise your home directory is shown as `~`, and any other path is shown as it is. For example, `path.strip = ~/code ~/projects` turns `/home/you/code/team/app` into `team/app`.
+
+The branch comes from reading `.git` files, never from running `git`. The status line walks up from the directory to the first `.git`; if that is a file (a worktree or submodule) it follows its `gitdir:` pointer. A branch shows as `(main)` and a detached HEAD as the first seven characters of the commit. If the files cannot be read, the branch is left out.
+
+### Context, tokens and cache
+
+The `ctx` segment draws context-window usage as a bar with no pace marker. The fill is green below `ctx.warn`, amber from `ctx.warn` and red from `ctx.bad`, and it narrows on small terminals in the same way as the rate-limit bars. The `tokens` segment shows session input and output totals as `↓ 1.5k · ↑ 23.4k`, truncating to one decimal place (`999`, `1.0k`, `999.9k`, `1.0M`); either half is left out when the payload does not report it. The `cache` segment shows `⧉ NN%`, the share of the latest request's input read from the prompt cache, in red when it falls below `cache.warn`. It is hidden when the request reported no input. Each segment is hidden when its data is missing.
 
 ### Rate-limit bars
 

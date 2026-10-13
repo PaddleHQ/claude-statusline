@@ -12,8 +12,10 @@ import (
 )
 
 // Each testdata/golden/<case>/ holds input.json and expected, plus optional config, env, cache (seeded
-// before the run) and expected_cache (compared after it).
-// Escape bytes in the output are compared as the text \e, and @TMP@ stands for the case's temp directory.
+// before the run), tree (files created in the temp directory before the run) and expected_cache (compared after it).
+// Each tree line is path=content, relative to the temp directory; a path ending in / makes a directory.
+// Escape bytes in the output are compared as the text \e, and @TMP@ stands for the case's temp directory
+// in input.json, config, tree and expected.
 func TestGolden(t *testing.T) {
 	t.Parallel()
 
@@ -60,8 +62,25 @@ func runGolden(t *testing.T, dir string) {
 		require.NoError(t, os.WriteFile(cacheFile, data, 0o600))
 	}
 
+	if data, err := os.ReadFile(filepath.Join(dir, "tree")); err == nil {
+		for _, line := range strings.Split(string(data), "\n") {
+			if line == "" {
+				continue
+			}
+			rel, content, _ := strings.Cut(line, "=")
+			path := filepath.Join(tmp, rel)
+			if strings.HasSuffix(rel, "/") {
+				require.NoError(t, os.MkdirAll(path, 0o700))
+				continue
+			}
+			require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+			require.NoError(t, os.WriteFile(path, []byte(strings.ReplaceAll(content, "@TMP@", tmp)+"\n"), 0o600))
+		}
+	}
+
 	input, err := os.ReadFile(filepath.Join(dir, "input.json"))
 	require.NoError(t, err)
+	input = []byte(strings.ReplaceAll(string(input), "@TMP@", tmp))
 	want, err := os.ReadFile(filepath.Join(dir, "expected"))
 	require.NoError(t, err)
 

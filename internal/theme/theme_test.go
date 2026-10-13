@@ -18,6 +18,7 @@ func TestLookupDefault(t *testing.T) {
 		Warn:        "\033[33m",
 		Bad:         "\033[31m",
 		Marker:      "\033[1m",
+		Path:        "\033[1m\033[38;5;33m",
 		Reset:       "\033[0m",
 		Full:        "█",
 		Partials:    [7]string{"▏", "▎", "▍", "▌", "▋", "▊", "▉"},
@@ -40,7 +41,7 @@ func TestWithoutColor(t *testing.T) {
 
 	d := theme.Lookup("default")
 	got := d.WithoutColor()
-	for _, colour := range []string{got.Text, got.Muted, got.Good, got.Warn, got.Bad, got.Marker, got.Reset} {
+	for _, colour := range []string{got.Text, got.Muted, got.Good, got.Warn, got.Bad, got.Marker, got.Path, got.Reset} {
 		assert.Empty(t, colour, "WithoutColor() kept a colour: %+v", got)
 	}
 	assert.Equal(t, d.Full, got.Full)

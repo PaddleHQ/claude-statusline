@@ -1,0 +1,93 @@
+// Package gitbranch finds the current branch by reading .git files, without running git.
+package gitbranch
+
+import (
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+const (
+	headPrefix = "ref: refs/heads/"
+	gitdirTag  = "gitdir:"
+	shortSHA   = 7
+	maxRead    = 4096
+)
+
+// Read returns the branch checked out in dir or any parent, the first seven characters
+// of the commit when HEAD is detached, or "" when there is no readable repository.
+func Read(dir string) string {
+	if !filepath.IsAbs(dir) {
+		return ""
+	}
+	for dir = filepath.Clean(dir); ; dir = filepath.Dir(dir) {
+		dotGit := filepath.Join(dir, ".git")
+		if info, err := os.Stat(dotGit); err == nil {
+			return head(gitDir(dotGit, info))
+		}
+		if filepath.Dir(dir) == dir {
+			return ""
+		}
+	}
+}
+
+// gitDir resolves a .git directory, or the directory a worktree or submodule's .git file points at.
+func gitDir(dotGit string, info os.FileInfo) string {
+	if info.IsDir() {
+		return dotGit
+	}
+	line, ok := readFile(dotGit)
+	if !ok {
+		return ""
+	}
+	target, ok := strings.CutPrefix(strings.TrimSpace(line), gitdirTag)
+	target = strings.TrimSpace(target)
+	if !ok || target == "" {
+		return ""
+	}
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(filepath.Dir(dotGit), target)
+	}
+	return target
+}
+
+func head(gitDir string) string {
+	if gitDir == "" {
+		return ""
+	}
+	content, ok := readFile(filepath.Join(gitDir, "HEAD"))
+	if !ok {
+		return ""
+	}
+	content = strings.TrimSpace(content)
+	if branch, ok := strings.CutPrefix(content, headPrefix); ok {
+		return branch
+	}
+	if isHex(content) && len(content) >= shortSHA {
+		return content[:shortSHA]
+	}
+	return ""
+}
+
+func readFile(path string) (string, bool) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", false
+	}
+	defer func() { _ = f.Close() }()
+	data, err := io.ReadAll(io.LimitReader(f, maxRead))
+	if err != nil {
+		return "", false
+	}
+	return string(data), true
+}
+
+func isHex(s string) bool {
+	for _, r := range s {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
+			return false
+		}
+	}
+	return s != ""
+}

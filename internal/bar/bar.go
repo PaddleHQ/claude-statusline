@@ -17,14 +17,16 @@ const (
 )
 
 // Params describes one bar. Usage and Target are percentages; Warn and Bad are
-// deviations from the target in percentage points.
+// deviations from the target in percentage points. With NoTarget set there is no
+// marker, Target and HardCap are ignored, and Warn and Bad are usage percentages.
 type Params struct {
-	Usage   int
-	Target  int
-	Width   int
-	Warn    int
-	Bad     int
-	HardCap int
+	Usage    int
+	Target   int
+	Width    int
+	Warn     int
+	Bad      int
+	HardCap  int
+	NoTarget bool
 }
 
 // ResponsiveWidth scales the configured width down for narrow terminals.
@@ -45,21 +47,31 @@ func ElapsedPercent(now, resetsAt, windowSeconds int64) int {
 }
 
 // Render draws the bar: a fill coloured by distance from the pace target, a marker
-// on the target cell and muted empty cells.
+// on the target cell and muted empty cells. Without a target the fill is coloured
+// by absolute usage and there is no marker.
 func Render(p Params, th theme.Theme) string {
 	maxEighths := p.Width * eighths
 	filled := min((p.Usage*maxEighths+percentScale/2)/percentScale, maxEighths)
 	fullCells, remainder := filled/eighths, filled%eighths
 
-	targetCell := min(p.Target*p.Width/percentScale, p.Width-1)
-
-	deviation := max(p.Usage-p.Target, p.Target-p.Usage)
+	targetCell := -1
 	fill := th.Good
-	switch {
-	case p.Usage >= p.HardCap || deviation > p.Bad:
-		fill = th.Bad
-	case deviation > p.Warn:
-		fill = th.Warn
+	if p.NoTarget {
+		switch {
+		case p.Usage >= p.Bad:
+			fill = th.Bad
+		case p.Usage >= p.Warn:
+			fill = th.Warn
+		}
+	} else {
+		targetCell = min(p.Target*p.Width/percentScale, p.Width-1)
+		deviation := max(p.Usage-p.Target, p.Target-p.Usage)
+		switch {
+		case p.Usage >= p.HardCap || deviation > p.Bad:
+			fill = th.Bad
+		case deviation > p.Warn:
+			fill = th.Warn
+		}
 	}
 
 	var b strings.Builder
