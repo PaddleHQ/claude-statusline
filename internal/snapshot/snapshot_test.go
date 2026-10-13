@@ -19,7 +19,7 @@ func TestWrite(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "latest.json")
 		require.NoError(t, os.WriteFile(path, []byte(`{"old":true}`), 0o644))
 
-		require.NoError(t, snapshot.Write(path, []byte(`{"new":true}`)))
+		require.NoError(t, snapshot.New(path).Write([]byte(`{"new":true}`)))
 
 		data, err := os.ReadFile(path)
 		require.NoError(t, err)
@@ -36,7 +36,7 @@ func TestWrite(t *testing.T) {
 		t.Parallel()
 		path := filepath.Join(t.TempDir(), "a", "b", "latest.json")
 
-		require.NoError(t, snapshot.Write(path, []byte(`{}`)))
+		require.NoError(t, snapshot.New(path).Write([]byte(`{}`)))
 
 		assert.FileExists(t, path)
 	})
@@ -46,8 +46,8 @@ func TestWrite(t *testing.T) {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "latest.json")
 
-		require.NoError(t, snapshot.Write(path, []byte(`{"a":`)))
-		require.NoError(t, snapshot.Write("", []byte(`{}`)))
+		require.NoError(t, snapshot.New(path).Write([]byte(`{"a":`)))
+		require.NoError(t, snapshot.New("").Write([]byte(`{}`)))
 
 		assert.NoFileExists(t, path)
 	})
@@ -58,6 +58,6 @@ func TestWrite(t *testing.T) {
 		blocker := filepath.Join(dir, "file")
 		require.NoError(t, os.WriteFile(blocker, nil, 0o600))
 
-		assert.Error(t, snapshot.Write(filepath.Join(blocker, "latest.json"), []byte(`{}`)))
+		assert.Error(t, snapshot.New(filepath.Join(blocker, "latest.json")).Write([]byte(`{}`)))
 	})
 }

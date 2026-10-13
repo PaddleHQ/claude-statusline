@@ -54,24 +54,25 @@ func TestMerge(t *testing.T) {
 
 	t.Run("windows merge independently", func(t *testing.T) {
 		t.Parallel()
-		got, changed := ratecache.Merge(cached, ratecache.Limits{FiveHour: r(40, 100), SevenDay: r(41, 500)})
+		got, changed := cached.Merge(ratecache.Limits{FiveHour: r(40, 100), SevenDay: r(41, 500)})
 		assert.True(t, changed)
 		assert.Equal(t, ratecache.Limits{FiveHour: r(45, 100), SevenDay: r(41, 500)}, got)
 	})
 	t.Run("nothing incoming keeps the cache", func(t *testing.T) {
 		t.Parallel()
-		got, changed := ratecache.Merge(cached, ratecache.Limits{})
+		got, changed := cached.Merge(ratecache.Limits{})
 		assert.False(t, changed)
 		assert.Equal(t, cached, got)
 	})
 	t.Run("nothing newer reports no change", func(t *testing.T) {
 		t.Parallel()
-		_, changed := ratecache.Merge(cached, ratecache.Limits{FiveHour: r(40, 100)})
+		_, changed := cached.Merge(ratecache.Limits{FiveHour: r(40, 100)})
 		assert.False(t, changed, "Merge() reported a change")
 	})
 	t.Run("fills an empty window only", func(t *testing.T) {
 		t.Parallel()
-		got, changed := ratecache.Merge(ratecache.Limits{FiveHour: r(1, 2)}, ratecache.Limits{SevenDay: r(3, 4)})
+		empty := ratecache.Limits{FiveHour: r(1, 2)}
+		got, changed := empty.Merge(ratecache.Limits{SevenDay: r(3, 4)})
 		assert.True(t, changed)
 		assert.Equal(t, ratecache.Limits{FiveHour: r(1, 2), SevenDay: r(3, 4)}, got)
 	})
@@ -80,7 +81,8 @@ func TestMerge(t *testing.T) {
 func TestVisible(t *testing.T) {
 	t.Parallel()
 
-	got := ratecache.Limits{FiveHour: r(1, 100), SevenDay: r(2, 101)}.Visible(100)
+	limits := ratecache.Limits{FiveHour: r(1, 100), SevenDay: r(2, 101)}
+	got := limits.Visible(100)
 	assert.Nil(t, got.FiveHour, "a window resetting exactly now should be hidden")
 	assert.NotNil(t, got.SevenDay, "a window resetting later should stay")
 }
@@ -133,9 +135,9 @@ func TestLoadTolerance(t *testing.T) {
 		{"wrong types", `{"five_hour":{"used":"1","resets_at":2}}`, ratecache.Limits{}},
 	}
 	for _, tt := range tests {
-		assert.Equal(t, tt.want, ratecache.Load(write(tt.content)), tt.name)
+		assert.Equal(t, tt.want, ratecache.NewCache(write(tt.content)).Load(), tt.name)
 	}
-	assert.Equal(t, ratecache.Limits{}, ratecache.Load(filepath.Join(dir, "missing")))
+	assert.Equal(t, ratecache.Limits{}, ratecache.NewCache(filepath.Join(dir, "missing")).Load())
 }
 
 func TestStoreAndSync(t *testing.T) {
@@ -143,9 +145,9 @@ func TestStoreAndSync(t *testing.T) {
 
 	path := filepath.Join(t.TempDir(), "nested", "cache", "ratelimits")
 
-	got := ratecache.Sync(path, ratecache.Limits{FiveHour: r(45, 100)})
+	got := ratecache.NewCache(path).Sync(ratecache.Limits{FiveHour: r(45, 100)})
 	require.Equal(t, ratecache.Limits{FiveHour: r(45, 100)}, got)
-	assert.Equal(t, got, ratecache.Load(path))
+	assert.Equal(t, got, ratecache.NewCache(path).Load())
 
 	info, err := os.Stat(path)
 	require.NoError(t, err)
@@ -155,7 +157,7 @@ func TestStoreAndSync(t *testing.T) {
 	require.NoError(t, os.Chtimes(path, before.Add(-1e9*3600), before.Add(-1e9*3600)))
 	old, err := os.Stat(path)
 	require.NoError(t, err)
-	ratecache.Sync(path, ratecache.Limits{FiveHour: r(40, 100)})
+	ratecache.NewCache(path).Sync(ratecache.Limits{FiveHour: r(40, 100)})
 	after, err := os.Stat(path)
 	require.NoError(t, err)
 	assert.True(t, after.ModTime().Equal(old.ModTime()), "an unchanged merge rewrote the cache")
@@ -168,7 +170,7 @@ func TestStoreAndSync(t *testing.T) {
 func TestSyncWithoutPath(t *testing.T) {
 	t.Parallel()
 
-	got := ratecache.Sync("", ratecache.Limits{SevenDay: r(1, 2)})
+	got := ratecache.NewCache("").Sync(ratecache.Limits{SevenDay: r(1, 2)})
 	assert.Equal(t, ratecache.Limits{SevenDay: r(1, 2)}, got)
 }
 
@@ -178,5 +180,5 @@ func TestStoreUnwritableIsSilent(t *testing.T) {
 	dir := t.TempDir()
 	blocker := filepath.Join(dir, "file")
 	require.NoError(t, os.WriteFile(blocker, nil, 0o600))
-	ratecache.Store(filepath.Join(blocker, "sub", "ratelimits"), ratecache.Limits{FiveHour: r(1, 2)})
+	ratecache.NewCache(filepath.Join(blocker, "sub", "ratelimits")).Store(ratecache.Limits{FiveHour: r(1, 2)})
 }

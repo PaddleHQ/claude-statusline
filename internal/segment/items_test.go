@@ -21,7 +21,7 @@ func TestRenderPlacesHooks(t *testing.T) {
 
 	const input = `{"model":{"display_name":"Opus"},"cwd":"/srv/app","context_window":{"used_percentage":42,"total_input_tokens":1500,"total_output_tokens":2000},` +
 		`"rate_limits":{"five_hour":{"used_percentage":45,"resets_at":1760009000}}}`
-	th := theme.Load("classic", "", "").WithoutColor()
+	th := plainClassic()
 
 	tests := []struct {
 		name  string
@@ -106,7 +106,7 @@ func TestRenderPlacesHooks(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := &segment.Context{Payload: payload.Parse([]byte(input)), Config: config.New(tt.cfg), Theme: th, Columns: 999, Hooks: tt.hooks}
-			assert.Equal(t, tt.want, stripBars(segment.Render(ctx)))
+			assert.Equal(t, tt.want, stripBars(ctx.Render()))
 		})
 	}
 }
@@ -119,11 +119,11 @@ func TestRenderWrapsAroundHooks(t *testing.T) {
 	ctx := &segment.Context{
 		Payload: payload.Parse([]byte(input)),
 		Config:  config.New("segments = path model tokens"),
-		Theme:   theme.Load("classic", "", "").WithoutColor(),
+		Theme:   plainClassic(),
 		Columns: 40,
 		Hooks:   hooks,
 	}
-	assert.Equal(t, "/srv/app · Opus · ctx-hook\n↓ 1.5k · ↑ 2.0k\nusage-hook · end-hook", segment.Render(ctx))
+	assert.Equal(t, "/srv/app · Opus · ctx-hook\n↓ 1.5k · ↑ 2.0k\nusage-hook · end-hook", ctx.Render())
 }
 
 func TestRenderPaintsTheContinuationAnchor(t *testing.T) {
@@ -135,7 +135,7 @@ func TestRenderPaintsTheContinuationAnchor(t *testing.T) {
 		Theme:   theme.Load("classic", "", ""),
 		Columns: 50,
 	}
-	assert.Contains(t, segment.Render(ctx), "\n\033[2m↳\033[0m          ctx: ")
+	assert.Contains(t, ctx.Render(), "\n\033[2m↳\033[0m          ctx: ")
 }
 
 func stripBars(s string) string {

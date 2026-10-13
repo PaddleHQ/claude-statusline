@@ -8,7 +8,6 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/segment"
-	"github.com/PaddleHQ/claude-statusline/internal/theme"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,7 +21,7 @@ func TestRateRender(t *testing.T) {
 		FiveHour: &ratecache.Reading{Used: 45, ResetsAt: 1760009000},
 		SevenDay: &ratecache.Reading{Used: 40, ResetsAt: 1760302400},
 	}
-	plain := theme.Load("classic", "", "").WithoutColor()
+	plain := plainClassic()
 
 	tests := []struct {
 		name    string

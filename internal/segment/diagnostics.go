@@ -15,13 +15,13 @@ type diagnostic struct {
 	color func(*Context) string
 }
 
-func (d diagnostic) Name() string { return d.name }
+func (d *diagnostic) Name() string { return d.name }
 
-func (diagnostic) Group() layout.Group { return layout.Usage }
+func (d *diagnostic) Group() layout.Group { return layout.Usage }
 
-func (diagnostic) Keys() []string { return nil }
+func (d *diagnostic) Keys() []string { return nil }
 
-func (d diagnostic) Render(ctx *Context) string {
+func (d *diagnostic) Render(ctx *Context) string {
 	text := d.show(ctx)
 	if text == "" {
 		return ""

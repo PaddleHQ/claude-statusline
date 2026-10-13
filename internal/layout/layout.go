@@ -47,7 +47,7 @@ func Width(s string) int {
 
 // Render joins the items on one row when they fit within o.Columns, and otherwise wraps them into rows.
 // A width of zero means the width is unknown, so nothing wraps.
-func Render(items []Item, o Options) string {
+func (o *Options) Render(items []Item) string {
 	var all []string
 	for _, it := range items {
 		if it.Text != "" {
@@ -62,7 +62,7 @@ func Render(items []Item, o Options) string {
 	if o.Columns <= 0 || total <= o.Columns {
 		return strings.Join(all, o.Separator)
 	}
-	return wrap(items, o, sepw)
+	return wrap(items, *o, sepw)
 }
 
 type rows struct {

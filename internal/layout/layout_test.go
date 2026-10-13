@@ -15,7 +15,8 @@ const (
 )
 
 func render(columns int, items ...layout.Item) string {
-	return layout.Render(items, layout.Options{Columns: columns, Separator: sep, Anchor: anchor})
+	opts := &layout.Options{Columns: columns, Separator: sep, Anchor: anchor}
+	return opts.Render(items)
 }
 
 func id(s string) layout.Item    { return layout.Item{Group: layout.Identity, Text: s} }

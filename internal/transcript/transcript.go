@@ -74,9 +74,12 @@ func openFile(path string) (source, error) {
 }
 
 // Read gathers Info from the transcript at path. An empty path or any read error yields the zero Info.
-func Read(path string) Info { return reader{open: openFile}.read(path) }
+func Read(path string) Info {
+	r := &reader{open: openFile}
+	return r.read(path)
+}
 
-func (r reader) read(path string) Info {
+func (r *reader) read(path string) Info {
 	if path == "" {
 		return Info{}
 	}
@@ -269,7 +272,7 @@ func memDropped(lines []string) bool {
 }
 
 // subagents finds the subagent transcript with the most stripped skills.
-func (r reader) subagents(path string) (bare, total int) {
+func (r *reader) subagents(path string) (bare, total int) {
 	files, _ := filepath.Glob(filepath.Join(strings.TrimSuffix(path, ".jsonl"), "subagents", "*.jsonl"))
 	for _, name := range files[:min(len(files), maxSubagents)] {
 		f, err := r.open(name)

@@ -40,14 +40,15 @@ type Theme struct {
 }
 
 // WithoutColor clears every color and style, keeping the glyphs.
-func (t Theme) WithoutColor() Theme {
-	t.Text, t.Muted, t.Good, t.Warn, t.Bad, t.Marker, t.Path, t.Reset = "", "", "", "", "", "", "", ""
-	t.Ramp, t.EmptyColor, t.MarkerColor = nil, "", ""
-	return t
+func (t *Theme) WithoutColor() Theme {
+	c := *t
+	c.Text, c.Muted, c.Good, c.Warn, c.Bad, c.Marker, c.Path, c.Reset = "", "", "", "", "", "", "", ""
+	c.Ramp, c.EmptyColor, c.MarkerColor = nil, "", ""
+	return c
 }
 
 // Paint wraps s in the color and a reset, or returns it untouched when the color is empty.
-func (t Theme) Paint(color, s string) string {
+func (t *Theme) Paint(color, s string) string {
 	if color == "" {
 		return s
 	}
@@ -57,7 +58,7 @@ func (t Theme) Paint(color, s string) string {
 // RampColor is the escape sequence for a cell of a width-cell gradient bar, or
 // "" when the theme has no ramp. The first cell takes the good stop, the middle
 // the warn stop and the last the bad stop, with integer steps between.
-func (t Theme) RampColor(cell, width int) string {
+func (t *Theme) RampColor(cell, width int) string {
 	if len(t.Ramp) != rampStops {
 		return ""
 	}

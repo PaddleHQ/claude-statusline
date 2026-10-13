@@ -48,17 +48,18 @@ const (
 )
 
 var registry = map[string]Segment{
-	"path":    path{},
-	nameModel: model{},
-	nameCtx:   ctxBar{},
-	"tokens":  tokens{},
-	"cache":   cache{},
-	"rate5h":  rate{name: "rate5h", seconds: fiveHourSeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.FiveHour }},
-	"rate7d":  rate{name: "rate7d", seconds: sevenDaySeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.SevenDay }},
+	"path":    &path{},
+	nameModel: &model{},
+	nameCtx:   &ctxBar{},
+	"tokens":  &tokens{},
+	"cache":   &cache{},
+	"rate5h":  &rate{name: "rate5h", seconds: fiveHourSeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.FiveHour }},
+	"rate7d":  &rate{name: "rate7d", seconds: sevenDaySeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.SevenDay }},
 }
 
 func init() {
-	for _, d := range diagnostics {
+	for i := range diagnostics {
+		d := &diagnostics[i]
 		registry[d.name] = d
 	}
 }
@@ -79,12 +80,13 @@ func Keys() []string {
 }
 
 // Render lays out the configured segments and the user's hooks, wrapping onto further rows when they do not fit.
-func Render(ctx *Context) string {
-	return layout.Render(items(ctx), layout.Options{
-		Columns:   ctx.Columns,
-		Separator: separator(ctx),
-		Anchor:    ctx.Theme.Paint(ctx.Theme.Muted, "↳"),
-	})
+func (c *Context) Render() string {
+	opts := &layout.Options{
+		Columns:   c.Columns,
+		Separator: separator(c),
+		Anchor:    c.Theme.Paint(c.Theme.Muted, "↳"),
+	}
+	return opts.Render(items(c))
 }
 
 // barWidth reads the three widths configured for a bar and picks the one for the terminal.

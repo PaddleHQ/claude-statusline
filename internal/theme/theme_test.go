@@ -273,8 +273,10 @@ func TestRampColor(t *testing.T) {
 	for _, tt := range tests {
 		assert.Equal(t, tt.want, th.RampColor(tt.cell, tt.width), tt.name)
 	}
-	assert.Empty(t, theme.Load("classic", "", "").RampColor(0, 10), "solid themes have no ramp")
-	assert.Empty(t, th.WithoutColor().RampColor(0, 10), "NO_COLOR removes the ramp")
+	classic := theme.Load("classic", "", "")
+	assert.Empty(t, classic.RampColor(0, 10), "solid themes have no ramp")
+	plain := th.WithoutColor()
+	assert.Empty(t, plain.RampColor(0, 10), "NO_COLOR removes the ramp")
 }
 
 func TestWithoutColor(t *testing.T) {

@@ -20,24 +20,24 @@ type rate struct {
 	reading func(*Context) *ratecache.Reading
 }
 
-func (r rate) Name() string { return r.name }
+func (r *rate) Name() string { return r.name }
 
-func (r rate) Group() layout.Group { return layout.Rates }
+func (r *rate) Group() layout.Group { return layout.Rates }
 
-func (r rate) Keys() []string {
+func (r *rate) Keys() []string {
 	return []string{
 		r.name + ".label", r.name + ".width", r.name + ".width_medium", r.name + ".width_narrow",
 		r.name + ".warn", r.name + ".bad", r.name + ".hard_cap",
 	}
 }
 
-func (r rate) Render(ctx *Context) string {
+func (r *rate) Render(ctx *Context) string {
 	reading := r.reading(ctx)
 	if reading == nil {
 		return ""
 	}
 	cfg := ctx.Config
-	params := bar.Params{
+	params := &bar.Params{
 		Usage:   int(reading.Used),
 		Target:  bar.ElapsedPercent(ctx.Now.Unix(), reading.ResetsAt, r.seconds),
 		Width:   barWidth(ctx, r.name),
@@ -45,7 +45,7 @@ func (r rate) Render(ctx *Context) string {
 		Bad:     cfg.Int(r.name + ".bad"),
 		HardCap: cfg.Int(r.name + ".hard_cap"),
 	}
-	b := bar.Render(params, ctx.Theme)
+	b := params.Render(ctx.Theme)
 	label := ctx.Theme.Paint(ctx.Theme.Text, cfg.String(r.name+".label")+": ")
-	return label + b + " " + ctx.Theme.Paint(bar.PercentColor(params, ctx.Theme), strconv.FormatInt(reading.Used, 10)+"%")
+	return label + b + " " + ctx.Theme.Paint(params.PercentColor(ctx.Theme), strconv.FormatInt(reading.Used, 10)+"%")
 }

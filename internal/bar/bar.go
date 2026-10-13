@@ -48,7 +48,7 @@ func ElapsedPercent(now, resetsAt, windowSeconds int64) int {
 }
 
 // Fill is the color for the bar's state: distance from the pace target, or absolute usage without a target.
-func Fill(p Params, th theme.Theme) string {
+func (p *Params) Fill(th theme.Theme) string {
 	if p.NoTarget {
 		switch {
 		case p.Usage >= p.Bad:
@@ -70,9 +70,9 @@ func Fill(p Params, th theme.Theme) string {
 
 // PercentColor is the color for the percentage printed after the bar. A gradient
 // bar colors its cells by position, so the state color moves to the text.
-func PercentColor(p Params, th theme.Theme) string {
+func (p *Params) PercentColor(th theme.Theme) string {
 	if th.Gradient {
-		return Fill(p, th)
+		return p.Fill(th)
 	}
 	return ""
 }
@@ -81,7 +81,7 @@ func PercentColor(p Params, th theme.Theme) string {
 // on the target cell and muted empty cells. Without a target the fill is colored
 // by absolute usage and there is no marker. A gradient theme draws whole cells
 // colored by position instead.
-func Render(p Params, th theme.Theme) string {
+func (p *Params) Render(th theme.Theme) string {
 	maxEighths := p.Width * eighths
 	filled := min((p.Usage*maxEighths+percentScale/2)/percentScale, maxEighths)
 
@@ -90,12 +90,12 @@ func Render(p Params, th theme.Theme) string {
 		targetCell = min(p.Target*p.Width/percentScale, p.Width-1)
 	}
 	if th.Gradient {
-		return gradientCells(p, th, filled, targetCell)
+		return p.gradientCells(th, filled, targetCell)
 	}
-	return solidCells(p, th, filled, targetCell)
+	return p.solidCells(th, filled, targetCell)
 }
 
-func gradientCells(p Params, th theme.Theme, filled, targetCell int) string {
+func (p *Params) gradientCells(th theme.Theme, filled, targetCell int) string {
 	var b strings.Builder
 	cells := (filled + eighths/2) / eighths
 	for cell := range p.Width {
@@ -111,9 +111,9 @@ func gradientCells(p Params, th theme.Theme, filled, targetCell int) string {
 	return b.String()
 }
 
-func solidCells(p Params, th theme.Theme, filled, targetCell int) string {
+func (p *Params) solidCells(th theme.Theme, filled, targetCell int) string {
 	fullCells, remainder := filled/eighths, filled%eighths
-	fill := Fill(p, th)
+	fill := p.Fill(th)
 
 	var b strings.Builder
 	for cell := range p.Width {

@@ -25,13 +25,13 @@ func script(t *testing.T, dir, name, body string, perm os.FileMode) string {
 	return path
 }
 
-func options(cache string) hook.Options {
-	return hook.Options{CacheDir: cache, Session: "s1", Now: epoch, Timeout: 5 * time.Second, DefaultTTL: 60 * time.Second}
+func options(cache string) *hook.Options {
+	return &hook.Options{CacheDir: cache, Session: "s1", Now: epoch, Timeout: 5 * time.Second, DefaultTTL: 60 * time.Second}
 }
 
-func runOne(t *testing.T, hooks []hook.Hook, o hook.Options) string {
+func runOne(t *testing.T, hooks []hook.Hook, o *hook.Options) string {
 	t.Helper()
-	got := hook.Run(hooks, o)
+	got := o.Run(hooks)
 	require.Len(t, got, 1)
 	return got[0].Text
 }
@@ -192,9 +192,10 @@ func TestRunCaching(t *testing.T) {
 		require.NoError(t, err)
 		return strings.Count(string(data), "x")
 	}
-	at := func(o hook.Options, d time.Duration) hook.Options {
-		o.Now = o.Now.Add(d)
-		return o
+	at := func(o *hook.Options, d time.Duration) *hook.Options {
+		shifted := *o
+		shifted.Now = o.Now.Add(d)
+		return &shifted
 	}
 
 	t.Run("not rerun inside the default TTL", func(t *testing.T) {
@@ -339,7 +340,7 @@ func TestRunIsConcurrent(t *testing.T) {
 	script(t, dir, "10-a.sh", rendezvous("a", "b"), 0o700)
 	script(t, dir, "20-b.sh", rendezvous("b", "a"), 0o700)
 
-	got := hook.Run(hook.Discover(dir), options(t.TempDir()))
+	got := options(t.TempDir()).Run(hook.Discover(dir))
 
 	require.Len(t, got, 2)
 	assert.Equal(t, "a", got[0].Text, "results stay in filename order and a saw b running")

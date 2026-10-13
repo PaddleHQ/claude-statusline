@@ -47,9 +47,10 @@ func Build(input []byte, getenv func(string) string) string {
 
 	p := payload.Parse(input)
 	at := now(getenv)
-	rates := ratecache.Sync(cachePath(getenv), ratecache.FromPayload(p.RateLimits)).Visible(at.Unix())
+	synced := ratecache.NewCache(cachePath(getenv)).Sync(ratecache.FromPayload(p.RateLimits))
+	rates := synced.Visible(at.Unix())
 
-	return segment.Render(&segment.Context{
+	return (&segment.Context{
 		Payload:    p,
 		Rates:      rates,
 		Config:     cfg,
@@ -59,7 +60,7 @@ func Build(input []byte, getenv func(string) string) string {
 		Home:       getenv("HOME"),
 		Transcript: transcript.Read(p.TranscriptPath),
 		Hooks:      runHooks(input, p, cfg, at, getenv),
-	})
+	}).Render()
 }
 
 // saveSnapshot keeps the latest payload where other tools can read it; a failed write never affects the line.
@@ -75,7 +76,7 @@ func saveSnapshot(input []byte, cfg *config.Config, getenv func(string) string) 
 		}
 		path = filepath.Join(dir, snapshot.FileName)
 	}
-	_ = snapshot.Write(path, input)
+	_ = snapshot.New(path).Write(input)
 }
 
 // runHooks runs the scripts in the hook directory; STATUSLINE_HOOK_TTL and STATUSLINE_HOOK_TIMEOUT override the config.
@@ -89,7 +90,7 @@ func runHooks(input []byte, p payload.Payload, cfg *config.Config, at time.Time,
 	if len(hooks) == 0 {
 		return nil
 	}
-	opts := hook.Options{
+	opts := &hook.Options{
 		Input:      input,
 		Session:    p.SessionID,
 		Now:        at,
@@ -102,7 +103,7 @@ func runHooks(input []byte, p payload.Payload, cfg *config.Config, at time.Time,
 	if configDir != "" {
 		opts.CacheDir = filepath.Join(configDir, "claude-statusline", "cache", "hooks")
 	}
-	return hook.Run(hooks, opts)
+	return opts.Run(hooks)
 }
 
 func seconds(override string, fallback int) time.Duration {

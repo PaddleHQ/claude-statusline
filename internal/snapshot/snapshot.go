@@ -12,8 +12,15 @@ import (
 // FileName is the snapshot's name inside the Claude config directory.
 const FileName = "usage-latest.json"
 
-// Write replaces path with data, atomically and readable only by the user. Input that is not valid JSON is not written.
-func Write(path string, data []byte) error {
+// Snapshot is the file the latest payload is saved to.
+type Snapshot struct{ path string }
+
+// New returns a Snapshot that writes to path; an empty path writes nothing.
+func New(path string) *Snapshot { return &Snapshot{path: path} }
+
+// Write replaces the file with data, atomically and readable only by the user. Input that is not valid JSON is not written.
+func (s *Snapshot) Write(data []byte) error {
+	path := s.path
 	if path == "" || !gjson.ValidBytes(data) {
 		return nil
 	}

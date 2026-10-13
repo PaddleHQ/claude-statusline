@@ -11,13 +11,13 @@ import (
 // path shows the working directory, shortened, with the git branch when there is one.
 type path struct{}
 
-func (path) Name() string { return "path" }
+func (p *path) Name() string { return "path" }
 
-func (path) Group() layout.Group { return layout.Identity }
+func (p *path) Group() layout.Group { return layout.Identity }
 
-func (path) Keys() []string { return []string{"path.strip", "path.branch"} }
+func (p *path) Keys() []string { return []string{"path.strip", "path.branch"} }
 
-func (path) Render(ctx *Context) string {
+func (p *path) Render(ctx *Context) string {
 	dir := ctx.Payload.Cwd
 	if dir == "" {
 		return ""

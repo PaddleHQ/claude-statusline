@@ -16,13 +16,13 @@ const (
 // tokens shows session token totals as "↓ <in> · ↑ <out>".
 type tokens struct{}
 
-func (tokens) Name() string { return "tokens" }
+func (t *tokens) Name() string { return "tokens" }
 
-func (tokens) Group() layout.Group { return layout.Usage }
+func (t *tokens) Group() layout.Group { return layout.Usage }
 
-func (tokens) Keys() []string { return nil }
+func (t *tokens) Keys() []string { return nil }
 
-func (tokens) Render(ctx *Context) string {
+func (t *tokens) Render(ctx *Context) string {
 	cw := ctx.Payload.ContextWindow
 	var parts []string
 	if cw.TotalInput != nil {

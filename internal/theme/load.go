@@ -188,7 +188,7 @@ func pickList(child, parent []string) []string {
 }
 
 // overlay returns s with every field the child sets taking precedence.
-func (s spec) overlay(child spec) spec {
+func (s *spec) overlay(child spec) spec {
 	var c, pc colorsSpec
 	if s.Colors != nil {
 		pc = *s.Colors
@@ -226,7 +226,7 @@ func (s spec) overlay(child spec) spec {
 	}
 }
 
-func (s spec) compile() (Theme, error) {
+func (s *spec) compile() (Theme, error) {
 	t := Theme{Reset: resetSeq}
 	c := deref(s.Colors)
 	b := deref(s.Bar)

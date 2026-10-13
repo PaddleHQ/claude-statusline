@@ -49,7 +49,7 @@ func TestRender(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := &segment.Context{Payload: testPayload(), Config: config.New(tt.cfg), Theme: tt.th}
-			assert.Equal(t, tt.want, segment.Render(ctx))
+			assert.Equal(t, tt.want, ctx.Render())
 		})
 	}
 }
@@ -58,7 +58,7 @@ func TestRenderDropsEmptySegments(t *testing.T) {
 	t.Parallel()
 
 	ctx := &segment.Context{Config: config.New("segments = model model"), Theme: theme.Load("classic", "", "")}
-	assert.Empty(t, segment.Render(ctx), "Render() with an empty payload")
+	assert.Empty(t, ctx.Render(), "Render() with an empty payload")
 }
 
 func TestModelRender(t *testing.T) {
@@ -87,6 +87,11 @@ func TestModelRender(t *testing.T) {
 			assert.Equal(t, tt.want, model.Render(ctx))
 		})
 	}
+}
+
+func plainClassic() theme.Theme {
+	classic := theme.Load("classic", "", "")
+	return classic.WithoutColor()
 }
 
 func renderOne(t *testing.T, name, json, cfg string, th theme.Theme) string {
@@ -143,7 +148,7 @@ func TestPathRender(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(hostile, ".git"), 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(hostile, ".git", "HEAD"), []byte("ref: refs/heads/a\x1b[31mb\n"), 0o600))
 
-	plain := theme.Load("classic", "", "").WithoutColor()
+	plain := plainClassic()
 	jsonFor := func(dir string) string { return `{"workspace":{"current_dir":"` + dir + `"}}` }
 
 	tests := []struct {

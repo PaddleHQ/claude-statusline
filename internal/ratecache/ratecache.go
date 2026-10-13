@@ -47,12 +47,12 @@ func fromWindow(w payload.Window) *Reading {
 	return &Reading{Used: int64(used), ResetsAt: int64(resets)}
 }
 
-// Merge keeps each window's cached reading unless the incoming one is newer, and reports
+// Merge keeps each window's reading in l unless the incoming one is newer, and reports
 // whether anything changed.
-func Merge(cached, incoming Limits) (Limits, bool) {
-	merged := cached
-	five, fiveChanged := pick(cached.FiveHour, incoming.FiveHour)
-	seven, sevenChanged := pick(cached.SevenDay, incoming.SevenDay)
+func (l *Limits) Merge(incoming Limits) (Limits, bool) {
+	merged := *l
+	five, fiveChanged := pick(l.FiveHour, incoming.FiveHour)
+	seven, sevenChanged := pick(l.SevenDay, incoming.SevenDay)
 	merged.FiveHour, merged.SevenDay = five, seven
 	return merged, fiveChanged || sevenChanged
 }
@@ -75,19 +75,26 @@ func isNewer(in Reading, cached *Reading) bool {
 }
 
 // Visible drops windows that have already reset.
-func (l Limits) Visible(now int64) Limits {
-	if l.FiveHour != nil && l.FiveHour.ResetsAt <= now {
-		l.FiveHour = nil
+func (l *Limits) Visible(now int64) Limits {
+	v := *l
+	if v.FiveHour != nil && v.FiveHour.ResetsAt <= now {
+		v.FiveHour = nil
 	}
-	if l.SevenDay != nil && l.SevenDay.ResetsAt <= now {
-		l.SevenDay = nil
+	if v.SevenDay != nil && v.SevenDay.ResetsAt <= now {
+		v.SevenDay = nil
 	}
-	return l
+	return v
 }
 
+// Cache is the file that shares readings between sessions.
+type Cache struct{ path string }
+
+// NewCache returns the Cache stored at path; an empty path means no file.
+func NewCache(path string) *Cache { return &Cache{path: path} }
+
 // Load reads the cache; a missing or corrupt file, or a half entry, counts as empty.
-func Load(path string) Limits {
-	data, err := os.ReadFile(path) //nolint:gosec // G304: the cache path derives from the user's own Claude config directory
+func (c *Cache) Load() Limits {
+	data, err := os.ReadFile(c.path) //nolint:gosec // G304: the cache path derives from the user's own Claude config directory
 	if err != nil {
 		return Limits{}
 	}
@@ -115,12 +122,12 @@ func (r *rawReading) reading() *Reading {
 
 // Store writes the cache through a temporary file and a rename, so concurrent sessions
 // never see a partial file. Failures are ignored: the cache is an optimization.
-func Store(path string, l Limits) {
+func (c *Cache) Store(l Limits) {
 	data, err := json.Marshal(l)
 	if err != nil {
 		return
 	}
-	dir := filepath.Dir(path)
+	dir := filepath.Dir(c.path)
 	if os.MkdirAll(dir, 0o700) != nil {
 		return
 	}
@@ -130,21 +137,23 @@ func Store(path string, l Limits) {
 	}
 	_, werr := tmp.Write(append(data, '\n'))
 	cerr := tmp.Close()
-	if werr != nil || cerr != nil || os.Rename(tmp.Name(), path) != nil {
+	if werr != nil || cerr != nil || os.Rename(tmp.Name(), c.path) != nil {
 		_ = os.Remove(tmp.Name())
 	}
 }
 
-// Sync merges the incoming readings into the cache at path, writing only when something
+// Sync merges the incoming readings into the cache, writing only when something
 // changed, and returns the merged limits. An empty path skips the file.
-func Sync(path string, incoming Limits) Limits {
-	if path == "" {
-		merged, _ := Merge(Limits{}, incoming)
+func (c *Cache) Sync(incoming Limits) Limits {
+	if c.path == "" {
+		empty := Limits{}
+		merged, _ := empty.Merge(incoming)
 		return merged
 	}
-	merged, changed := Merge(Load(path), incoming)
+	cached := c.Load()
+	merged, changed := cached.Merge(incoming)
 	if changed {
-		Store(path, merged)
+		c.Store(merged)
 	}
 	return merged
 }

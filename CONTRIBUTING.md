@@ -110,6 +110,12 @@ A segment should be hidden, not wrong, when its data is missing.
 
 Scripts in the hook directory are user code, so their output is treated as untrusted. `internal/hook` strips control characters from it and keeps only colour sequences, so a script cannot move the cursor or redraw the terminal. If you change that path, keep the rule and extend its tests. The same applies to strings taken from the session payload, which `internal/payload` sanitises.
 
+### Go style
+
+- Methods on a struct use pointer receivers, never value receivers, so that a type has one consistent method set.
+- Every receiver is named, with a short name taken from the type (`func (m *model) Keys()`, never `func (*model) Keys()`).
+- Behaviour that operates on a struct's data is a method on that struct, so it is found by looking at the type rather than by searching the package for a free function. Constructors stay functions (`New`, `Load`, `Parse`, `Open`, `Discover`: anything that builds and returns a value for the caller to use), and so do stateless helpers with no natural owning type, such as `payload.Sanitize`, `segment.FormatTokens` and the colour-spec parser. Do not force a helper onto a type just to avoid a package-level function.
+
 ### Comments and language
 
 Comments explain why, not what; code that reads clearly needs none. Code, identifiers and comments use US English. Documentation, commit messages and pull request text use British English.

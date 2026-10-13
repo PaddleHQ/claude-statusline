@@ -164,7 +164,7 @@ func SafeSession(id string) string {
 }
 
 // Run produces each hook's line, reusing cached results within their TTL and running the rest concurrently.
-func Run(hooks []Hook, o Options) []Result {
+func (o *Options) Run(hooks []Hook) []Result {
 	results := make([]Result, len(hooks))
 	dir := o.sessionDir()
 
@@ -178,7 +178,7 @@ func Run(hooks []Hook, o Options) []Result {
 	return results
 }
 
-func (o Options) sessionDir() string {
+func (o *Options) sessionDir() string {
 	if o.CacheDir == "" {
 		return ""
 	}
@@ -209,7 +209,7 @@ func sweep(root, keep string, now time.Time) {
 
 // value returns the hook's current line: the cached one within its TTL, else a fresh run.
 // A failed or timed-out run keeps the previous line, and either way waits another TTL.
-func (o Options) value(h Hook, dir string) string {
+func (o *Options) value(h Hook, dir string) string {
 	ttl := h.TTL
 	if ttl < 0 {
 		ttl = o.DefaultTTL
@@ -236,7 +236,7 @@ func (o Options) value(h Hook, dir string) string {
 	return text
 }
 
-func (o Options) run(h Hook) ([]byte, bool) {
+func (o *Options) run(h Hook) ([]byte, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
 	defer cancel()
 

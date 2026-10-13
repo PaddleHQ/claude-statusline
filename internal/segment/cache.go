@@ -11,13 +11,13 @@ const percentScale = 100
 // cache shows how much of the latest request's input came from the prompt cache.
 type cache struct{}
 
-func (cache) Name() string { return "cache" }
+func (c *cache) Name() string { return "cache" }
 
-func (cache) Group() layout.Group { return layout.Usage }
+func (c *cache) Group() layout.Group { return layout.Usage }
 
-func (cache) Keys() []string { return []string{"cache.warn"} }
+func (c *cache) Keys() []string { return []string{"cache.warn"} }
 
-func (cache) Render(ctx *Context) string {
+func (c *cache) Render(ctx *Context) string {
 	u := ctx.Payload.ContextWindow.Current
 	total := u.Input + u.CacheCreation + u.CacheRead
 	if total <= 0 {

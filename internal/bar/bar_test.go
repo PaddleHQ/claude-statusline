@@ -95,7 +95,7 @@ func TestRender(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, bar.Render(tt.p, tt.th))
+			assert.Equal(t, tt.want, tt.p.Render(tt.th))
 		})
 	}
 }
@@ -103,7 +103,8 @@ func TestRender(t *testing.T) {
 func TestRenderWidth(t *testing.T) {
 	t.Parallel()
 
-	got := bar.Render(bar.Params{Usage: 33, Target: 66, Width: 20, Warn: 20, Bad: 40, HardCap: 95}, markers.WithoutColor())
+	p := &bar.Params{Usage: 33, Target: 66, Width: 20, Warn: 20, Bad: 40, HardCap: 95}
+	got := p.Render(markers.WithoutColor())
 	assert.Len(t, []rune(got), 20, "bar = %q", got)
 	assert.Equal(t, 1, strings.Count(got, "M"), "bar should hold exactly one marker: %q", got)
 }
@@ -125,7 +126,8 @@ func TestRenderNoTarget(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := bar.Render(bar.Params{Usage: tt.usage, Target: 10, Width: 4, Warn: 50, Bad: 90, HardCap: 1, NoTarget: true}, markers)
+			p := &bar.Params{Usage: tt.usage, Target: 10, Width: 4, Warn: 50, Bad: 90, HardCap: 1, NoTarget: true}
+			got := p.Render(markers)
 			assert.Equal(t, tt.want, got)
 			assert.NotContains(t, got, "M")
 		})
@@ -159,7 +161,7 @@ func TestRenderGradient(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, bar.Render(tt.p, tt.th))
+			assert.Equal(t, tt.want, tt.p.Render(tt.th))
 		})
 	}
 }
@@ -167,10 +169,11 @@ func TestRenderGradient(t *testing.T) {
 func TestPercentColor(t *testing.T) {
 	t.Parallel()
 
-	p := bar.Params{Usage: 71, Target: 50, Width: 2, Warn: 20, Bad: 40, HardCap: 95}
-	assert.Empty(t, bar.PercentColor(p, markers), "solid bars color the fill, not the text")
+	p := &bar.Params{Usage: 71, Target: 50, Width: 2, Warn: 20, Bad: 40, HardCap: 95}
+	assert.Empty(t, p.PercentColor(markers), "solid bars color the fill, not the text")
 	grad := markers
 	grad.Gradient = true
-	assert.Equal(t, "<w>", bar.PercentColor(p, grad))
-	assert.Equal(t, "<g>", bar.Fill(bar.Params{Usage: 10, Width: 2, Warn: 50, Bad: 90, NoTarget: true}, markers))
+	assert.Equal(t, "<w>", p.PercentColor(grad))
+	fill := &bar.Params{Usage: 10, Width: 2, Warn: 50, Bad: 90, NoTarget: true}
+	assert.Equal(t, "<g>", fill.Fill(markers))
 }

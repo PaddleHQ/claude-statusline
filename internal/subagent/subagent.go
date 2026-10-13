@@ -65,7 +65,7 @@ func Build(input []byte, getenv func(string) string) string {
 	if c := root.Get("columns"); c.Type == gjson.Number && c.Num >= 0 && c.Num < maxPercent {
 		columns = int(c.Num)
 	}
-	r := renderer{cfg: cfg, th: th, columns: columns}
+	r := &renderer{cfg: cfg, th: th, columns: columns}
 
 	var out bytes.Buffer
 	enc := json.NewEncoder(&out)
@@ -87,7 +87,7 @@ type renderer struct {
 	columns int
 }
 
-func (r renderer) content(task gjson.Result) string {
+func (r *renderer) content(task gjson.Result) string {
 	th := r.th
 	parts := []string{th.Paint(th.Marker, taskName(task))}
 	parts = r.appendModel(parts, task)
@@ -108,7 +108,7 @@ func taskName(task gjson.Result) string {
 	return fallbackName
 }
 
-func (r renderer) appendModel(parts []string, task gjson.Result) []string {
+func (r *renderer) appendModel(parts []string, task gjson.Result) []string {
 	model := task.Get("model")
 	if !truthy(model) || model.Type != gjson.String {
 		return parts
@@ -121,7 +121,7 @@ func (r renderer) appendModel(parts []string, task gjson.Result) []string {
 	return append(parts, part)
 }
 
-func (r renderer) appendTokens(parts []string, task gjson.Result) []string {
+func (r *renderer) appendTokens(parts []string, task gjson.Result) []string {
 	tokens, hasTokens := number(task.Get("tokenCount"))
 	if !hasTokens {
 		return parts
@@ -132,7 +132,7 @@ func (r renderer) appendTokens(parts []string, task gjson.Result) []string {
 	return append(parts, segment.FormatTokens(int64(math.Min(tokens, maxPercent*maxPercent))))
 }
 
-func (r renderer) appendDescription(parts []string, task gjson.Result) []string {
+func (r *renderer) appendDescription(parts []string, task gjson.Result) []string {
 	desc := task.Get("description")
 	if desc.Type != gjson.String || desc.String() == "" {
 		return parts
@@ -143,13 +143,13 @@ func (r renderer) appendDescription(parts []string, task gjson.Result) []string 
 	return parts
 }
 
-func (r renderer) ctx(raw float64) string {
+func (r *renderer) ctx(raw float64) string {
 	pct := int(math.Floor(math.Min(math.Max(raw, 0), maxPercent)))
 	warn, bad := r.cfg.Int("ctx.warn"), r.cfg.Int("ctx.bad")
 	width := bar.WidthFor(r.columns, r.cfg.Int("ctx.width"), r.cfg.Int("ctx.width_medium"), r.cfg.Int("ctx.width_narrow"))
-	params := bar.Params{Usage: pct, Width: width, Warn: warn, Bad: bad, NoTarget: true}
-	b := bar.Render(params, r.th)
-	return r.th.Paint(r.th.Text, "ctx: ") + b + " " + r.th.Paint(bar.Fill(params, r.th), strconv.Itoa(pct)+"%")
+	params := &bar.Params{Usage: pct, Width: width, Warn: warn, Bad: bad, NoTarget: true}
+	b := params.Render(r.th)
+	return r.th.Paint(r.th.Text, "ctx: ") + b + " " + r.th.Paint(params.Fill(r.th), strconv.Itoa(pct)+"%")
 }
 
 // truthy mirrors jq: only null, false and a missing field count as absent.

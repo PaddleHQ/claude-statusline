@@ -17,13 +17,13 @@ var families = []struct{ key, label string }{
 
 type model struct{}
 
-func (model) Name() string { return nameModel }
+func (m *model) Name() string { return nameModel }
 
-func (model) Group() layout.Group { return layout.Identity }
+func (m *model) Group() layout.Group { return layout.Identity }
 
-func (model) Keys() []string { return []string{"model.effort"} }
+func (m *model) Keys() []string { return []string{"model.effort"} }
 
-func (model) Render(ctx *Context) string {
+func (m *model) Render(ctx *Context) string {
 	name := ctx.Payload.Model.DisplayName
 	level := ctx.Payload.Effort.Level
 	// A skill or subagent can run a different model than the session's, which the payload does not reflect.
