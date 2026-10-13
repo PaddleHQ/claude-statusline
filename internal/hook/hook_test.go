@@ -323,15 +323,25 @@ func TestRunIsConcurrent(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	script(t, dir, "10-a.sh", "#!/bin/sh\nsleep 1\nprintf a\n", 0o700)
-	script(t, dir, "20-b.sh", "#!/bin/sh\nsleep 1\nprintf b\n", 0o700)
+	meet := t.TempDir()
+	// Each hook waits for the other to start, so only concurrent execution prints both letters.
+	rendezvous := func(self, other string) string {
+		return "#!/bin/sh\n" +
+			"touch '" + filepath.Join(meet, self) + "'\n" +
+			"i=0\n" +
+			"while [ ! -e '" + filepath.Join(meet, other) + "' ]; do\n" +
+			"  i=$((i + 1)); [ \"$i\" -gt 80 ] && { printf late; exit 0; }\n" +
+			"  sleep 0.05\n" +
+			"done\n" +
+			"printf " + self + "\n"
+	}
+	script(t, dir, "10-a.sh", rendezvous("a", "b"), 0o700)
+	script(t, dir, "20-b.sh", rendezvous("b", "a"), 0o700)
 
-	start := time.Now()
 	got := hook.Run(hook.Discover(dir), options(t.TempDir()))
-	assert.Less(t, time.Since(start), 1900*time.Millisecond, "two one-second hooks overlap")
 
 	require.Len(t, got, 2)
-	assert.Equal(t, "a", got[0].Text, "results stay in filename order")
+	assert.Equal(t, "a", got[0].Text, "results stay in filename order and a saw b running")
 	assert.Equal(t, "b", got[1].Text)
 }
 
