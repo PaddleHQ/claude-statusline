@@ -1,0 +1,1 @@
+x.yaml=extends: gradient\ncolors:\n  path: green\nbar:\n  ramp: ["#ff0000", "#00ff00", "#0000ff"]\n  marker_color: "underline #ffff00"\n  empty_color: bright-black\n  marker: "|"

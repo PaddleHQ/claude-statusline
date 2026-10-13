@@ -1,6 +1,7 @@
 package bar_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -129,4 +130,47 @@ func TestRenderNoTarget(t *testing.T) {
 			assert.NotContains(t, got, "M")
 		})
 	}
+}
+
+func TestRenderGradient(t *testing.T) {
+	t.Parallel()
+
+	th := theme.Theme{
+		Good: "<g>", Warn: "<w>", Bad: "<b>", Reset: "</>",
+		Full: "F", Empty: "E", MarkerGlyph: "M",
+		Gradient: true, Ramp: [][3]int{{0, 0, 0}, {100, 100, 100}, {200, 200, 200}},
+		EmptyColor: "<e>", MarkerColor: "<m>",
+	}
+	c := func(n int) string {
+		return "\033[38;2;" + strings.Repeat(strconv.Itoa(n)+";", 2) + strconv.Itoa(n) + "m"
+	}
+	tests := []struct {
+		name string
+		p    bar.Params
+		th   theme.Theme
+		want string
+	}{
+		{"whole cells rounded to nearest", bar.Params{Usage: 40, Width: 4, Warn: 50, Bad: 90, NoTarget: true}, th, c(0) + "F</>" + c(66) + "F</><e>E</><e>E</>"},
+		{"half a cell rounds up", bar.Params{Usage: 38, Width: 4, Warn: 50, Bad: 90, NoTarget: true}, th, c(0) + "F</>" + c(66) + "F</><e>E</><e>E</>"},
+		{"below half a cell rounds down", bar.Params{Usage: 35, Width: 4, Warn: 50, Bad: 90, NoTarget: true}, th, c(0) + "F</><e>E</><e>E</><e>E</>"},
+		{"marker replaces its cell", bar.Params{Usage: 100, Target: 50, Width: 3, Warn: 20, Bad: 40, HardCap: 95}, th, c(0) + "F</><m>M</>" + c(200) + "F</>"},
+		{"no ramp colour without colour", bar.Params{Usage: 50, Target: 0, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, th.WithoutColor(), "ME"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, bar.Render(tt.p, tt.th))
+		})
+	}
+}
+
+func TestPercentColor(t *testing.T) {
+	t.Parallel()
+
+	p := bar.Params{Usage: 71, Target: 50, Width: 2, Warn: 20, Bad: 40, HardCap: 95}
+	assert.Empty(t, bar.PercentColor(p, markers), "solid bars colour the fill, not the text")
+	grad := markers
+	grad.Gradient = true
+	assert.Equal(t, "<w>", bar.PercentColor(p, grad))
+	assert.Equal(t, "<g>", bar.Fill(bar.Params{Usage: 10, Width: 2, Warn: 50, Bad: 90, NoTarget: true}, markers))
 }

@@ -29,7 +29,7 @@ func TestRegistryNamesMatch(t *testing.T) {
 func TestRender(t *testing.T) {
 	t.Parallel()
 
-	th := theme.Lookup("default")
+	th := theme.Load("classic", "", "")
 	tests := []struct {
 		name string
 		cfg  string
@@ -57,7 +57,7 @@ func TestRender(t *testing.T) {
 func TestRenderDropsEmptySegments(t *testing.T) {
 	t.Parallel()
 
-	ctx := &segment.Context{Config: config.New("segments = model model"), Theme: theme.Lookup("default")}
+	ctx := &segment.Context{Config: config.New("segments = model model"), Theme: theme.Load("classic", "", "")}
 	assert.Empty(t, segment.Render(ctx), "Render() with an empty payload")
 }
 
@@ -71,11 +71,11 @@ func TestModelRender(t *testing.T) {
 		theme theme.Theme
 		want  string
 	}{
-		{"name and effort", `{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"}}`, "", theme.Lookup("default"), "Opus 4.7 [high]"},
-		{"no effort", `{"model":{"display_name":"Sonnet 5.5"}}`, "", theme.Lookup("default"), "Sonnet 5.5"},
-		{"effort hidden", `{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"}}`, "model.effort = false", theme.Lookup("default"), "Opus 4.7"},
-		{"invalid effort setting uses the default", `{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"}}`, "model.effort = maybe", theme.Lookup("default"), "Opus 4.7 [high]"},
-		{"no model", `{"effort":{"level":"high"}}`, "", theme.Lookup("default"), ""},
+		{"name and effort", `{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"}}`, "", theme.Load("classic", "", ""), "Opus 4.7 [high]"},
+		{"no effort", `{"model":{"display_name":"Sonnet 5.5"}}`, "", theme.Load("classic", "", ""), "Sonnet 5.5"},
+		{"effort hidden", `{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"}}`, "model.effort = false", theme.Load("classic", "", ""), "Opus 4.7"},
+		{"invalid effort setting uses the default", `{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"}}`, "model.effort = maybe", theme.Load("classic", "", ""), "Opus 4.7 [high]"},
+		{"no model", `{"effort":{"level":"high"}}`, "", theme.Load("classic", "", ""), ""},
 		{"painted with the text colour", `{"model":{"display_name":"Opus"}}`, "", theme.Theme{Text: "<t>", Reset: "</t>"}, "<t>Opus</t>"},
 	}
 	for _, tt := range tests {
@@ -143,7 +143,7 @@ func TestPathRender(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(hostile, ".git"), 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(hostile, ".git", "HEAD"), []byte("ref: refs/heads/a\x1b[31mb\n"), 0o600))
 
-	plain := theme.Lookup("default").WithoutColor()
+	plain := theme.Load("classic", "", "").WithoutColor()
 	jsonFor := func(dir string) string { return `{"workspace":{"current_dir":"` + dir + `"}}` }
 
 	tests := []struct {

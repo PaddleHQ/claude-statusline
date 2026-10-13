@@ -115,7 +115,7 @@ Configuration is optional. Your settings live in `~/.claude/claude-statusline/co
 |---|---|---|
 | `segments` | `path model ctx tokens cache boot skills skills_stripped agent_skills mem rate5h rate7d` | Segments to show, in order. Unknown names are skipped. |
 | `separator` | `·` | Glyph drawn between segments. |
-| `theme` | `default` | Colour theme. Unknown names fall back to `default`. |
+| `theme` | `classic` | Colour theme: a built-in name (`classic` or `gradient`) or the path to a theme file. Anything that cannot be used falls back to `classic`. See [Themes](#themes). |
 | `path.strip` | empty | Directory prefixes to strip from the path, separated by spaces; a leading `~` means your home directory. |
 | `path.branch` | `true` | Show the git branch after the path (`true` or `false`). |
 | `model.effort` | `true` | Show the effort level after the model name (`true` or `false`). |
@@ -163,6 +163,64 @@ These segments are read from the session transcript (`transcript_path` in the pa
 | `skills_stripped` | `✗ skills 3/12` in red | 3 of 12 listed skills had their descriptions stripped to fit the listing budget. |
 | `agent_skills` | `✗ agent skills 3/12` in amber | The same, for the subagent with the most stripped skills. |
 | `mem` | `✗ mem` in red | A `SessionStart` hook's output was too large to inject, so Claude Code replaced it with a short preview. |
+
+## Themes
+
+A theme sets the colours and the bar glyphs. Two come built in:
+
+- `classic` is the default: eighth-block bars filled in green, amber or red by pace, in basic terminal colours that suit light and dark backgrounds.
+- `gradient` draws whole-cell bars whose colour runs from green through amber to red along the bar. The pace colour moves to the percentage after the bar, so the bar shows how much you have used and the number shows how you are doing against the pace.
+
+Pick one in your config file:
+
+```
+theme = gradient
+```
+
+With `NO_COLOR` set, a gradient bar keeps its glyphs and drops every colour:
+
+```
+5h: ▰▰▰▰▰▰▰▰▰▰/▰▰▰▰▱▱▱▱▱ 75%
+```
+
+The older name `default` still works and means `classic`.
+
+### Your own theme
+
+Point `theme` at a YAML file. A value that contains `/` or starts with `~` is a path: `~` is your home directory, and a relative path is taken from the `claude-statusline` directory next to your config file.
+
+```
+theme = ~/.config/claude-statusline/ocean.yaml
+```
+
+A theme file lists only what it changes when it starts from another theme with `extends`. The value of `extends` is a built-in name or a path, written the same way (a relative path is taken from the extending file's directory, so use `./other.yaml` for a sibling). Chains work, and a chain that loops is rejected.
+
+```yaml
+extends: gradient
+
+colors:
+  path: green
+
+bar:
+  ramp: ["#7aa2f7", "#e0af68", "#f7768e"]
+  empty_color: bright-black
+```
+
+The built-in files, [`classic.yaml`](internal/theme/themes/classic.yaml) and [`gradient.yaml`](internal/theme/themes/gradient.yaml), are written in this format and make good starting points. Every field is optional when you use `extends`; without it, the bar glyphs are required.
+
+| Field | Meaning |
+|---|---|
+| `extends` | A built-in name or a path to start from. |
+| `colors.text`, `muted`, `good`, `warn`, `bad`, `marker`, `path` | A colour for each role. `text` is labels and figures, `muted` is separators and empty bar cells, `good`, `warn` and `bad` colour the bar fill, `marker` is the pace marker and `path` is the working directory. An empty string uses the terminal's own colour. |
+| `bar.style` | `solid` or `gradient`. |
+| `bar.full`, `bar.empty`, `bar.marker` | The glyphs for a full cell, an empty cell and the pace marker. |
+| `bar.partials` | Seven glyphs for a cell filled by one to seven eighths. Needed for `solid`. |
+| `bar.ramp` | Three `#rrggbb` stops, for good, warn and bad. Needed for `gradient`. |
+| `bar.empty_color`, `bar.marker_color` | Colours for empty cells and the marker in a `gradient` bar. |
+
+A colour is a space-separated list of tokens, applied in order: `bold`, `dim`, `italic`, `underline`, a name (`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, or `bright-` followed by one of those), a number from 0 to 255 for the 256-colour palette, or `#rrggbb` for a true colour. At most one token may be a colour, so `bold 33` and `underline #ff8800` are valid and `red blue` is not.
+
+A theme is checked strictly. An unknown theme name, an unreadable file, invalid YAML, an unknown key, a bad colour, a wrong number of glyphs or an `extends` loop all make the status line use `classic` instead, silently, rather than applying half a theme. If your theme does not seem to apply, a typo in a key is the usual cause.
 
 ## Wrapping
 

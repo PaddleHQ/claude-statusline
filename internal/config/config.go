@@ -51,13 +51,22 @@ func Dir(getenv func(string) string) string {
 	return ""
 }
 
-// Path returns where the user's config file lives, or "" when there is no config directory.
-func Path(getenv func(string) string) string {
+// AppDir returns the directory holding the user's config file, or "" when there is no config directory.
+func AppDir(getenv func(string) string) string {
 	dir := Dir(getenv)
 	if dir == "" {
 		return ""
 	}
-	return filepath.Join(dir, "claude-statusline", "config")
+	return filepath.Join(dir, "claude-statusline")
+}
+
+// Path returns where the user's config file lives, or "" when there is no config directory.
+func Path(getenv func(string) string) string {
+	dir := AppDir(getenv)
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, "config")
 }
 
 // DefaultKeys lists every key in defaults.conf.

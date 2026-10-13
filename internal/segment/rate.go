@@ -34,14 +34,15 @@ func (r rate) Render(ctx *Context) string {
 		return ""
 	}
 	cfg := ctx.Config
-	b := bar.Render(bar.Params{
+	params := bar.Params{
 		Usage:   int(reading.Used),
 		Target:  bar.ElapsedPercent(ctx.Now.Unix(), reading.ResetsAt, r.seconds),
 		Width:   barWidth(ctx, r.name),
 		Warn:    cfg.Int(r.name + ".warn"),
 		Bad:     cfg.Int(r.name + ".bad"),
 		HardCap: cfg.Int(r.name + ".hard_cap"),
-	}, ctx.Theme)
+	}
+	b := bar.Render(params, ctx.Theme)
 	label := ctx.Theme.Paint(ctx.Theme.Text, cfg.String(r.name+".label")+": ")
-	return label + b + " " + strconv.FormatInt(reading.Used, 10) + "%"
+	return label + b + " " + ctx.Theme.Paint(bar.PercentColor(params, ctx.Theme), strconv.FormatInt(reading.Used, 10)+"%")
 }

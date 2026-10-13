@@ -1,0 +1,2 @@
+a.yaml=extends: ./b.yaml
+b.yaml=extends: ./a.yaml

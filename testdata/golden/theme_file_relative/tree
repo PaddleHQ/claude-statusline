@@ -1,0 +1,1 @@
+claude-statusline/themes/ocean.yaml=colors:\n  good: cyan\n  muted: bright-black\nbar:\n  full: "#"\n  empty: "."\n  marker: "|"\n  partials: ["1", "2", "3", "4", "5", "6", "7"]

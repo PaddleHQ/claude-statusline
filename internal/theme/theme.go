@@ -1,8 +1,20 @@
-// Package theme defines the colours and glyphs a status line is drawn with.
+// Package theme defines the colors and glyphs a status line is drawn with.
 package theme
 
-// Theme holds role colours as raw escape sequences and the glyphs for bars.
-// An empty colour means "leave the terminal's own".
+import "fmt"
+
+const (
+	rampStops   = 3
+	rampScale   = 1000
+	rampSpan    = 2 * rampScale
+	rampGoodAt  = 0
+	rampWarnAt  = 1
+	rampBadAt   = 2
+	channelsRGB = 3
+)
+
+// Theme holds role colors as raw escape sequences and the glyphs for bars.
+// An empty color means "leave the terminal's own".
 type Theme struct {
 	Text   string
 	Muted  string
@@ -17,46 +29,50 @@ type Theme struct {
 	Partials    [7]string
 	Empty       string
 	MarkerGlyph string
+
+	// Gradient draws whole cells colored by position along Ramp, with the
+	// pace color on the percentage text. Ramp holds the good, warn and bad
+	// stops as RGB, and is nil once color is removed.
+	Gradient    bool
+	Ramp        [][channelsRGB]int
+	EmptyColor  string
+	MarkerColor string
 }
 
-const defaultName = "default"
-
-// Basic ANSI colours and a bold default-foreground marker read well on light and dark terminals.
-var themes = map[string]Theme{
-	defaultName: {
-		Muted:  "\033[2m",
-		Good:   "\033[32m",
-		Warn:   "\033[33m",
-		Bad:    "\033[31m",
-		Marker: "\033[1m",
-		Path:   "\033[1m\033[38;5;33m",
-		Reset:  "\033[0m",
-
-		Full:        "█",
-		Partials:    [7]string{"▏", "▎", "▍", "▌", "▋", "▊", "▉"},
-		Empty:       "░",
-		MarkerGlyph: "┃",
-	},
-}
-
-// Lookup returns the named theme, or the default for an unknown name.
-func Lookup(name string) Theme {
-	if t, ok := themes[name]; ok {
-		return t
-	}
-	return themes[defaultName]
-}
-
-// WithoutColor clears every colour and style, keeping the glyphs.
+// WithoutColor clears every color and style, keeping the glyphs.
 func (t Theme) WithoutColor() Theme {
 	t.Text, t.Muted, t.Good, t.Warn, t.Bad, t.Marker, t.Path, t.Reset = "", "", "", "", "", "", "", ""
+	t.Ramp, t.EmptyColor, t.MarkerColor = nil, "", ""
 	return t
 }
 
-// Paint wraps s in the colour and a reset, or returns it untouched when the colour is empty.
-func (t Theme) Paint(colour, s string) string {
-	if colour == "" {
+// Paint wraps s in the color and a reset, or returns it untouched when the color is empty.
+func (t Theme) Paint(color, s string) string {
+	if color == "" {
 		return s
 	}
-	return colour + s + t.Reset
+	return color + s + t.Reset
+}
+
+// RampColor is the escape sequence for a cell of a width-cell gradient bar, or
+// "" when the theme has no ramp. The first cell takes the good stop, the middle
+// the warn stop and the last the bad stop, with integer steps between.
+func (t Theme) RampColor(cell, width int) string {
+	if len(t.Ramp) != rampStops {
+		return ""
+	}
+	pos := 0
+	if width > 1 {
+		pos = cell * rampSpan / (width - 1)
+	}
+	from, to := t.Ramp[rampGoodAt], t.Ramp[rampWarnAt]
+	if pos > rampScale {
+		pos -= rampScale
+		from, to = t.Ramp[rampWarnAt], t.Ramp[rampBadAt]
+	}
+	var c [channelsRGB]int
+	for i := range c {
+		c[i] = from[i] + (to[i]-from[i])*pos/rampScale
+	}
+	return fmt.Sprintf("\033[38;2;%d;%d;%dm", c[0], c[1], c[2])
 }

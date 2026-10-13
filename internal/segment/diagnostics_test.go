@@ -70,7 +70,7 @@ func TestModelOverride(t *testing.T) {
 			p := payload.Parse([]byte(`{"model":{"id":"` + tt.id + `","display_name":"Opus 4.7"},"effort":{"level":"high"}}`))
 			m, ok := segment.Lookup("model")
 			require.True(t, ok)
-			got := m.Render(&segment.Context{Payload: p, Config: config.New(""), Theme: theme.Lookup("default").WithoutColor(), Transcript: transcript.Info{ActualModel: tt.actual}})
+			got := m.Render(&segment.Context{Payload: p, Config: config.New(""), Theme: theme.Load("classic", "", "").WithoutColor(), Transcript: transcript.Info{ActualModel: tt.actual}})
 			assert.Equal(t, tt.want, got)
 		})
 	}

@@ -22,7 +22,7 @@ func TestRateRender(t *testing.T) {
 		FiveHour: &ratecache.Reading{Used: 45, ResetsAt: 1760009000},
 		SevenDay: &ratecache.Reading{Used: 40, ResetsAt: 1760302400},
 	}
-	plain := theme.Lookup("default").WithoutColor()
+	plain := theme.Load("classic", "", "").WithoutColor()
 
 	tests := []struct {
 		name    string

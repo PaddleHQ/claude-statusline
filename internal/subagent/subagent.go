@@ -57,7 +57,7 @@ func Build(input []byte, getenv func(string) string) string {
 	if path := config.Path(getenv); path != "" {
 		cfg = config.Load(path)
 	}
-	th := theme.Lookup(cfg.String(keyTheme))
+	th := theme.Load(cfg.String(keyTheme), getenv("HOME"), config.AppDir(getenv))
 	if getenv("NO_COLOR") != "" {
 		th = th.WithoutColor()
 	}
@@ -128,15 +128,9 @@ func (r renderer) ctx(raw float64) string {
 	pct := int(math.Floor(math.Min(math.Max(raw, 0), maxPercent)))
 	warn, bad := r.cfg.Int("ctx.warn"), r.cfg.Int("ctx.bad")
 	width := bar.WidthFor(r.columns, r.cfg.Int("ctx.width"), r.cfg.Int("ctx.width_medium"), r.cfg.Int("ctx.width_narrow"))
-	fill := r.th.Good
-	switch {
-	case pct >= bad:
-		fill = r.th.Bad
-	case pct >= warn:
-		fill = r.th.Warn
-	}
-	b := bar.Render(bar.Params{Usage: pct, Width: width, Warn: warn, Bad: bad, NoTarget: true}, r.th)
-	return r.th.Paint(r.th.Text, "ctx: ") + b + " " + r.th.Paint(fill, strconv.Itoa(pct)+"%")
+	params := bar.Params{Usage: pct, Width: width, Warn: warn, Bad: bad, NoTarget: true}
+	b := bar.Render(params, r.th)
+	return r.th.Paint(r.th.Text, "ctx: ") + b + " " + r.th.Paint(bar.Fill(params, r.th), strconv.Itoa(pct)+"%")
 }
 
 // truthy mirrors jq: only null, false and a missing field count as absent.

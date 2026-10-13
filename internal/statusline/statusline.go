@@ -40,7 +40,7 @@ func Build(input []byte, getenv func(string) string) string {
 
 	saveSnapshot(input, cfg, getenv)
 
-	th := theme.Lookup(cfg.String(keyTheme))
+	th := theme.Load(cfg.String(keyTheme), getenv("HOME"), config.AppDir(getenv))
 	if getenv("NO_COLOR") != "" {
 		th = th.WithoutColor()
 	}

@@ -26,12 +26,13 @@ func (ctxBar) Render(ctx *Context) string {
 	}
 	cfg := ctx.Config
 	pct := int(math.RoundToEven(*used))
-	b := bar.Render(bar.Params{
+	params := bar.Params{
 		Usage:    pct,
 		Width:    barWidth(ctx, "ctx"),
 		Warn:     cfg.Int("ctx.warn"),
 		Bad:      cfg.Int("ctx.bad"),
 		NoTarget: true,
-	}, ctx.Theme)
-	return ctx.Theme.Paint(ctx.Theme.Text, "ctx: ") + b + " " + strconv.Itoa(pct) + "%"
+	}
+	b := bar.Render(params, ctx.Theme)
+	return ctx.Theme.Paint(ctx.Theme.Text, "ctx: ") + b + " " + ctx.Theme.Paint(bar.PercentColor(params, ctx.Theme), strconv.Itoa(pct)+"%")
 }

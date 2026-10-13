@@ -26,7 +26,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `internal/hook` | Runs custom segment scripts with a timeout and a per-session cache, and sanitises their output. |
 | `internal/gitbranch` | Finds the branch by reading `.git` files, without running `git`. |
 | `internal/bar` | Draws a usage bar with an optional pace marker. |
-| `internal/theme` | Colours and glyphs, and the colour-free variant used for `NO_COLOR`. |
+| `internal/theme` | Loads themes from YAML, compiles colour specs, and provides the colour-free variant used for `NO_COLOR`. The built-in themes are the files in `internal/theme/themes/`. |
 | `internal/snapshot` | Saves the latest payload for other tools. |
 | `internal/subagent` | Renders the rows of Claude Code's agent panel. |
 | `internal/setup` | Adds `statusLine` and `subagentStatusLine` to `settings.json` once, backing the file up first. |
@@ -91,6 +91,10 @@ HOME="$tmp" CLAUDE_CONFIG_DIR="$tmp" go run . < testdata/golden/default_all/inpu
 ### Configuration keys
 
 Every key the code reads must appear in `internal/config/defaults.conf` with a one-line comment above it, and every key in that file must be read by something. `TestKeysMatchDefaults` in `internal/statusline` enforces both directions, so a new setting cannot ship undocumented and a dead one cannot linger. Add the key to the table in the README too.
+
+### Adding a built-in theme
+
+Built-in themes are YAML files in `internal/theme/themes/`, embedded in the binary; the file name without `.yaml` is the name users put in `theme`. Write one in the format the README's Themes section describes, with comments, since the files double as examples. Start with `extends: classic` unless the theme needs every field. Parsing is strict (unknown keys are an error), so a typo fails the tests rather than shipping. Add a test in `internal/theme` for what is new, and a golden case under `testdata/golden/` that selects the theme in its `config`. Mention the theme in the README. Keep the loader's fallback to `classic` silent: a status line never prints an error.
 
 ### Adding a segment
 

@@ -21,7 +21,7 @@ func TestRenderPlacesHooks(t *testing.T) {
 
 	const input = `{"model":{"display_name":"Opus"},"cwd":"/srv/app","context_window":{"used_percentage":42,"total_input_tokens":1500,"total_output_tokens":2000},` +
 		`"rate_limits":{"five_hour":{"used_percentage":45,"resets_at":1760009000}}}`
-	th := theme.Lookup("default").WithoutColor()
+	th := theme.Load("classic", "", "").WithoutColor()
 
 	tests := []struct {
 		name  string
@@ -119,7 +119,7 @@ func TestRenderWrapsAroundHooks(t *testing.T) {
 	ctx := &segment.Context{
 		Payload: payload.Parse([]byte(input)),
 		Config:  config.New("segments = path model tokens"),
-		Theme:   theme.Lookup("default").WithoutColor(),
+		Theme:   theme.Load("classic", "", "").WithoutColor(),
 		Columns: 40,
 		Hooks:   hooks,
 	}
@@ -132,7 +132,7 @@ func TestRenderPaintsTheContinuationAnchor(t *testing.T) {
 	ctx := &segment.Context{
 		Payload: payload.Parse([]byte(`{"model":{"display_name":"Opus 4.7 Extended Thinking"},"cwd":"/srv/app","context_window":{"used_percentage":1}}`)),
 		Config:  config.New("segments = path model ctx"),
-		Theme:   theme.Lookup("default"),
+		Theme:   theme.Load("classic", "", ""),
 		Columns: 50,
 	}
 	assert.Contains(t, segment.Render(ctx), "\n\033[2m↳\033[0m          ctx: ")
