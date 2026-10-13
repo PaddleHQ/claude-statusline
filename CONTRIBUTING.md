@@ -6,7 +6,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 
 - Go, at the version in `go.mod`.
 - [golangci-lint](https://golangci-lint.run/) v2, for the linters and formatters in `.golangci.yml` (the build uses v2.14.0).
-- [shellcheck](https://www.shellcheck.net/), for the shell scripts under `hooks/`, `scripts/` and `tests/`.
+- [shellcheck](https://www.shellcheck.net/), for the shell scripts under `hooks/` and `tests/`.
 - [GoReleaser](https://goreleaser.com/) and [syft](https://github.com/anchore/syft), only if you want to build a snapshot release locally.
 
 `jq` is not needed: the shell scripts parse what they need with `awk` and `grep`, so the plugin works on a machine without it.
@@ -30,9 +30,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `internal/snapshot` | Saves the latest payload for other tools. |
 | `internal/subagent` | Renders the rows of Claude Code's agent panel. |
 | `internal/setup` | Adds `statusLine` and `subagentStatusLine` to `settings.json` once, backing the file up first. |
-| `hooks/` | The plugin's `SessionStart` hook: `hooks.json` and `bootstrap.sh`, which installs the pinned release. |
-| `scripts/` | Maintainer scripts. `pin-release.sh` records a release for the plugin to install. |
-| `release/` | The pinned plugin version and the sha256 of each archive. |
+| `hooks/` | The plugin's `SessionStart` hook: `hooks.json` and `bootstrap.sh`, which installs the latest release. |
 | `tests/` | Shell tests for the bootstrap hook. |
 | `testdata/` | Golden fixtures for the end-to-end tests. |
 | `.claude-plugin/` | The plugin and marketplace manifests. |
@@ -46,7 +44,7 @@ test -z "$(gofmt -s -l .)"    # formatting
 go vet ./...
 go test -race ./...
 golangci-lint run
-shellcheck -s sh hooks/bootstrap.sh scripts/pin-release.sh tests/bootstrap_test.sh
+shellcheck -s sh hooks/bootstrap.sh tests/bootstrap_test.sh
 sh tests/bootstrap_test.sh
 goreleaser check
 goreleaser release --snapshot --clean --skip=publish   # needs syft on your PATH
@@ -133,8 +131,8 @@ Every pull request needs exactly one of these labels, checked by the `Check SemV
 
 On a pull request, a `release:*` label makes the release workflow do a dry run. On merge, the workflow tags the version and publishes archives for macOS and Linux on arm64 and amd64, with a checksum file, an SBOM per archive and a build provenance attestation.
 
-### Pinning a release for the plugin
+### How the plugin picks up a release
 
-The plugin installs the version recorded in `release/version`, not the latest release. After a release is published, a maintainer runs `scripts/pin-release.sh <version>` (for example `0.1.0`, without the leading `v`). It needs `gh`, verifies the build attestation and the checksum of all four archives, and only then writes `release/version` and `release/checksums.txt`. Commit both files in a pull request. Until that merges, the plugin keeps installing the previous pin, and while `release/version` is empty the hook does nothing.
+Merging a `release:*` pull request publishes the release, and plugin users pick it up within a day: there is no second step. The hook resolves the latest release from the redirect at `https://github.com/PaddleHQ/claude-statusline/releases/latest`, so it does not use the API or its rate limit. It verifies the archive against the release's `checksums.txt` and, when `gh` is installed and logged in, runs `gh attestation verify`.
 
-The hashes are committed to the repository rather than read from the release on purpose. The hook compares each download with a hash that went through code review, so someone who could alter a release's files would still not get a tampered binary installed on users' machines. Reading the hash from the same place as the archive would only prove the two agree with each other.
+For tests only, `CLAUDE_STATUSLINE_LATEST_URL` replaces the latest-release URL (a `file://` URL whose content is the tag, for example `v1.2.3`), and `CLAUDE_STATUSLINE_DOWNLOAD_BASE` replaces the download base URL.

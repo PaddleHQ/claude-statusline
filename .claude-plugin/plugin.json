@@ -1,6 +1,6 @@
 {
   "name": "statusline",
-  "description": "An open-source status line for Claude Code. Installs the pinned release binary on session start and enables it if you have no status line.",
+  "description": "An open-source status line for Claude Code. Installs the latest release binary on session start and enables it if you have no status line.",
   "author": {
     "name": "Paddle"
   },

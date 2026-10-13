@@ -32,11 +32,13 @@ The plugin route adds a step before any of this, so that the binary is installed
 ```mermaid
 flowchart TD
     SS["SessionStart hook"] --> BS["hooks/bootstrap.sh"]
-    BS --> PIN["read the pinned version and checksums<br/>(release/version, release/checksums.txt)"]
-    PIN --> CUR{"pinned version<br/>already installed?"}
-    CUR -->|"yes"| SETUP
-    CUR -->|"no"| DL["download the release archive"]
-    DL --> VER["verify its sha256"]
+    BS --> DUE{"checked in the<br/>last 24 hours?"}
+    DUE -->|"yes"| SETUP
+    DUE -->|"no"| LATEST["find the latest release"]
+    LATEST --> NEW{"newer than the<br/>installed version?"}
+    NEW -->|"no"| SETUP
+    NEW -->|"yes"| DL["download the archive and checksums.txt"]
+    DL --> VER["verify its sha256 and, with gh, its provenance"]
     VER --> INST["install to ~/.claude/claude-statusline/bin"]
     INST --> SETUP["claude-statusline setup<br/>adds missing statusLine and subagentStatusLine"]
 ```
@@ -50,7 +52,7 @@ flowchart TD
 /plugin install statusline@claude-statusline
 ```
 
-On your next session start, a hook downloads the pinned release for your platform, checks its sha256 against the hashes committed in this repository, and installs it to `~/.claude/claude-statusline/bin`. It then runs `claude-statusline setup`, which sets `statusLine` and `subagentStatusLine` in `settings.json` only if you do not already have them, backing the file up first, and never touches either again. If an earlier install wired only `statusLine`, the next session adds `subagentStatusLine` once. Once the right version is installed, later sessions make no network requests.
+On your next session start, a hook installs the latest release for your platform to `~/.claude/claude-statusline/bin`. It checks for a newer release at most once a day, verifies its checksum and, when the GitHub CLI is available and logged in, its build provenance; it never downgrades and keeps the previous binary if anything fails. Without `gh`, the checksum comes from the same release as the archive, so it detects corruption but not a tampered release; the hook says so once. It then runs `claude-statusline setup`, which sets `statusLine` and `subagentStatusLine` in `settings.json` only if you do not already have them, backing the file up first, and never touches either again. If an earlier install wired only `statusLine`, the next session adds `subagentStatusLine` once. Within the day between checks, sessions make no network requests.
 
 ### Manual install
 
@@ -289,7 +291,7 @@ Every time the status line renders, the payload Claude Code sent is saved, byte 
 
 ## Releases
 
-Every release is published from this repository's release workflow, so you can check what you download. The commands under [From a release](#from-a-release) verify the archive against the published checksums and against its build provenance attestation. The plugin does the checksum check for you, against hashes committed to this repository.
+Every release is published from this repository's release workflow, so you can check what you download. The commands under [From a release](#from-a-release) verify the archive against the published checksums and against its build provenance attestation. The plugin does the checksum check for you and, when `gh` is installed and logged in, the provenance check too.
 
 To work on the code, see [CONTRIBUTING.md](CONTRIBUTING.md).
 

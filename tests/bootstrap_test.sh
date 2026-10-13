@@ -17,6 +17,15 @@ case "$(uname -m)" in
   *) echo "unsupported architecture; skipping all tests"; exit 0 ;;
 esac
 
+SH=$(command -v sh)
+
+# A PATH holding only symlinks to the tools the hook needs, so the machine's own gh is never found.
+TOOLS="$WORK/tools"
+mkdir -p "$TOOLS"
+for tool in awk cat chmod curl date dirname find grep gzip mkdir mktemp mv rm sed sh sha256sum shasum tar tr uname wc; do
+  found=$(command -v "$tool" 2>/dev/null) && case "$found" in /*) ln -s "$found" "$TOOLS/$tool" ;; esac
+done
+
 REAL_CLAUDE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 real_state() {
   ls -ld "$REAL_CLAUDE/claude-statusline" 2>&1
@@ -42,53 +51,86 @@ bad() {
   echo "FAIL - $NAME: $1"
 }
 
-# The stand-in binary answers --version and records and echoes its setup arguments.
-make_release() {
-  v="$1"
-  d="$T/build-$v"
-  mkdir -p "$d" "$T/releases/v$v"
-  cat > "$d/claude-statusline" <<STUB
+write_stub() {
+  mkdir -p "$(dirname "$1")"
+  cat > "$1" <<STUB
 #!/bin/sh
 case "\$1" in
-  --version) echo "claude-statusline $v (abc, 2026-01-01)" ;;
+  --version) echo "claude-statusline $2 (abc, 2026-01-01)" ;;
   setup) echo "\$*" >> "\$STUB_LOG"; echo "{\"systemMessage\":\"stub \$2\"}" ;;
 esac
 exit 0
 STUB
-  chmod 755 "$d/claude-statusline"
-  archive="claude-statusline_${v}_${OS}_${ARCH}.tar.gz"
-  tar -czf "$T/releases/v$v/$archive" -C "$d" claude-statusline
-  printf '%s  %s\n' "$(sha256_of "$T/releases/v$v/$archive")" "$archive" >> "$T/checksums.all"
+  chmod 755 "$1"
 }
 
-pin() {
-  mkdir -p "$T/plugin/release"
-  printf '%s\n' "$1" > "$T/plugin/release/version"
-  if [ -n "${2:-}" ]; then
-    grep -F "_${1}_" "$T/checksums.all" > "$T/plugin/release/checksums.txt"
-  else
-    : > "$T/plugin/release/checksums.txt"
-  fi
+make_release() {
+  v="$1"
+  d="$T/build-$v"
+  write_stub "$d/claude-statusline" "$v"
+  mkdir -p "$T/releases/v$v"
+  archive="claude-statusline_${v}_${OS}_${ARCH}.tar.gz"
+  tar -czf "$T/releases/v$v/$archive" -C "$d" claude-statusline
+  printf '%s  %s\n' "$(sha256_of "$T/releases/v$v/$archive")" "$archive" > "$T/releases/v$v/checksums.txt"
+  printf '%064d  claude-statusline_%s_other_arch.tar.gz\n' 0 "$v" >> "$T/releases/v$v/checksums.txt"
+}
+
+set_latest() {
+  printf '%s\n' "$1" > "$T/latest"
+}
+
+install_stub() {
+  write_stub "$BIN" "$1"
+  age_check "${2:-90000}"
+}
+
+age_check() {
+  printf '%s\n' "$(($(date +%s) - $1))" > "$T/claude/claude-statusline/last-check"
+}
+
+stub_gh() {
+  mkdir -p "$T/gh"
+  cat > "$T/gh/gh" <<STUB
+#!/bin/sh
+echo "\$*" >> "$T/gh.log"
+case "\$1:\$2:$1" in
+  auth:*:nologin) exit 1 ;;
+  attestation:*:oldgh) exit 1 ;;
+  attestation:verify:badattest) exit 1 ;;
+esac
+exit 0
+STUB
+  chmod 755 "$T/gh/gh"
 }
 
 start() {
   NAME="$1"
   FAIL_START="$FAIL"
   T="$WORK/$2"
-  mkdir -p "$T/home" "$T/claude" "$T/plugin"
-  : > "$T/checksums.all"
+  mkdir -p "$T/home" "$T/claude" "$T/plugin" "$T/gh"
   : > "$T/setup.log"
+  : > "$T/gh.log"
   cp -R "$ROOT/hooks" "$T/plugin/hooks"
   BIN="$T/claude/claude-statusline/bin/claude-statusline"
+  CHECK="$T/claude/claude-statusline/last-check"
+  NOTICE="$T/claude/claude-statusline/.no-attestation-notice"
 }
 
 run_hook() {
-  HOME="$T/home" CLAUDE_CONFIG_DIR="$T/claude" CLAUDE_PLUGIN_ROOT="$T/plugin" \
-    CLAUDE_STATUSLINE_DOWNLOAD_BASE="file://$T/releases" STUB_LOG="$T/setup.log" \
-    sh "$T/plugin/hooks/bootstrap.sh" > "$T/out" 2> "$T/err"
+  PATH="$T/gh:$TOOLS" HOME="$T/home" CLAUDE_CONFIG_DIR="$T/claude" CLAUDE_PLUGIN_ROOT="$T/plugin" \
+    CLAUDE_STATUSLINE_DOWNLOAD_BASE="file://$T/releases" CLAUDE_STATUSLINE_LATEST_URL="file://$T/latest" \
+    STUB_LOG="$T/setup.log" "$SH" "$T/plugin/hooks/bootstrap.sh" > "$T/out" 2> "$T/err"
   RC=$?
   [ "$RC" = 0 ] || bad "exit code $RC"
   [ ! -s "$T/err" ] || bad "stderr not empty: $(cat "$T/err")"
+}
+
+installed_version() {
+  "$BIN" --version | awk '{ print $2 }'
+}
+
+assert_version() {
+  [ "$(installed_version)" = "$1" ] || bad "installed version is $(installed_version), want $1"
 }
 
 assert_setup_events() {
@@ -109,95 +151,244 @@ assert_not_installed() {
   assert_setup_events ""
 }
 
+assert_check_fresh() {
+  [ "$(($(date +%s) - $(cat "$CHECK")))" -lt 300 ] || bad "last-check was not updated"
+}
+
+assert_no_temp_left() {
+  for left in "$T"/claude/claude-statusline/tmp.*; do [ ! -e "$left" ] || bad "temp dir left behind"; done
+}
+
 finish() {
   if [ "$FAIL" = "$FAIL_START" ]; then ok; fi
 }
 
-start "empty pin is a silent no-op" t1
-pin ""
-run_hook
-assert_silent
-assert_setup_events ""
-[ ! -e "$T/claude/claude-statusline" ] || bad "created the app dir"
-finish
-
-start "fresh install runs setup with the installed event" t2
+start "fresh install downloads the latest release and runs setup with the installed event" t1
 make_release 1.2.3
-pin 1.2.3 y
+set_latest v1.2.3
+stub_gh login
 run_hook
 assert_setup_events "setup --event=installed"
 assert_message 'stub --event=installed'
-[ -x "$BIN" ] || bad "binary not installed"
-for left in "$T"/claude/claude-statusline/tmp.*; do [ ! -e "$left" ] || bad "temp dir left behind"; done
+assert_version 1.2.3
+assert_check_fresh
+assert_no_temp_left
 finish
 
-start "second run makes no network request and runs setup with the current event" t3
+start "within 24 hours there is no network request and setup runs with the current event" t2
 make_release 1.2.3
-pin 1.2.3 y
+set_latest v1.2.3
+stub_gh login
 run_hook
-rm -rf "$T/releases"
+rm -rf "$T/releases" "$T/latest"
 : > "$T/setup.log"
 run_hook
 assert_setup_events "setup --event=current"
+assert_version 1.2.3
 finish
 
-start "checksum mismatch is not installed" t4
+start "after 24 hours with the same version nothing is downloaded and last-check is updated" t3
 make_release 1.2.3
-pin 1.2.3 y
+set_latest v1.2.3
+install_stub 1.2.3
+rm -rf "$T/releases/v1.2.3"
+run_hook
+assert_setup_events "setup --event=current"
+assert_check_fresh
+assert_version 1.2.3
+finish
+
+start "a newer release replaces the binary and runs setup with the updated event" t4
+make_release 1.2.4
+set_latest v1.2.4
+stub_gh login
+install_stub 1.2.3
+run_hook
+assert_setup_events "setup --event=updated"
+assert_version 1.2.4
+assert_check_fresh
+finish
+
+start "an older release is never installed over a newer binary" t5
+make_release 1.2.3
+set_latest v1.2.3
+install_stub 1.3.0
+run_hook
+assert_setup_events "setup --event=current"
+assert_version 1.3.0
+assert_check_fresh
+finish
+
+start "a numeric comparison is used rather than a string one" t6
+make_release 1.10.0
+set_latest v1.10.0
+stub_gh login
+install_stub 1.9.9
+run_hook
+assert_version 1.10.0
+install_stub 1.10.0
+make_release 1.9.0
+set_latest v1.9.0
+run_hook
+assert_version 1.10.0
+finish
+
+start "a development version counts as older" t7
+make_release 0.1.0
+set_latest v0.1.0
+stub_gh login
+install_stub 0.0.0-stack
+run_hook
+assert_setup_events "setup --event=updated"
+assert_version 0.1.0
+finish
+
+start "a checksum mismatch is not installed" t8
+make_release 1.2.3
+set_latest v1.2.3
 printf 'tampered' >> "$T/releases/v1.2.3/claude-statusline_1.2.3_${OS}_${ARCH}.tar.gz"
 run_hook
 assert_message 'FAILED checksum verification and was NOT installed'
 assert_not_installed
 finish
 
-start "missing checksum line gives a message" t5
+start "a checksums file without the platform line gives a message" t9
 make_release 1.2.3
-pin 1.2.3
+set_latest v1.2.3
+grep -v "_${OS}_${ARCH}" "$T/releases/v1.2.3/checksums.txt" > "$T/c" && mv "$T/c" "$T/releases/v1.2.3/checksums.txt"
 run_hook
-assert_message 'no checksum is pinned'
+assert_message 'has no checksum for'
 assert_not_installed
 finish
 
-start "version bump replaces the binary and runs setup with the updated event" t6
+start "a missing checksums file gives a message" t10
+make_release 1.2.3
+set_latest v1.2.3
+rm "$T/releases/v1.2.3/checksums.txt"
+run_hook
+assert_message 'downloading the checksums'
+assert_not_installed
+finish
+
+start "a failed attestation is not installed" t11
+make_release 1.2.3
+set_latest v1.2.3
+stub_gh badattest
+run_hook
+assert_message 'provenance verification of v1.2.3 FAILED'
+assert_not_installed
+grep -q '^attestation verify .* --repo PaddleHQ/claude-statusline$' "$T/gh.log" || bad "gh attestation verify was not called with the repo"
+finish
+
+start "a failed attestation keeps the previous binary" t12
+make_release 1.2.4
+set_latest v1.2.4
+stub_gh badattest
+install_stub 1.2.3
+run_hook
+assert_message 'provenance verification'
+assert_setup_events ""
+assert_version 1.2.3
+finish
+
+start "a passing attestation installs without the notice" t13
+make_release 1.2.3
+set_latest v1.2.3
+stub_gh login
+run_hook
+assert_version 1.2.3
+assert_message 'stub --event=installed'
+if grep -q 'provenance' "$T/out"; then bad "notice shown although gh verified the build"; fi
+[ ! -e "$NOTICE" ] || bad "sentinel written although gh verified the build"
+grep -q '^attestation verify ' "$T/gh.log" || bad "gh attestation verify was not run"
+finish
+
+start "without gh it installs on the checksum and shows the notice once" t14
 make_release 1.2.3
 make_release 1.2.4
-pin 1.2.3 y
+set_latest v1.2.3
+rm -rf "$T/gh"
 run_hook
+assert_version 1.2.3
+assert_message 'stub --event=installed.*checksum check only.*gh auth login'
+[ -e "$NOTICE" ] || bad "sentinel not written"
+set_latest v1.2.4
+age_check 90000
 : > "$T/setup.log"
-pin 1.2.4 y
 run_hook
+assert_version 1.2.4
 assert_setup_events "setup --event=updated"
-[ "$("$BIN" --version | awk '{ print $2 }')" = 1.2.4 ] || bad "binary not upgraded"
+if grep -q 'checksum check only' "$T/out"; then bad "notice shown a second time"; fi
 finish
 
-start "failed upgrade keeps the previous binary" t7
+start "gh that is not logged in is treated as no gh" t15
 make_release 1.2.3
+set_latest v1.2.3
+stub_gh nologin
+run_hook
+assert_version 1.2.3
+assert_message 'checksum check only'
+if grep -q '^attestation' "$T/gh.log"; then bad "attestation was attempted without a login"; fi
+finish
+
+start "gh without the attestation command is treated as no gh, not as a failed verification" t15b
+make_release 1.2.3
+set_latest v1.2.3
+stub_gh oldgh
+run_hook
+assert_version 1.2.3
+assert_message 'checksum check only'
+if grep -q '^attestation verify' "$T/gh.log"; then bad "verify was attempted on a gh without the attestation command"; fi
+finish
+
+start "a network failure with a binary installed is silent and last-check is not advanced" t16
+rm -f "$T/latest"
+install_stub 1.2.3
+before=$(cat "$CHECK")
+run_hook
+assert_setup_events "setup --event=current"
+if grep -q 'systemMessage":"claude-statusline' "$T/out"; then bad "expected no claude-statusline message"; fi
+[ "$(cat "$CHECK")" = "$before" ] || bad "last-check was advanced"
+assert_version 1.2.3
+finish
+
+start "a failed download with a binary installed is silent and last-check is not advanced" t17
 make_release 1.2.4
-pin 1.2.3 y
+set_latest v1.2.4
+rm -rf "$T/releases/v1.2.4"
+install_stub 1.2.3
+before=$(cat "$CHECK")
 run_hook
-: > "$T/setup.log"
-printf 'tampered' >> "$T/releases/v1.2.4/claude-statusline_1.2.4_${OS}_${ARCH}.tar.gz"
-pin 1.2.4 y
-run_hook
-assert_message 'FAILED checksum verification'
-assert_setup_events ""
-[ "$("$BIN" --version | awk '{ print $2 }')" = 1.2.3 ] || bad "previous binary was replaced"
+if grep -q 'systemMessage":"claude-statusline' "$T/out"; then bad "expected no claude-statusline message"; fi
+[ "$(cat "$CHECK")" = "$before" ] || bad "last-check was advanced"
+assert_version 1.2.3
+assert_no_temp_left
 finish
 
-start "invalid version string gives a message" t8
-pin "1.2" y
+start "a network failure with nothing installed gives a message" t18
+rm -f "$T/latest"
 run_hook
-assert_message 'invalid pinned version'
-assert_setup_events ""
-[ ! -e "$T/claude/claude-statusline" ] || bad "created the app dir"
+assert_message 'could not find the latest release'
+assert_not_installed
 finish
 
-start "unreachable download gives a message and installs nothing" t9
+start "an invalid latest tag installs nothing" t19
 make_release 1.2.3
-pin 1.2.3 y
-rm -rf "$T/releases"
+set_latest "v1.2"
 run_hook
-assert_message 'downloading v1.2.3 failed'
+assert_message 'not a valid version'
+assert_not_installed
+set_latest "../../etc/passwd"
+run_hook
+assert_message 'not a valid version'
+assert_not_installed
+finish
+
+start "a latest tag with a pre-release suffix installs nothing" t20
+make_release 1.2.3
+set_latest "v1.2.3-rc1"
+run_hook
+assert_message 'not a valid version'
 assert_not_installed
 finish
 
