@@ -2,7 +2,6 @@
 package hook
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"os"
@@ -37,9 +36,7 @@ const (
 	// outputBytes bounds how much of a hook's output is kept.
 	outputBytes  = 64 * 1024
 	keepSessions = 7 * 24 * time.Hour
-	// waitDelay bounds how long to wait for a killed hook's output pipe to close.
-	waitDelay   = 200 * time.Millisecond
-	sessionNone = "shared"
+	sessionNone  = "shared"
 )
 
 var (
@@ -227,7 +224,7 @@ func (o *Options) value(h Hook, dir string) string {
 	}
 
 	text := cached
-	if out, ok := o.run(h); ok {
+	if out, ok := o.run(h, dir); ok {
 		text = firstLine(out)
 	}
 	if cachePath != "" {
@@ -236,29 +233,70 @@ func (o *Options) value(h Hook, dir string) string {
 	return text
 }
 
-func (o *Options) run(h Hook) ([]byte, bool) {
+func (o *Options) run(h Hook, dir string) ([]byte, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
 	defer cancel()
 
-	var out limitedBuffer
+	in, out, cleanup, ok := o.stdio(dir)
+	if !ok {
+		return nil, false
+	}
+	defer cleanup()
+
 	cmd := exec.CommandContext(ctx, h.Path) //nolint:gosec // G204: launching the user's own hook script is the feature
-	cmd.Stdin = bytes.NewReader(o.Input)
-	cmd.Stdout = &out
-	cmd.WaitDelay = waitDelay
+	cmd.Stdin = in
+	cmd.Stdout = out
 	isolate(cmd)
 	if err := cmd.Run(); err != nil || ctx.Err() != nil {
 		return nil, false
 	}
-	return out.buf.Bytes(), true
+	if _, err := out.Seek(0, io.SeekStart); err != nil {
+		return nil, false
+	}
+	data, err := io.ReadAll(io.LimitReader(out, outputBytes))
+	return data, err == nil
 }
 
-type limitedBuffer struct{ buf bytes.Buffer }
-
-func (b *limitedBuffer) Write(p []byte) (int, error) {
-	if room := outputBytes - b.buf.Len(); room > 0 {
-		b.buf.Write(p[:min(len(p), room)])
+// stdio gives a hook real files for stdin and stdout, since pipes can lose output that exec has not
+// finished copying when the machine is busy. The returned cleanup closes and removes both.
+func (o *Options) stdio(dir string) (in, out *os.File, cleanup func(), ok bool) {
+	scratch, err := os.MkdirTemp(dir, ".hook-io.")
+	if err != nil && dir != "" {
+		scratch, err = os.MkdirTemp("", ".hook-io.")
 	}
-	return len(p), nil
+	if err != nil {
+		return nil, nil, nil, false
+	}
+	cleanup = func() {
+		if in != nil {
+			_ = in.Close()
+		}
+		if out != nil {
+			_ = out.Close()
+		}
+		_ = os.RemoveAll(scratch)
+	}
+	in, out, err = createFiles(scratch, o.Input)
+	if err != nil {
+		cleanup()
+		return nil, nil, nil, false
+	}
+	return in, out, cleanup, true
+}
+
+func createFiles(dir string, input []byte) (in, out *os.File, err error) {
+	in, err = os.Create(filepath.Join(dir, "in")) //nolint:gosec // G304: inside a directory this process just created
+	if err != nil {
+		return nil, nil, err //nolint:wrapcheck // the caller only needs to know it failed
+	}
+	if _, err = in.Write(input); err != nil {
+		return in, nil, err //nolint:wrapcheck // the caller only needs to know it failed
+	}
+	if _, err = in.Seek(0, io.SeekStart); err != nil {
+		return in, nil, err //nolint:wrapcheck // the caller only needs to know it failed
+	}
+	out, err = os.Create(filepath.Join(dir, "out")) //nolint:gosec // G304: inside a directory this process just created
+	return in, out, err                             //nolint:wrapcheck // the caller only needs to know it failed
 }
 
 func firstLine(out []byte) string {

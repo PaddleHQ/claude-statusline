@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -345,6 +346,49 @@ func TestRunIsConcurrent(t *testing.T) {
 	require.Len(t, got, 2)
 	assert.Equal(t, "a", got[0].Text, "results stay in filename order and a saw b running")
 	assert.Equal(t, "b", got[1].Text)
+}
+
+func TestRunReturnsOutputUnderLoad(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	script(t, dir, "h.sh", "#!/bin/sh\nprintf ok\n", 0o700)
+	hooks := hook.Discover(dir)
+
+	const runs, workers = 200, 16
+	got := make([]string, runs)
+	slots := make(chan struct{}, workers)
+	var wg sync.WaitGroup
+	for i := range runs {
+		slots <- struct{}{}
+		wg.Go(func() {
+			defer func() { <-slots }()
+			got[i] = options("").Run(hooks)[0].Text
+		})
+	}
+	wg.Wait()
+
+	for i, text := range got {
+		assert.Equal(t, "ok", text, "run %d", i)
+	}
+}
+
+func TestRunDoesNotWaitForBackgroundChild(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	script(t, dir, "h.sh", "#!/bin/sh\n(sleep 5 &)\nprintf ok\n", 0o700)
+	hooks := hook.Discover(dir)
+
+	done := make(chan string, 1)
+	go func() { done <- options("").Run(hooks)[0].Text }()
+
+	select {
+	case text := <-done:
+		assert.Equal(t, "ok", text)
+	case <-time.After(3 * time.Second):
+		t.Fatal("run waited for a background child of the hook")
+	}
 }
 
 func TestRunSanitisesOutput(t *testing.T) {
