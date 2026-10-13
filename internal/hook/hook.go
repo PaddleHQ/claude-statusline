@@ -3,6 +3,8 @@ package hook
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -11,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -37,6 +40,9 @@ const (
 	outputBytes  = 64 * 1024
 	keepSessions = 7 * 24 * time.Hour
 	sessionNone  = "shared"
+
+	execAttempts   = 3
+	execRetryDelay = 20 * time.Millisecond
 )
 
 var (
@@ -243,11 +249,7 @@ func (o *Options) run(h Hook, dir string) ([]byte, bool) {
 	}
 	defer cleanup()
 
-	cmd := exec.CommandContext(ctx, h.Path) //nolint:gosec // G204: launching the user's own hook script is the feature
-	cmd.Stdin = in
-	cmd.Stdout = out
-	isolate(cmd)
-	if err := cmd.Run(); err != nil || ctx.Err() != nil {
+	if err := o.exec(ctx, h, in, out); err != nil || ctx.Err() != nil {
 		return nil, false
 	}
 	if _, err := out.Seek(0, io.SeekStart); err != nil {
@@ -255,6 +257,31 @@ func (o *Options) run(h Hook, dir string) ([]byte, bool) {
 	}
 	data, err := io.ReadAll(io.LimitReader(out, outputBytes))
 	return data, err == nil
+}
+
+// exec retries "text file busy": Linux refuses to run a script that any process, even a fork that is
+// about to exec something else, still holds open for writing, such as an editor saving the hook.
+func (o *Options) exec(ctx context.Context, h Hook, in, out *os.File) error {
+	var err error
+	for attempt := 1; attempt <= execAttempts; attempt++ {
+		cmd := exec.CommandContext(ctx, h.Path) //nolint:gosec // G204: launching the user's own hook script is the feature
+		cmd.Stdin = in
+		cmd.Stdout = out
+		isolate(cmd)
+		err = cmd.Run()
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, syscall.ETXTBSY) {
+			return fmt.Errorf("run hook %s: %w", h.Path, err)
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("run hook %s: %w", h.Path, ctx.Err())
+		case <-time.After(time.Duration(attempt) * execRetryDelay):
+		}
+	}
+	return fmt.Errorf("run hook %s after %d attempts: %w", h.Path, execAttempts, err)
 }
 
 // stdio gives a hook real files for stdin and stdout, since pipes can lose output that exec has not

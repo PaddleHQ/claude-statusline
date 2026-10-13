@@ -373,6 +373,22 @@ func TestRunReturnsOutputUnderLoad(t *testing.T) {
 	}
 }
 
+func TestRunRetriesWhileTheScriptIsOpenForWriting(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := script(t, dir, "h.sh", "#!/bin/sh\nprintf ok\n", 0o700)
+	// Linux refuses to exec a file that is open for writing; an editor saving the hook does this.
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0)
+	require.NoError(t, err)
+	go func() {
+		time.Sleep(5 * time.Millisecond)
+		_ = f.Close()
+	}()
+
+	assert.Equal(t, "ok", runOne(t, hook.Discover(dir), options(t.TempDir())))
+}
+
 func TestRunDoesNotWaitForBackgroundChild(t *testing.T) {
 	t.Parallel()
 
