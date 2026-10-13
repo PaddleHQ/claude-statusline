@@ -7,11 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/tidwall/gjson"
 )
 
 const testBin = "/opt/cs/bin/claude-statusline"
 
-var pretty = "{\n  \"theme\": \"dark\",\n  \"env\": {\n    \"B\": \"1\",\n    \"A\": \"2\"\n  },\n  \"model\": \"opus\",\n  \"alpha\": [1, 2]\n}\n"
+var prettySettings = "{\n  \"theme\": \"dark\",\n  \"env\": {\n    \"B\": \"1\",\n    \"A\": \"2\"\n  },\n  \"model\": \"opus\",\n  \"alpha\": [1, 2]\n}\n"
 
 func newDir(t *testing.T, settings *string) (string, string) {
 	t.Helper()
@@ -51,9 +53,9 @@ func TestApply(t *testing.T) {
 		wantSettings string
 		wantSentinel bool
 	}{
-		{"leaves settings alone when already wired and current", &pretty, true, EventCurrent, "", pretty, true},
-		{"announces an update when already wired", &pretty, true, EventUpdated, "updated to v1.2.3", pretty, true},
-		{"stays silent when already wired and installed", &pretty, true, EventInstalled, "", pretty, true},
+		{"leaves settings alone when already wired and current", &prettySettings, true, EventCurrent, "", prettySettings, true},
+		{"announces an update when already wired", &prettySettings, true, EventUpdated, "updated to v1.2.3", prettySettings, true},
+		{"stays silent when already wired and installed", &prettySettings, true, EventInstalled, "", prettySettings, true},
 		{"leaves invalid JSON alone and says so on install", &invalid, false, EventInstalled, "not valid JSON", invalid, false},
 		{"leaves invalid JSON alone silently on later events", &invalid, false, EventCurrent, "", invalid, false},
 		{"leaves a non-object alone", &array, false, EventInstalled, "not valid JSON", array, false},
@@ -91,73 +93,126 @@ func TestApply(t *testing.T) {
 	}
 }
 
-func TestApplyWiring(t *testing.T) {
+func TestInsertStatusLine(t *testing.T) {
 	t.Parallel()
 
+	block := func(indent, nl string) string {
+		return `"statusLine": {` + nl + indent + indent + `"type": "command",` + nl +
+			indent + indent + `"command": "` + testBin + `",` + nl +
+			indent + indent + `"refreshInterval": 60` + nl + indent + "}"
+	}
+	compact := `"statusLine":{"type":"command","command":"` + testBin + `","refreshInterval":60}`
+
 	tests := []struct {
-		name     string
-		settings string
+		name string
+		in   string
+		want string
 	}{
-		{"two-space pretty file with keys out of order", pretty},
-		{"tab-indented file", "{\n\t\"zeta\": 1,\n\t\"alpha\": {\n\t\t\"x\": true\n\t}\n}\n"},
-		{"file without a trailing newline", "{\n  \"b\": 1,\n  \"a\": 2\n}"},
-		{"empty object", "{}"},
+		{
+			"two-space file",
+			"{\n  \"theme\": \"dark\",\n  \"model\": \"opus\"\n}\n",
+			"{\n  \"theme\": \"dark\",\n  \"model\": \"opus\",\n  " + block("  ", "\n") + "\n}\n",
+		},
+		{
+			"four-space file",
+			"{\n    \"a\": 1\n}\n",
+			"{\n    \"a\": 1,\n    " + block("    ", "\n") + "\n}\n",
+		},
+		{
+			"tab-indented file",
+			"{\n\t\"a\": 1,\n\t\"b\": 2\n}\n",
+			"{\n\t\"a\": 1,\n\t\"b\": 2,\n\t" + block("\t", "\n") + "\n}\n",
+		},
+		{
+			"compact one-line file",
+			`{"a":1,"b":"x"}` + "\n",
+			`{"a":1,"b":"x",` + compact + "}\n",
+		},
+		{
+			"empty object",
+			"{}",
+			"{\n  " + block("  ", "\n") + "\n}",
+		},
+		{
+			"empty object with a newline",
+			"{\n}\n",
+			"{\n  " + block("  ", "\n") + "\n}\n",
+		},
+		{
+			"empty object with a space",
+			"{ }\n",
+			"{\n  " + block("  ", "\n") + "\n}\n",
+		},
+		{
+			"file without a trailing newline",
+			"{\n  \"a\": 1\n}",
+			"{\n  \"a\": 1,\n  " + block("  ", "\n") + "\n}",
+		},
+		{
+			"last member is a nested object",
+			"{\n  \"env\": {\n    \"A\": \"1\"\n  }\n}\n",
+			"{\n  \"env\": {\n    \"A\": \"1\"\n  },\n  " + block("  ", "\n") + "\n}\n",
+		},
+		{
+			"last member is an array",
+			"{\n  \"a\": [1, 2]\n}\n",
+			"{\n  \"a\": [1, 2],\n  " + block("  ", "\n") + "\n}\n",
+		},
+		{
+			"closing braces inside strings",
+			"{\n  \"a\": \"}\",\n  \"b\": \"x}\"\n}\n",
+			"{\n  \"a\": \"}\",\n  \"b\": \"x}\",\n  " + block("  ", "\n") + "\n}\n",
+		},
+		{
+			"CRLF line endings",
+			"{\r\n  \"a\": 1\r\n}\r\n",
+			"{\r\n  \"a\": 1,\r\n  " + block("  ", "\r\n") + "\r\n}\r\n",
+		},
 	}
 
 	for _, tt := range tests {
-		t.Run("preserves every byte of a "+tt.name, func(t *testing.T) {
+		t.Run("inserts into a "+tt.name, func(t *testing.T) {
 			t.Parallel()
-			dir, path := newDir(t, &tt.settings)
 
-			msg := run(dir, EventInstalled)
+			got, ok := insertStatusLine([]byte(tt.in), []byte(`{"type":"command","command":"`+testBin+`","refreshInterval":60}`))
 
-			if !strings.Contains(msg, "installed and enabled") {
-				t.Errorf("message = %q", msg)
+			if !ok {
+				t.Fatal("insertion failed")
 			}
-			got, _ := os.ReadFile(path)
-			var parsed struct {
-				StatusLine struct {
-					Type            string `json:"type"`
-					Command         string `json:"command"`
-					RefreshInterval int    `json:"refreshInterval"`
-				} `json:"statusLine"`
+			if string(got) != tt.want {
+				t.Errorf("got:\n%q\nwant:\n%q", got, tt.want)
 			}
-			if err := json.Unmarshal(got, &parsed); err != nil {
-				t.Fatalf("output is not valid JSON: %v\n%s", err, got)
-			}
-			if parsed.StatusLine.Type != "command" || parsed.StatusLine.Command != testBin || parsed.StatusLine.RefreshInterval != 60 {
-				t.Errorf("statusLine = %+v", parsed.StatusLine)
-			}
-			entry := `"statusLine":{"type":"command","command":"` + testBin + `","refreshInterval":60}`
-			rest := strings.Replace(string(got), ","+entry, "", 1)
-			if rest == string(got) {
-				rest = strings.Replace(string(got), entry, "", 1)
-			}
-			if rest != tt.settings {
-				t.Errorf("only the new key should differ.\ngot:  %q\norig: %q", got, tt.settings)
-			}
-			bak, _ := os.ReadFile(path + ".bak")
-			if string(bak) != tt.settings {
-				t.Errorf("backup = %q, want original", bak)
-			}
-			if !sentinelExists(dir) {
-				t.Error("no sentinel")
+			if !gjson.ValidBytes(got) {
+				t.Errorf("result is not valid JSON: %s", got)
 			}
 		})
 	}
 }
 
-func TestApplyPrettyInsertion(t *testing.T) {
+func TestApplyWiring(t *testing.T) {
 	t.Parallel()
-	dir, path := newDir(t, &pretty)
 
-	run(dir, EventInstalled)
+	t.Run("writes the inserted entry, a backup of the original and the sentinel", func(t *testing.T) {
+		t.Parallel()
+		dir, path := newDir(t, &prettySettings)
 
-	got, _ := os.ReadFile(path)
-	t.Logf("\n%s", got)
-	if !bytes.HasSuffix(got, []byte("}\n")) {
-		t.Errorf("trailing newline lost: %q", got)
-	}
+		msg := run(dir, EventInstalled)
+
+		if !strings.Contains(msg, "installed and enabled") {
+			t.Errorf("message = %q", msg)
+		}
+		got, _ := os.ReadFile(path)
+		if gjson.GetBytes(got, "statusLine.command").String() != testBin || gjson.GetBytes(got, "statusLine.refreshInterval").Int() != 60 {
+			t.Errorf("statusLine not set: %s", got)
+		}
+		bak, _ := os.ReadFile(path + ".bak")
+		if string(bak) != prettySettings {
+			t.Errorf("backup = %q, want original", bak)
+		}
+		if !sentinelExists(dir) {
+			t.Error("no sentinel")
+		}
+	})
 }
 
 func TestApplyFiles(t *testing.T) {
@@ -165,7 +220,7 @@ func TestApplyFiles(t *testing.T) {
 
 	t.Run("preserves the file mode", func(t *testing.T) {
 		t.Parallel()
-		dir, path := newDir(t, &pretty)
+		dir, path := newDir(t, &prettySettings)
 
 		run(dir, EventInstalled)
 
@@ -202,7 +257,7 @@ func TestApplyFiles(t *testing.T) {
 
 	t.Run("does nothing on a second run", func(t *testing.T) {
 		t.Parallel()
-		dir, path := newDir(t, &pretty)
+		dir, path := newDir(t, &prettySettings)
 		run(dir, EventInstalled)
 		first, _ := os.ReadFile(path)
 
@@ -216,7 +271,7 @@ func TestApplyFiles(t *testing.T) {
 
 	t.Run("leaves no temp files behind", func(t *testing.T) {
 		t.Parallel()
-		dir, _ := newDir(t, &pretty)
+		dir, _ := newDir(t, &prettySettings)
 		run(dir, EventInstalled)
 
 		entries, _ := os.ReadDir(dir)

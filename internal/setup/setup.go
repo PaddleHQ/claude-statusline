@@ -7,9 +7,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
+	"github.com/tidwall/pretty"
 )
 
 // Events describe what the bootstrap hook just did to the binary.
@@ -110,13 +111,11 @@ func apply(c config) string {
 	if err != nil {
 		return ""
 	}
-	entry := `{"type":"command","command":` + string(command) + `,"refreshInterval":60}`
-	out, err := sjson.SetRawBytes(data, "statusLine", []byte(entry))
-	if err != nil {
+	entry := []byte(`{"type":"command","command":` + string(command) + `,"refreshInterval":60}`)
+	out, ok := insertStatusLine(data, entry)
+	if !ok || !gjson.ValidBytes(out) {
 		return ""
 	}
-	// sjson drops whitespace after the closing brace.
-	out = append(out, data[len(bytes.TrimRight(data, " \t\r\n")):]...)
 	if err := writeAtomic(settings+".bak", data, mode); err != nil {
 		return ""
 	}
@@ -157,4 +156,56 @@ func writeAtomic(path string, data []byte, mode os.FileMode) error {
 		return err
 	}
 	return os.Rename(f.Name(), path)
+}
+
+// insertStatusLine adds the entry as the last member of the root object, matching
+// the file's indentation and line endings and leaving every other byte as it was.
+func insertStatusLine(data, entry []byte) ([]byte, bool) {
+	open := len(data) - len(bytes.TrimLeft(data, " \t\r\n"))
+	closing := bytes.LastIndexByte(data, '}')
+	if open >= closing || data[open] != '{' {
+		return nil, false
+	}
+
+	newline := "\n"
+	if bytes.Contains(data, []byte("\r\n")) {
+		newline = "\r\n"
+	}
+
+	firstKey, lastEnd := -1, -1
+	gjson.ParseBytes(data).ForEach(func(key, value gjson.Result) bool {
+		if firstKey < 0 {
+			firstKey = key.Index
+		}
+		lastEnd = value.Index + len(value.Raw)
+		return true
+	})
+
+	var at, resume int
+	var text string
+	switch {
+	case firstKey < 0:
+		at, resume = open+1, closing
+		text = newline + "  " + `"statusLine": ` + prettyValue(entry, "  ", newline) + newline
+	case bytes.IndexByte(data[open+1:firstKey], '\n') >= 0:
+		span := data[open+1 : firstKey]
+		indent := string(span[bytes.LastIndexByte(span, '\n')+1:])
+		at, resume = lastEnd, lastEnd
+		text = "," + newline + indent + `"statusLine": ` + prettyValue(entry, indent, newline)
+	default:
+		at, resume = lastEnd, lastEnd
+		text = `,"statusLine":` + string(entry)
+	}
+
+	out := make([]byte, 0, len(data)+len(text))
+	out = append(out, data[:at]...)
+	out = append(out, text...)
+	return append(out, data[resume:]...), true
+}
+
+func prettyValue(raw []byte, indent, newline string) string {
+	out := pretty.PrettyOptions(raw, &pretty.Options{Indent: indent, Prefix: indent, Width: 1 << 20})
+	s := strings.TrimSpace(string(out))
+	s = strings.ReplaceAll(s, "\n", newline)
+	return s
 }
