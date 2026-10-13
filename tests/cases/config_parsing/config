@@ -1,0 +1,11 @@
+# a comment
+
+   separator   =   |
+segments=model rate5h rate7d
+rate5h.label = five
+rate5h.width = 08
+rate5h.width = 10
+rate7d.label = week
+rate7d.width = abc
+not a setting line
+unknown.key = 1

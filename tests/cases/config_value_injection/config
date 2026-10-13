@@ -1,0 +1,3 @@
+rate5h.label = "; touch @TMP@/pwned; " `touch @TMP@/pwned`
+unused.key = "; touch @TMP@/pwned; " `touch @TMP@/pwned` $(touch @TMP@/pwned)
+rate7d.label = $(touch @TMP@/pwned)\
