@@ -41,8 +41,9 @@ func sentinelExists(dir string) bool {
 func TestApply(t *testing.T) {
 	t.Parallel()
 
-	own := `{"statusLine":{"type":"command","command":"` + testBin + `"}}`
-	other := `{"statusLine":{"type":"command","command":"/usr/bin/mine"}}`
+	own := `{"statusLine":{"type":"command","command":"` + testBin + `"},"subagentStatusLine":{"type":"command","command":"` + testBin + ` subagent"}}`
+	other := `{"statusLine":{"type":"command","command":"/usr/bin/mine"},"subagentStatusLine":{"type":"command","command":"/usr/bin/mine"}}`
+	otherSub := `{"statusLine":{"type":"command","command":"` + testBin + `"},"subagentStatusLine":{"type":"command","command":"/usr/bin/mine"}}`
 	invalid := "not json"
 	array := "[1]"
 
@@ -64,6 +65,7 @@ func TestApply(t *testing.T) {
 		{"keeps our own statusLine and says installed", &own, false, setup.EventInstalled, "v1.2.3 installed.", own, true},
 		{"keeps our own statusLine silently on current", &own, false, setup.EventCurrent, "", own, true},
 		{"leaves someone else's statusLine and explains the switch", &other, false, setup.EventCurrent, "already have a statusLine", other, true},
+		{"leaves someone else's subagentStatusLine and explains the switch", &otherSub, false, setup.EventInstalled, "already have a subagentStatusLine", otherSub, true},
 	}
 
 	for _, tt := range tests {
@@ -72,6 +74,7 @@ func TestApply(t *testing.T) {
 			dir, path := newDir(t, tt.settings)
 			if tt.sentinel {
 				require.NoError(t, setup.Touch(filepath.Join(dir, "claude-statusline", ".bootstrapped")))
+				require.NoError(t, setup.Touch(filepath.Join(dir, "claude-statusline", ".bootstrapped-subagent")))
 			}
 
 			msg := run(dir, tt.event)
@@ -171,7 +174,7 @@ func TestInsertStatusLine(t *testing.T) {
 		t.Run("inserts into a "+tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, ok := setup.InsertStatusLine([]byte(tt.in), []byte(`{"type":"command","command":"`+testBin+`","refreshInterval":60}`))
+			got, ok := setup.InsertMember([]byte(tt.in), "statusLine", []byte(`{"type":"command","command":"`+testBin+`","refreshInterval":60}`))
 
 			require.True(t, ok, "insertion failed")
 			assert.Equal(t, tt.want, string(got))
@@ -198,6 +201,103 @@ func TestApplyWiring(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, prettySettings, string(bak))
 		assert.True(t, sentinelExists(dir), "no sentinel")
+	})
+}
+
+func TestApplySubagent(t *testing.T) {
+	t.Parallel()
+
+	subLine := `"subagentStatusLine": {` + "\n" + `    "type": "command",` + "\n" + `    "command": "` + testBin + ` subagent"` + "\n" + `  }`
+	ownStatus := "{\n  \"statusLine\": {\"type\": \"command\", \"command\": \"" + testBin + "\"}\n}\n"
+	mineStatus := "{\n  \"statusLine\": {\"type\": \"command\", \"command\": \"/usr/bin/mine\"}\n}\n"
+	mineSub := "{\n  \"subagentStatusLine\": {\"type\": \"command\", \"command\": \"/usr/bin/mine\"}\n}\n"
+
+	tests := []struct {
+		name         string
+		settings     string
+		sentinel     bool
+		event        string
+		wantMsg      string
+		wantStatus   string
+		wantSub      string
+		wantBackup   bool
+		wantSentinel bool
+	}{
+		{"both absent wires both", prettySettings, false, setup.EventInstalled, "also styles the subagent rows", testBin, testBin + " subagent", true, true},
+		{"our statusLine from an older install gains the subagent line once", ownStatus, true, setup.EventUpdated, "claude-statusline now also styles the subagent rows", testBin, testBin + " subagent", true, true},
+		{"a user's own subagentStatusLine is kept", mineSub, false, setup.EventInstalled, "already have a subagentStatusLine", testBin, "/usr/bin/mine", true, true},
+		{"a user's statusLine does not stop the subagent line", mineStatus, true, setup.EventCurrent, "claude-statusline now also styles the subagent rows", "/usr/bin/mine", testBin + " subagent", true, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			dir, path := newDir(t, &tt.settings)
+			if tt.sentinel {
+				require.NoError(t, setup.Touch(filepath.Join(dir, "claude-statusline", ".bootstrapped")))
+			}
+
+			msg := run(dir, tt.event)
+
+			assert.Contains(t, msg, tt.wantMsg)
+			assert.Equal(t, 0, strings.Count(msg, "\n"), "message must be one line")
+			got, err := os.ReadFile(path)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantStatus, gjson.GetBytes(got, "statusLine.command").String())
+			assert.Equal(t, tt.wantSub, gjson.GetBytes(got, "subagentStatusLine.command").String())
+			assert.True(t, gjson.ValidBytes(got))
+			if tt.wantBackup {
+				bak, err := os.ReadFile(path + ".bak")
+				require.NoError(t, err)
+				assert.Equal(t, tt.settings, string(bak))
+			}
+			assert.True(t, sentinelExists(dir))
+			assert.FileExists(t, filepath.Join(dir, "claude-statusline", ".bootstrapped-subagent"))
+		})
+	}
+
+	t.Run("adds the subagent line with the file's indentation", func(t *testing.T) {
+		t.Parallel()
+		dir, path := newDir(t, &ownStatus)
+		require.NoError(t, setup.Touch(filepath.Join(dir, "claude-statusline", ".bootstrapped")))
+
+		run(dir, setup.EventCurrent)
+
+		got, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, strings.TrimSuffix(ownStatus, "\n}\n")+",\n  "+subLine+"\n}\n", string(got))
+	})
+
+	t.Run("is idempotent and writes a single backup of the original", func(t *testing.T) {
+		t.Parallel()
+		dir, path := newDir(t, &prettySettings)
+
+		first := run(dir, setup.EventInstalled)
+		after, err := os.ReadFile(path)
+		require.NoError(t, err)
+		again := run(dir, setup.EventCurrent)
+		afterAgain, err := os.ReadFile(path)
+		require.NoError(t, err)
+
+		assert.Contains(t, first, "installed and enabled")
+		assert.Empty(t, again)
+		assert.Equal(t, string(after), string(afterAgain))
+		bak, err := os.ReadFile(path + ".bak")
+		require.NoError(t, err)
+		assert.Equal(t, prettySettings, string(bak))
+		assert.Equal(t, testBin, gjson.GetBytes(after, "statusLine.command").String())
+		assert.Equal(t, testBin+" subagent", gjson.GetBytes(after, "subagentStatusLine.command").String())
+	})
+
+	t.Run("quotes a binary path that contains a space", func(t *testing.T) {
+		t.Parallel()
+		dir, path := newDir(t, &prettySettings)
+
+		setup.Apply(dir, "/opt/my tools/claude-statusline", setup.EventInstalled, "1.2.3")
+
+		got, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, "'/opt/my tools/claude-statusline' subagent", gjson.GetBytes(got, "subagentStatusLine.command").String())
 	})
 }
 

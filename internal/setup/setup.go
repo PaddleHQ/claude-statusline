@@ -58,10 +58,21 @@ func emit(w io.Writer, msg string) {
 	_, _ = w.Write(append(b, '\n'))
 }
 
+type outcome int
+
+const (
+	skipped outcome = iota
+	inserted
+	ours
+	other
+)
+
 func apply(c config) string {
-	installed := c.event == EventInstalled
-	sentinel := filepath.Join(c.dir, "claude-statusline", ".bootstrapped")
-	if _, err := os.Stat(sentinel); err == nil {
+	appDir := filepath.Join(c.dir, "claude-statusline")
+	mainSentinel := filepath.Join(appDir, ".bootstrapped")
+	subSentinel := filepath.Join(appDir, ".bootstrapped-subagent")
+	wantMain, wantSub := !exists(mainSentinel), !exists(subSentinel)
+	if !wantMain && !wantSub {
 		if c.event == EventUpdated {
 			return "claude-statusline updated to v" + c.version + "."
 		}
@@ -86,44 +97,127 @@ func apply(c config) string {
 	}
 
 	if !gjson.ValidBytes(data) || !gjson.ParseBytes(data).IsObject() {
-		if installed {
+		if c.event == EventInstalled {
 			return "claude-statusline v" + c.version + " installed, but " + settings + " is not valid JSON so it was left alone. It will retry next session."
 		}
 		return ""
 	}
 
-	if sl := gjson.GetBytes(data, "statusLine"); sl.Exists() {
-		if err := touch(sentinel); err != nil {
-			return ""
-		}
-		if sl.Get("command").String() == c.bin {
-			if installed {
-				return "claude-statusline v" + c.version + " installed."
-			}
-			return ""
-		}
-		return "claude-statusline v" + c.version + " installed, but you already have a statusLine so it was left unchanged. To switch, set statusLine.command in " + settings + " to " + c.bin + "."
+	subCommand := shellWord(c.bin) + " subagent"
+	out := data
+	var status, sub outcome
+	if wantMain {
+		status, out = wire(out, "statusLine", c.bin, `{"type":"command","command":%s,"refreshInterval":60}`)
+	}
+	if wantSub {
+		sub, out = wire(out, "subagentStatusLine", subCommand, `{"type":"command","command":%s}`)
+	}
+	if (wantMain && status == skipped) || (wantSub && sub == skipped) || !gjson.ValidBytes(out) {
+		return ""
 	}
 
-	command, err := json.Marshal(c.bin)
+	if !bytes.Equal(out, data) {
+		if err := writeAtomic(settings+".bak", data, mode); err != nil {
+			return ""
+		}
+		if err := writeAtomic(settings, out, mode); err != nil {
+			return ""
+		}
+	}
+	for sentinel, want := range map[string]bool{mainSentinel: wantMain, subSentinel: wantSub} {
+		if want {
+			if err := touch(sentinel); err != nil {
+				return ""
+			}
+		}
+	}
+	return message(c, settings, subCommand, status, sub)
+}
+
+// wire adds the key unless the file already has it, reporting which of the two happened.
+func wire(data []byte, key, command, entryFormat string) (outcome, []byte) {
+	if existing := gjson.GetBytes(data, key); existing.Exists() {
+		if existing.Get("command").String() == command {
+			return ours, data
+		}
+		return other, data
+	}
+	quoted, err := json.Marshal(command)
 	if err != nil {
-		return ""
+		return skipped, data
 	}
-	entry := []byte(`{"type":"command","command":` + string(command) + `,"refreshInterval":60}`)
-	out, ok := insertStatusLine(data, entry)
-	if !ok || !gjson.ValidBytes(out) {
-		return ""
+	out, ok := insertMember(data, key, []byte(strings.Replace(entryFormat, "%s", string(quoted), 1)))
+	if !ok {
+		return skipped, data
 	}
-	if err := writeAtomic(settings+".bak", data, mode); err != nil {
-		return ""
+	return inserted, out
+}
+
+func message(c config, settings, subCommand string, status, sub outcome) string {
+	lead := "claude-statusline v" + c.version
+	var sentences []string
+	switch status {
+	case inserted:
+		sentences = append(sentences, lead+" installed and enabled. It appears after your first message.")
+	case ours:
+		if c.event == EventInstalled {
+			sentences = append(sentences, lead+" installed.")
+		}
+	case other:
+		sentences = append(sentences, lead+" installed, but you already have a statusLine so it was left unchanged. To switch, set statusLine.command in "+settings+" to "+c.bin+".")
+	case skipped:
+		if c.event == EventUpdated {
+			sentences = append(sentences, "claude-statusline updated to v"+c.version+".")
+		}
 	}
-	if err := writeAtomic(settings, out, mode); err != nil {
-		return ""
+
+	switch sub {
+	case inserted:
+		if status == inserted {
+			sentences = append(sentences, "It also styles the subagent rows.")
+		} else {
+			sentences = append(sentences, "claude-statusline now also styles the subagent rows.")
+		}
+	case other:
+		note := "You already have a subagentStatusLine so it was left unchanged. To switch, set subagentStatusLine.command in " + settings + " to " + subCommand + "."
+		if len(sentences) == 0 {
+			note = lead + ": " + note
+		}
+		sentences = append(sentences, note)
 	}
-	if err := touch(sentinel); err != nil {
-		return ""
+
+	var added []string
+	if status == inserted {
+		added = append(added, "statusLine")
 	}
-	return "claude-statusline v" + c.version + " installed and enabled. It appears after your first message. Your previous settings are backed up at " + settings + ".bak. To disable it, remove the statusLine block from settings.json."
+	if sub == inserted {
+		added = append(added, "subagentStatusLine")
+	}
+	if len(added) > 0 {
+		sentences = append(sentences, "Your previous settings are backed up at "+settings+".bak. To disable it, remove the "+strings.Join(added, " and ")+" block from settings.json.")
+	}
+	return strings.Join(sentences, " ")
+}
+
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// shellWord quotes a path for the shell only when it has characters the shell would split or expand.
+func shellWord(s string) string {
+	if !strings.ContainsFunc(s, needsQuoting) {
+		return s
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+func needsQuoting(r rune) bool {
+	switch {
+	case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', strings.ContainsRune("/._-+@:", r):
+		return false
+	}
+	return true
 }
 
 func touch(path string) error {
@@ -156,9 +250,9 @@ func writeAtomic(path string, data []byte, mode os.FileMode) error {
 	return os.Rename(f.Name(), path)
 }
 
-// insertStatusLine adds the entry as the last member of the root object, matching
+// insertMember adds key with the entry as the last member of the root object, matching
 // the file's indentation and line endings and leaving every other byte as it was.
-func insertStatusLine(data, entry []byte) ([]byte, bool) {
+func insertMember(data []byte, key string, entry []byte) ([]byte, bool) {
 	open := len(data) - len(bytes.TrimLeft(data, " \t\r\n"))
 	closing := bytes.LastIndexByte(data, '}')
 	if open >= closing || data[open] != '{' {
@@ -184,15 +278,15 @@ func insertStatusLine(data, entry []byte) ([]byte, bool) {
 	switch {
 	case firstKey < 0:
 		at, resume = open+1, closing
-		text = newline + "  " + `"statusLine": ` + prettyValue(entry, "  ", newline) + newline
+		text = newline + "  " + `"` + key + `": ` + prettyValue(entry, "  ", newline) + newline
 	case bytes.IndexByte(data[open+1:firstKey], '\n') >= 0:
 		span := data[open+1 : firstKey]
 		indent := string(span[bytes.LastIndexByte(span, '\n')+1:])
 		at, resume = lastEnd, lastEnd
-		text = "," + newline + indent + `"statusLine": ` + prettyValue(entry, indent, newline)
+		text = "," + newline + indent + `"` + key + `": ` + prettyValue(entry, indent, newline)
 	default:
 		at, resume = lastEnd, lastEnd
-		text = `,"statusLine":` + string(entry)
+		text = `,"` + key + `":` + string(entry)
 	}
 
 	out := make([]byte, 0, len(data)+len(text))

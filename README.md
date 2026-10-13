@@ -13,7 +13,7 @@ It is at an early stage: for now it prints the working directory and git branch,
 /plugin install statusline@claude-statusline
 ```
 
-On your next session start, a hook downloads the pinned release for your platform, checks its sha256 against the hashes committed in this repository, and installs it to `~/.claude/claude-statusline/bin`. It then runs `claude-statusline setup`, which sets `statusLine` in `settings.json` only if you do not already have one, backing the file up first, and never touches it again. Once the right version is installed, later sessions make no network requests.
+On your next session start, a hook downloads the pinned release for your platform, checks its sha256 against the hashes committed in this repository, and installs it to `~/.claude/claude-statusline/bin`. It then runs `claude-statusline setup`, which sets `statusLine` and `subagentStatusLine` in `settings.json` only if you do not already have them, backing the file up first, and never touches either again. If an earlier install wired only `statusLine`, the next session adds `subagentStatusLine` once. Once the right version is installed, later sessions make no network requests.
 
 ### Manual install
 
@@ -56,9 +56,15 @@ Add this to `~/.claude/settings.json`, using the path you installed to:
     "type": "command",
     "command": "~/.local/bin/claude-statusline",
     "refreshInterval": 60
+  },
+  "subagentStatusLine": {
+    "type": "command",
+    "command": "~/.local/bin/claude-statusline subagent"
   }
 }
 ```
+
+`subagentStatusLine` is optional; see [Subagent rows](#subagent-rows).
 
 Run `claude-statusline --version` to print the installed version.
 
@@ -87,6 +93,8 @@ Configuration is optional. Your settings live in `~/.claude/claude-statusline/co
 | `rate5h.hard_cap`, `rate7d.hard_cap` | `95` | Usage percentage at or above which the fill is always red. |
 | `hooks.ttl` | `60` | Seconds a custom segment's result is reused before its script runs again. |
 | `hooks.timeout` | `2` | Seconds a custom segment's script may run before it is killed. |
+| `snapshot.enabled` | `true` | Save the latest session payload for other tools to read (`true` or `false`). |
+| `snapshot.path` | empty | Where to save it; empty means `usage-latest.json` in your Claude config directory. |
 
 Set `NO_COLOR` to any non-empty value to turn colour and styling off.
 
@@ -169,6 +177,20 @@ A hook's name is its filename without a leading `NN-` and without its extension,
 A hook runs at most once per TTL, per session. The default is `hooks.ttl` (60 seconds), and a hook can set its own with `# statusline-ttl: <seconds>` in its first 20 lines. A hook that takes longer than `hooks.timeout` (2 seconds) is killed. `STATUSLINE_HOOK_TTL` and `STATUSLINE_HOOK_TIMEOUT` override both settings.
 
 Results are cached in `~/.claude/claude-statusline/cache/hooks/<session id>/` (under `$CLAUDE_CONFIG_DIR` if set), one file per hook, because a hook is given the session JSON and its output may differ from one session to the next. Cache directories untouched for 7 days are removed when a new session's is created. The files are private state and may change between versions.
+
+## Subagent rows
+
+Claude Code's agent panel lists the subagents you have running. `claude-statusline subagent` is a `subagentStatusLine` command that draws each row as
+
+```
+reviewer · sonnet-4-5 [high] · ctx: ████▎░░░░░ 42% · 84.5k · Review the payment retry change
+```
+
+that is the agent's name (or its task kind when it has no name), its model without the `claude-` prefix and date suffix, the reasoning effort, a context bar with the percentage of the model's context window used, the token count and the task description. Each part is left out when Claude Code does not send it, so older versions show fewer parts. The bar is the same as the `ctx` segment's: it uses the `ctx.*` widths, warning and bad thresholds, narrows with the panel's `columns`, and follows `theme`, `separator` and `NO_COLOR`. Control characters are stripped from everything Claude Code sends. The command prints nothing and exits 0 whatever it is given, so Claude Code falls back to its default rows. A task without an `id` keeps the default row.
+
+## Usage snapshot
+
+Every time the status line renders, the payload Claude Code sent is saved, byte for byte, to `~/.claude/usage-latest.json` (under `$CLAUDE_CONFIG_DIR` if set) so that other tools can read your latest usage and rate limits. The file is replaced atomically, is readable only by you, and is written only when the payload is valid JSON. A failed write never affects the status line. Set `snapshot.enabled = false` to turn it off, or `snapshot.path` to write it somewhere else.
 
 ## Development
 

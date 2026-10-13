@@ -41,13 +41,13 @@ var diagnostics = []diagnostic{
 		if c.Transcript.Boot <= 0 {
 			return ""
 		}
-		return "⌂ " + formatTokens(c.Transcript.Boot)
+		return "⌂ " + FormatTokens(c.Transcript.Boot)
 	}, text},
 	{"skills", func(c *Context) string {
 		if c.Transcript.SkillsChars <= 0 {
 			return ""
 		}
-		return "⚙ " + formatTokens(int64(c.Transcript.SkillsChars/charsPerToken))
+		return "⚙ " + FormatTokens(int64(c.Transcript.SkillsChars/charsPerToken))
 	}, text},
 	{"skills_stripped", func(c *Context) string {
 		if c.Transcript.SkillsBare <= 0 {

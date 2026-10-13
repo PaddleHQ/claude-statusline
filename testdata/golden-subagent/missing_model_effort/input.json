@@ -1,0 +1,1 @@
+{"tasks":[{"id":"t1","type":"local_agent","status":"running","description":"Older Claude Code without model fields","tokenCount":2500},{"id":"t2","name":"named","type":"local_agent","description":"Also old","tokenCount":1000000}]}

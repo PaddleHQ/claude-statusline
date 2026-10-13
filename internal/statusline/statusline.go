@@ -10,6 +10,8 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/segment"
+	"github.com/PaddleHQ/claude-statusline/internal/snapshot"
+	"github.com/PaddleHQ/claude-statusline/internal/subagent"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/internal/transcript"
 )
@@ -18,12 +20,15 @@ const (
 	keyTheme       = "theme"
 	keyHookTTL     = "hooks.ttl"
 	keyHookTimeout = "hooks.timeout"
+	keySnapEnabled = "snapshot.enabled"
+	keySnapPath    = "snapshot.path"
 	defaultColumns = 999
 )
 
 // Keys lists every config key the status line reads, for checking against defaults.conf.
 func Keys() []string {
-	return append(segment.Keys(), keyTheme, keyHookTTL, keyHookTimeout)
+	keys := append(segment.Keys(), keyTheme, keyHookTTL, keyHookTimeout, keySnapEnabled, keySnapPath)
+	return append(keys, subagent.Keys()...)
 }
 
 // Build renders the line. It reads the user's config and the clock and width overrides via getenv.
@@ -32,6 +37,8 @@ func Build(input []byte, getenv func(string) string) string {
 	if path := config.Path(getenv); path != "" {
 		cfg = config.Load(path)
 	}
+
+	saveSnapshot(input, cfg, getenv)
 
 	th := theme.Lookup(cfg.String(keyTheme))
 	if getenv("NO_COLOR") != "" {
@@ -53,6 +60,22 @@ func Build(input []byte, getenv func(string) string) string {
 		Transcript: transcript.Read(p.TranscriptPath),
 		Hooks:      runHooks(input, p, cfg, at, getenv),
 	})
+}
+
+// saveSnapshot keeps the latest payload where other tools can read it; a failed write never affects the line.
+func saveSnapshot(input []byte, cfg *config.Config, getenv func(string) string) {
+	if !cfg.Bool(keySnapEnabled) {
+		return
+	}
+	path := cfg.String(keySnapPath)
+	if path == "" {
+		dir := config.Dir(getenv)
+		if dir == "" {
+			return
+		}
+		path = filepath.Join(dir, snapshot.FileName)
+	}
+	_ = snapshot.Write(path, input)
 }
 
 // runHooks runs the scripts in the hook directory; STATUSLINE_HOOK_TTL and STATUSLINE_HOOK_TIMEOUT override the config.

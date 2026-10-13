@@ -1,8 +1,8 @@
 package setup
 
 var (
-	Touch            = touch
-	InsertStatusLine = insertStatusLine
+	Touch        = touch
+	InsertMember = insertMember
 )
 
 func Apply(dir, bin, event, version string) string {

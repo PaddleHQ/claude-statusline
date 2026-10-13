@@ -1,0 +1,1 @@
+{"tasks":[{"id":"t1","name":"bad\u001b[31mname","type":"local_agent","description":"line one\nline two \u001b]8;;http://evil\u0007link\u009b31m end\u0000","model":"claude-sonnet-4-5\u001b[0m","effort":"hi\u001bgh","contextWindowSize":200000,"tokenCount":50000}]}

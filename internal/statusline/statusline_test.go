@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -166,5 +167,112 @@ func TestBuildHooks(t *testing.T) {
 		got := statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir, "NO_COLOR": "1"}))
 		assert.Equal(t, "Opus", got)
 		assert.Less(t, time.Since(start), 3*time.Second)
+	})
+}
+
+func TestBuildSnapshot(t *testing.T) {
+	t.Parallel()
+
+	const input = "{\"model\":{\"display_name\":\"Opus\"},\n \"rate_limits\":{\"five_hour\":{\"used_percentage\":12}}}\n"
+
+	configure := func(t *testing.T, dir, text string) {
+		t.Helper()
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "claude-statusline"), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "claude-statusline", "config"), []byte(text), 0o600))
+	}
+
+	t.Run("writes the payload unchanged with mode 0600", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		got := statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir, "NO_COLOR": "1"}))
+
+		assert.Equal(t, "Opus", got)
+		path := filepath.Join(dir, "usage-latest.json")
+		data, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, input, string(data))
+		fi, err := os.Stat(path)
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o600), fi.Mode().Perm())
+	})
+
+	t.Run("falls back to HOME/.claude", func(t *testing.T) {
+		t.Parallel()
+		home := t.TempDir()
+
+		statusline.Build([]byte(input), env(map[string]string{"HOME": home}))
+
+		assert.FileExists(t, filepath.Join(home, ".claude", "usage-latest.json"))
+	})
+
+	t.Run("honours snapshot.path", func(t *testing.T) {
+		t.Parallel()
+		dir, elsewhere := t.TempDir(), filepath.Join(t.TempDir(), "out", "latest.json")
+		configure(t, dir, "snapshot.path = "+elsewhere+"\n")
+
+		statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir}))
+
+		assert.FileExists(t, elsewhere)
+		assert.NoFileExists(t, filepath.Join(dir, "usage-latest.json"))
+	})
+
+	t.Run("is disabled by snapshot.enabled", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		configure(t, dir, "snapshot.enabled = false\n")
+
+		statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir}))
+
+		assert.NoFileExists(t, filepath.Join(dir, "usage-latest.json"))
+	})
+
+	t.Run("does not write input that is not valid JSON", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		for _, bad := range []string{`{"model":`, ``, "not json"} {
+			statusline.Build([]byte(bad), env(map[string]string{"CLAUDE_CONFIG_DIR": dir}))
+		}
+
+		assert.NoFileExists(t, filepath.Join(dir, "usage-latest.json"))
+	})
+
+	t.Run("keeps the previous snapshot when a later payload is invalid", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		e := env(map[string]string{"CLAUDE_CONFIG_DIR": dir})
+
+		statusline.Build([]byte(input), e)
+		statusline.Build([]byte(`{"model":`), e)
+
+		data, err := os.ReadFile(filepath.Join(dir, "usage-latest.json"))
+		require.NoError(t, err)
+		assert.Equal(t, input, string(data))
+	})
+
+	t.Run("an unwritable directory does not break rendering", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		blocker := filepath.Join(dir, "file")
+		require.NoError(t, os.WriteFile(blocker, nil, 0o600))
+		configure(t, dir, "snapshot.path = "+filepath.Join(blocker, "sub", "latest.json")+"\n")
+
+		got := statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir, "NO_COLOR": "1"}))
+
+		assert.Equal(t, "Opus", got)
+	})
+
+	t.Run("leaves no temporary files behind", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir}))
+
+		entries, err := os.ReadDir(dir)
+		require.NoError(t, err)
+		for _, e := range entries {
+			assert.False(t, strings.HasPrefix(e.Name(), ".usage-"), "left %s behind", e.Name())
+		}
 	})
 }

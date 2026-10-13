@@ -1,0 +1,1 @@
+{"tasks":[{"id":"t1","name":"a","type":"local_agent","description":"No token count","model":"claude-opus-4-7","effort":"high"},{"id":"t2","name":"b","type":"local_agent","model":"claude-opus-4-7","tokenCount":4200},{"id":"t3","name":"c","type":"local_agent","description":"Zero window","model":"claude-opus-4-7","contextWindowSize":0,"tokenCount":4200}]}

@@ -1,0 +1,4 @@
+ctx.width = 5
+ctx.warn = 20
+ctx.bad = 25
+separator = |
