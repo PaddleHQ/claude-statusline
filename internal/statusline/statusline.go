@@ -2,10 +2,12 @@
 package statusline
 
 import (
+	"path/filepath"
 	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
+	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/segment"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 )
@@ -32,13 +34,26 @@ func Build(input []byte, getenv func(string) string) string {
 		th = th.WithoutColor()
 	}
 
+	p := payload.Parse(input)
+	at := now(getenv)
+	rates := ratecache.Sync(cachePath(getenv), ratecache.FromPayload(p.RateLimits)).Visible(at.Unix())
+
 	return segment.Render(&segment.Context{
-		Payload: payload.Parse(input),
+		Payload: p,
+		Rates:   rates,
 		Config:  cfg,
 		Theme:   th,
-		Now:     now(getenv),
+		Now:     at,
 		Columns: columns(getenv),
 	})
+}
+
+func cachePath(getenv func(string) string) string {
+	path := config.Path(getenv)
+	if path == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(path), "cache", "ratelimits")
 }
 
 func now(getenv func(string) string) time.Time {

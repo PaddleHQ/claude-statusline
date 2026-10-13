@@ -7,6 +7,7 @@ import (
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
+	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 )
 
@@ -21,6 +22,8 @@ type Segment interface {
 // Context is everything a segment may read.
 type Context struct {
 	Payload payload.Payload
+	// Rates is the merged, still-valid rate-limit reading, not the raw payload.
+	Rates   ratecache.Limits
 	Config  *config.Config
 	Theme   theme.Theme
 	Now     time.Time
@@ -33,7 +36,9 @@ const (
 )
 
 var registry = map[string]Segment{
-	"model": model{},
+	"model":  model{},
+	"rate5h": rate{name: "rate5h", seconds: fiveHourSeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.FiveHour }},
+	"rate7d": rate{name: "rate7d", seconds: sevenDaySeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.SevenDay }},
 }
 
 // Lookup returns the registered segment with the given name.

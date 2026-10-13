@@ -11,8 +11,8 @@ func TestDefaultsParse(t *testing.T) {
 	t.Parallel()
 
 	c := New("")
-	if got := c.String("segments"); got != "model" {
-		t.Errorf("segments = %q, want model", got)
+	if got := c.String("segments"); got != "model rate5h rate7d" {
+		t.Errorf("segments = %q, want model rate5h rate7d", got)
 	}
 	if got := c.String("separator"); got != "·" {
 		t.Errorf("separator = %q, want ·", got)
@@ -30,7 +30,7 @@ func TestDefaultKeys(t *testing.T) {
 
 	keys := DefaultKeys()
 	slices.Sort(keys)
-	want := []string{"model.effort", "segments", "separator", "theme"}
+	want := []string{"model.effort", "rate5h.bad", "rate5h.hard_cap", "rate5h.label", "rate5h.warn", "rate5h.width", "rate7d.bad", "rate7d.hard_cap", "rate7d.label", "rate7d.warn", "rate7d.width", "segments", "separator", "theme"}
 	if !slices.Equal(keys, want) {
 		t.Errorf("DefaultKeys() = %v, want %v", keys, want)
 	}

@@ -8,7 +8,8 @@ import (
 	"testing"
 )
 
-// Each testdata/golden/<case>/ holds input.json and expected, plus optional config and env.
+// Each testdata/golden/<case>/ holds input.json and expected, plus optional config, env, cache (seeded
+// before the run) and expected_cache (compared after it).
 // Escape bytes in the output are compared as the text \e, and @TMP@ stands for the case's temp directory.
 func TestGolden(t *testing.T) {
 	t.Parallel()
@@ -55,6 +56,16 @@ func runGolden(t *testing.T, dir string) {
 		}
 	}
 
+	cacheFile := filepath.Join(tmp, "claude-statusline", "cache", "ratelimits")
+	if data, err := os.ReadFile(filepath.Join(dir, "cache")); err == nil {
+		if err := os.MkdirAll(filepath.Dir(cacheFile), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(cacheFile, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	input, err := os.ReadFile(filepath.Join(dir, "input.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -74,6 +85,12 @@ func runGolden(t *testing.T, dir string) {
 	}
 	if strings.Contains(out.String(), "\n") {
 		t.Error("output contains a newline")
+	}
+	if wantCache, err := os.ReadFile(filepath.Join(dir, "expected_cache")); err == nil {
+		gotCache, _ := os.ReadFile(cacheFile)
+		if strings.TrimSpace(string(gotCache)) != strings.TrimSpace(string(wantCache)) {
+			t.Errorf("cache mismatch\n got: %s\nwant: %s", gotCache, wantCache)
+		}
 	}
 	if _, err := os.Stat(filepath.Join(tmp, "pwned")); err == nil {
 		t.Error("a config value was executed")
