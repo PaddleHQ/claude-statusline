@@ -2,7 +2,44 @@
 
 An open-source status line for Claude Code, written in Go.
 
-It is at an early stage: for now it prints the working directory and git branch, model, context usage, token counts, prompt-cache hit rate and rate-limit usage bars, for example `~/code/app (main) · Opus 4.7 [high] · ctx: ████▎░░░░░ 42% · ↓ 1.5k · ↑ 23.4k · ⧉ 85% · 5h: ████████▌┃░░░░░░░░░ 45%`. It reads the session JSON that Claude Code passes on stdin, prints the line with no trailing newline (wrapping onto further rows when the terminal is too narrow), and always exits 0. Control characters are stripped from every string taken from the session, and anything unexpected results in blank output rather than an error.
+It is at an early stage: for now it shows the working directory and git branch, model, context usage, token counts, prompt-cache hit rate and rate-limit usage bars, for example `~/code/app (main) · Opus 4.7 [high] · ctx: ████▎░░░░░ 42% · ↓ 1.5k · ↑ 23.4k · ⧉ 85% · 5h: ████████▌┃░░░░░░░░░ 45%`. It reads the session JSON that Claude Code passes on stdin, prints the line with no trailing newline (wrapping onto further rows when the terminal is too narrow), and always exits 0. Control characters are stripped from every string taken from the session, and anything unexpected results in blank output rather than an error.
+
+## How it works
+
+Claude Code runs the binary every time it redraws the status line, passing the session JSON on stdin. The binary reads your configuration and a few small files, then prints the line.
+
+```mermaid
+flowchart TD
+    CC["Claude Code<br/>session JSON on stdin"] --> M["main: pick the command"]
+    M -->|"no argument"| B["statusline.Build"]
+    M -->|"subagent"| SA["subagent.Build<br/>one row per running subagent"]
+    M -->|"setup"| SU["setup.Run<br/>edit settings.json"]
+    M -->|"--version"| V["print the version"]
+    B --> C["load config<br/>(defaults.conf under your config file)"]
+    C --> SN["save the usage snapshot"]
+    SN --> T["pick the theme<br/>(NO_COLOR removes colour)"]
+    T --> P["parse the payload"]
+    P --> RC["merge rate limits with<br/>the shared cache"]
+    RC --> TR["read the transcript"]
+    TR --> H["run custom segment scripts"]
+    H --> S["render each segment"]
+    S --> L["lay out and wrap to the terminal width"]
+    L --> OUT["line on stdout"]
+```
+
+The plugin route adds a step before any of this, so that the binary is installed and wired in without you doing it by hand:
+
+```mermaid
+flowchart TD
+    SS["SessionStart hook"] --> BS["hooks/bootstrap.sh"]
+    BS --> PIN["read the pinned version and checksums<br/>(release/version, release/checksums.txt)"]
+    PIN --> CUR{"pinned version<br/>already installed?"}
+    CUR -->|"yes"| SETUP
+    CUR -->|"no"| DL["download the release archive"]
+    DL --> VER["verify its sha256"]
+    VER --> INST["install to ~/.claude/claude-statusline/bin"]
+    INST --> SETUP["claude-statusline setup<br/>adds missing statusLine and subagentStatusLine"]
+```
 
 ## Install
 
@@ -87,7 +124,7 @@ Configuration is optional. Your settings live in `~/.claude/claude-statusline/co
 | `ctx.bad` | `90` | Context usage percentage at or above which the fill turns red. |
 | `cache.warn` | `5` | Prompt cache hit percentage below which the cache figure turns red. |
 | `rate5h.label`, `rate7d.label` | `5h`, `7d` | Text shown before the bar. |
-| `rate5h.width`, `rate5h.width_medium`, `rate5h.width_narrow` (and the same for `rate7d`) | `20`, `14`, `10` | Bar width in cells at 160 columns or more, below 160, and below 120. |
+| `rate5h.width`, `rate5h.width_medium`, `rate5h.width_narrow`, `rate7d.width`, `rate7d.width_medium`, `rate7d.width_narrow` | `20`, `14`, `10` | Bar width in cells at 160 columns or more, below 160, and below 120. |
 | `rate5h.warn`, `rate7d.warn` | `20`, `10` | Pace deviation, in percentage points, beyond which the fill turns amber. |
 | `rate5h.bad`, `rate7d.bad` | `40`, `20` | Pace deviation, in percentage points, beyond which the fill turns red. |
 | `rate5h.hard_cap`, `rate7d.hard_cap` | `95` | Usage percentage at or above which the fill is always red. |
@@ -192,21 +229,12 @@ that is the agent's name (or its task kind when it has no name), its model witho
 
 Every time the status line renders, the payload Claude Code sent is saved, byte for byte, to `~/.claude/usage-latest.json` (under `$CLAUDE_CONFIG_DIR` if set) so that other tools can read your latest usage and rate limits. The file is replaced atomically, is readable only by you, and is written only when the payload is valid JSON. A failed write never affects the status line. Set `snapshot.enabled = false` to turn it off, or `snapshot.path` to write it somewhere else.
 
-## Development
+## Releases
 
-```sh
-go test ./...
-golangci-lint run
-```
+Every release is published from this repository's release workflow, so you can check what you download. The commands under [From a release](#from-a-release) verify the archive against the published checksums and against its build provenance attestation. The plugin does the checksum check for you, against hashes committed to this repository.
 
-Shell scripts are checked with `shellcheck -s sh hooks/bootstrap.sh scripts/pin-release.sh tests/bootstrap_test.sh` and tested with `sh tests/bootstrap_test.sh`.
-
-Every pull request needs exactly one of the labels `norelease`, `release:major`, `release:minor` or `release:patch`. Merging a `release:*` pull request tags the next semantic version and publishes the release binaries.
-
-### Pinning a release for the plugin
-
-The plugin installs the version recorded in `release/version`, not the latest release. After a release is published, run `scripts/pin-release.sh <version>` (for example `0.1.0`, without the leading `v`). It needs `gh`, verifies the build attestation and checksum of all four archives, and only then writes `release/version` and `release/checksums.txt`. Commit both files in a pull request. Until it merges, the plugin keeps installing the previous pin. While `release/version` is empty, the hook does nothing.
+To work on the code, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licence
 
-See [LICENSE](LICENSE).
+Released under the terms in [LICENSE](LICENSE).
