@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+func noEnv(string) string { return "" }
+
 func TestRun(t *testing.T) {
 	t.Parallel()
 
@@ -15,7 +17,8 @@ func TestRun(t *testing.T) {
 		want  string
 	}{
 		{"prints the display name", `{"model":{"id":"claude-opus-4-7","display_name":"Opus 4.7"}}`, "Opus 4.7"},
-		{"ignores unknown fields", `{"effort":{"level":"high"},"extra":[1,2],"model":{"id":"x","display_name":"Sonnet","other":true}}`, "Sonnet"},
+		{"appends the effort level", `{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"}}`, "Opus 4.7 [high]"},
+		{"ignores unknown fields", `{"extra":[1,2],"model":{"id":"x","display_name":"Sonnet","other":true}}`, "Sonnet"},
 		{"prints nothing when the model is missing", `{"effort":{"level":"high"}}`, ""},
 		{"prints nothing for an empty display name", `{"model":{"display_name":""}}`, ""},
 		{"prints nothing for invalid JSON", `{"model":`, ""},
@@ -29,7 +32,7 @@ func TestRun(t *testing.T) {
 			t.Parallel()
 
 			var out bytes.Buffer
-			run(strings.NewReader(tt.input), &out)
+			run(strings.NewReader(tt.input), &out, noEnv)
 
 			if got := out.String(); got != tt.want {
 				t.Errorf("run() printed %q, want %q", got, tt.want)
@@ -54,7 +57,7 @@ func TestExecute(t *testing.T) {
 		{"prints commit and date when set", []string{"--version"}, "1.2.3", "abc1234", "2026-10-13T10:00:00Z", "claude-statusline 1.2.3 (abc1234, 2026-10-13T10:00:00Z)\n"},
 		{"only the first argument selects version", []string{"--version", "extra"}, "1.2.3", "", "", "claude-statusline 1.2.3\n"},
 		{"ignores version later in the arguments", []string{"other", "--version"}, "1.2.3", "", "", "Opus"},
-		{"prints the model name without arguments", nil, "1.2.3", "", "", "Opus"},
+		{"prints the status line without arguments", nil, "1.2.3", "", "", "Opus"},
 	}
 
 	for _, tt := range tests {
@@ -64,7 +67,7 @@ func TestExecute(t *testing.T) {
 			version, commit, date = tt.version, tt.commit, tt.date
 
 			var out bytes.Buffer
-			execute(tt.args, strings.NewReader(payloadJSON), &out)
+			execute(tt.args, strings.NewReader(payloadJSON), &out, noEnv)
 
 			if got := out.String(); got != tt.want {
 				t.Errorf("execute() printed %q, want %q", got, tt.want)

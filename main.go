@@ -1,21 +1,15 @@
-// Command claude-statusline prints the model name for a Claude Code status line.
+// Command claude-statusline prints a configurable status line for Claude Code.
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/setup"
+	"github.com/PaddleHQ/claude-statusline/internal/statusline"
 )
-
-type payload struct {
-	Model struct {
-		DisplayName string `json:"display_name"`
-	} `json:"model"`
-}
 
 // Set at build time via -ldflags -X; every target must exist or the stamp silently no-ops.
 var (
@@ -25,10 +19,10 @@ var (
 )
 
 func main() {
-	execute(os.Args[1:], os.Stdin, os.Stdout)
+	execute(os.Args[1:], os.Stdin, os.Stdout, os.Getenv)
 }
 
-func execute(args []string, stdin io.Reader, stdout io.Writer) {
+func execute(args []string, stdin io.Reader, stdout io.Writer, getenv func(string) string) {
 	if len(args) > 0 && args[0] == "--version" {
 		_, _ = fmt.Fprintln(stdout, versionString())
 		return
@@ -37,7 +31,7 @@ func execute(args []string, stdin io.Reader, stdout io.Writer) {
 		setup.Run(stdout, eventFlag(args[1:]), version)
 		return
 	}
-	run(stdin, stdout)
+	run(stdin, stdout, getenv)
 }
 
 func eventFlag(args []string) string {
@@ -61,20 +55,10 @@ func versionString() string {
 }
 
 // run never reports failures: a blank status line is better than a broken one.
-func run(stdin io.Reader, stdout io.Writer) {
-	var p payload
-	if err := json.NewDecoder(stdin).Decode(&p); err != nil {
+func run(stdin io.Reader, stdout io.Writer, getenv func(string) string) {
+	input, err := io.ReadAll(stdin)
+	if err != nil {
 		return
 	}
-	_, _ = io.WriteString(stdout, sanitize(p.Model.DisplayName))
-}
-
-// sanitize drops control characters so a payload cannot inject terminal escapes.
-func sanitize(s string) string {
-	return strings.Map(func(r rune) rune {
-		if r < 0x20 || r == 0x7f {
-			return -1
-		}
-		return r
-	}, s)
+	_, _ = io.WriteString(stdout, statusline.Build(input, getenv))
 }

@@ -11,6 +11,8 @@ import (
 
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/pretty"
+
+	appconfig "github.com/PaddleHQ/claude-statusline/internal/config"
 )
 
 // Events describe what the bootstrap hook just did to the binary.
@@ -29,13 +31,9 @@ type config struct {
 
 // Run never fails the session: it writes at most one systemMessage line and no errors.
 func Run(w io.Writer, event, version string) {
-	dir := os.Getenv("CLAUDE_CONFIG_DIR")
+	dir := appconfig.Dir(os.Getenv)
 	if dir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return
-		}
-		dir = filepath.Join(home, ".claude")
+		return
 	}
 	bin, err := os.Executable()
 	if err != nil {

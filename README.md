@@ -2,7 +2,7 @@
 
 An open-source status line for Claude Code, written in Go.
 
-It is at a very early stage: for now it prints only the model name, for example `Opus 4.7`. It reads the session JSON that Claude Code passes on stdin, prints the model's display name with no trailing newline, and always exits 0. Control characters are stripped from the name, and anything unexpected results in blank output rather than an error.
+It is at an early stage: for now it prints the model name and effort level, for example `Opus 4.7 [high]`. It reads the session JSON that Claude Code passes on stdin, prints one line with no trailing newline, and always exits 0. Control characters are stripped from every string taken from the session, and anything unexpected results in blank output rather than an error.
 
 ## Install
 
@@ -61,6 +61,21 @@ Add this to `~/.claude/settings.json`, using the path you installed to:
 ```
 
 Run `claude-statusline --version` to print the installed version.
+
+## Configuration
+
+Configuration is optional. Your settings live in `~/.claude/claude-statusline/config`, or under `$CLAUDE_CONFIG_DIR` if you set it. Each line is `key = value`. Blank lines and full-line `#` comments are ignored, whitespace around keys and values is trimmed, and the last occurrence of a key wins. Keys are lower case, with at most one dot (`model.effort`); anything else is ignored. The file is parsed, never executed, so values are always plain text. A missing or invalid value falls back to its default.
+
+[`internal/config/defaults.conf`](internal/config/defaults.conf) documents every key with a comment and its default value. The current keys are:
+
+| Key | Default | Meaning |
+|---|---|---|
+| `segments` | `model` | Segments to show, in order. Unknown names are skipped. |
+| `separator` | `·` | Glyph drawn between segments. |
+| `theme` | `default` | Colour theme. Unknown names fall back to `default`. |
+| `model.effort` | `true` | Show the effort level after the model name (`true` or `false`). |
+
+Set `NO_COLOR` to any non-empty value to turn colour and styling off.
 
 ## Development
 
