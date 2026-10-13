@@ -1,6 +1,7 @@
 #!/bin/sh
 # Golden tests: each tests/cases/<name>/ holds input.json and expected, plus optional
-# config, cache, env and expected_cache. Escape bytes in output are compared as the text \e.
+# config, cache, env, expected_cache and remove (paths deleted from a copy of the install).
+# Escape bytes in output are compared as the text \e.
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 SCRIPT="$ROOT/statusline.sh"
@@ -27,6 +28,16 @@ run_case() {
     tr '|' "$US" < "$case_dir/cache" > "$app_dir/cache/ratelimits"
   fi
 
+  script=$SCRIPT
+  if [ -f "$case_dir/remove" ]; then
+    mkdir "$tmp/install"
+    cp -R "$ROOT/statusline.sh" "$ROOT/defaults.conf" "$ROOT/lib" "$ROOT/segments" "$ROOT/themes" "$tmp/install/"
+    while IFS= read -r removed || [ -n "$removed" ]; do
+      [ -z "$removed" ] || rm -f "$tmp/install/$removed"
+    done < "$case_dir/remove"
+    script=$tmp/install/statusline.sh
+  fi
+
   (
     HOME=$tmp
     CLAUDE_CONFIG_DIR=$tmp
@@ -42,7 +53,7 @@ run_case() {
         esac
       done < "$case_dir/env"
     fi
-    sh "$SCRIPT" < "$case_dir/input.json" > "$tmp/out.raw"
+    sh "$script" < "$case_dir/input.json" > "$tmp/out.raw"
     echo $? > "$tmp/status"
   )
 
@@ -97,6 +108,8 @@ if ! command -v jq >/dev/null 2>&1; then
   echo 'jq is required to run the tests' >&2
   exit 1
 fi
+
+sh "$ROOT/tests/check_defaults.sh" || exit 1
 
 for case_dir in "$CASES"/*/; do
   run_case "${case_dir%/}"

@@ -1,0 +1,6 @@
+rate5h.width = abc
+rate5h.warn = -3
+rate5h.bad = 4x
+rate5h.hard_cap = 1e2
+model.effort = maybe
+rate5h.label =

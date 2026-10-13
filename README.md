@@ -9,9 +9,9 @@ Opus 4.7 [high] · 5h: █████████░┃░░░░░░░░
 
 ## Install
 
-Requires `jq`. Copy `statusline.sh` somewhere stable, for example
-`~/.claude/claude-statusline/statusline.sh`, then add this to
-`~/.claude/settings.json`:
+Requires `jq`. Copy the whole directory (`statusline.sh`, `defaults.conf`,
+`lib/`, `segments/` and `themes/`) to `~/.claude/claude-statusline/`, then add
+this to `~/.claude/settings.json`:
 
 ```json
 "statusLine": {
@@ -21,32 +21,33 @@ Requires `jq`. Copy `statusline.sh` somewhere stable, for example
 }
 ```
 
-If `jq` is missing the status line prints nothing. If you set
-`CLAUDE_CONFIG_DIR`, the script reads and writes under that directory instead
-of `~/.claude`.
+Your own settings live in `~/.claude/claude-statusline/config`, the same
+directory. This project never ships a file called `config`, so copying a newer
+version over the directory leaves your settings alone. The rate-limit cache is
+written to `cache/` there too.
+
+If `jq` or `defaults.conf` is missing the status line prints nothing. If you set
+`CLAUDE_CONFIG_DIR`, everything is read from and written under that directory
+instead of `~/.claude`.
 
 ## Configuration
 
-Optional. Create `~/.claude/claude-statusline/config` with `key = value` lines.
-Blank lines and lines starting with `#` are ignored, whitespace around keys and
-values is trimmed, and the last occurrence of a key wins. The file is parsed,
-never executed, so values are always treated as plain text. Invalid numbers fall
-back to the default.
+Optional. `defaults.conf` lists every setting with a comment and its default
+value. Copy the lines you want to change into
+`~/.claude/claude-statusline/config` as `key = value`. Blank lines and lines
+starting with `#` are ignored, whitespace around keys and values is trimmed, and
+the last occurrence of a key wins. The file is parsed, never executed, so values
+are always plain text. An invalid value (a non-number where a number is
+expected, for instance) falls back to the default.
 
-Each segment's keys are written `<segment>.<key>`. Keys must be lower case
-with at most one dot; anything else is ignored.
+Keys are `<segment>.<key>`, in lower case with at most one dot; anything else is
+ignored. The main ones:
 
-| Key | Default | Meaning |
-|---|---|---|
-| `segments` | `model rate5h rate7d` | Segments to show, in order. Omit one to drop it; unknown names are skipped. |
-| `separator` | `·` | Glyph between segments. |
-| `theme` | `default` | Colour theme. Unknown names fall back to `default`. |
-| `model.effort` | `true` | `false` hides the `[effort]` suffix. |
-| `rate5h.label`, `rate7d.label` | `5h`, `7d` | Text before the bar. |
-| `rate5h.width`, `rate7d.width` | `20` | Bar width in cells on a wide terminal. |
-| `rate5h.warn`, `rate5h.bad` | `20`, `40` | Pace deviation (percentage points) for amber and red. |
-| `rate7d.warn`, `rate7d.bad` | `10`, `20` | The same for the 7 day window. |
-| `rate5h.hard_cap`, `rate7d.hard_cap` | `95` | Usage at or above this is always red. |
+| Key | Meaning |
+|---|---|
+| `segments` | Segments to show, in order. Omit one to drop it; unknown names are skipped. |
+| `separator` | Glyph between segments. |
+| `theme` | Colour theme. Unknown names fall back to `default`. |
 
 Bars narrow on small terminals: half width below 120 columns and 70% below 160
 (`$COLUMNS`), never under 4 cells.
@@ -71,15 +72,31 @@ cached reading with a newer window, higher usage, or a drop of more than 10
 points (a mid-window quota reset), and the line is always drawn from the merged
 value.
 
+## Adding a segment
+
+1. Create `segments/<name>.sh` (lower case letters, digits and underscores)
+   defining `segment_<name>`. It prints its text, or nothing to hide itself.
+   Payload fields are available as globals such as `MODEL_NAME`; use `paint` and
+   the theme colours rather than raw escape codes.
+2. Read settings with `config_text`, `config_number` or `config_bool` using
+   `<name>.<key>`, and add each key to `defaults.conf` with a one-line comment.
+   There are no default arguments in code.
+3. Add the name to `segments` in `defaults.conf` if it should be on by default,
+   and golden tests under `tests/cases/`.
+
+`sh tests/check_defaults.sh` fails if code and `defaults.conf` disagree.
+
 ## Development
 
 ```sh
 sh tests/run.sh
-shellcheck -s sh statusline.sh tests/run.sh
+sh tests/check_defaults.sh
+shellcheck -s sh -x statusline.sh segments/*.sh themes/*.sh tests/*.sh
 ```
 
 Tests are golden files under `tests/cases/<name>/`: `input.json`, `expected`,
-and optionally `config`, `cache`, `env` and `expected_cache`. In `expected`,
+and optionally `config`, `cache`, `env`, `expected_cache` and `remove` (files
+deleted from a copy of the install before the run). In `expected`,
 the escape byte is written as `\e`; in `cache` files `|` stands for the
 separator byte. Set `STATUSLINE_NOW` to a Unix timestamp to fix the clock
 (the test runner does).

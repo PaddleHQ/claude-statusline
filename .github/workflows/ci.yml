@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: shellcheck -s sh statusline.sh tests/run.sh
+      - run: shellcheck -s sh -x statusline.sh segments/*.sh themes/*.sh tests/*.sh
 
   test:
     strategy:
@@ -27,4 +27,5 @@ jobs:
         with:
           persist-credentials: false
       - run: jq --version
+      - run: sh tests/check_defaults.sh
       - run: sh tests/run.sh
