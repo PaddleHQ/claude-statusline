@@ -1,0 +1,2 @@
+code/app/.git/HEAD=ref: refs/heads/feature/retry-backoff
++x statusline.d/10-backup.sh=#!/bin/sh\n# statusline-ttl: 300\nprintf '\033[31m⚠ backup stale\033[0m'

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="716" height="92" viewBox="0 0 716 92">
+<rect width="716" height="92" rx="8" fill="#ffffff"/>
+<g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace" font-size="15" fill="#24292f" xml:space="preserve">
+<text y="31"><tspan x="16" fill="#0087ff" font-weight="bold">~/code/app (feature/retry-backoff)</tspan><tspan x="331" opacity="0.55">·</tspan><tspan x="340"> Opus 4.7 [high] </tspan><tspan x="493" opacity="0.55">·</tspan><tspan x="502"> ctx: </tspan><tspan x="556" fill="#1a7f37">██▌</tspan><tspan x="583" opacity="0.55">░░░</tspan><tspan x="610"> 42%</tspan></text>
+<text y="51"><tspan x="16">↓ 1.5k </tspan><tspan x="79" opacity="0.55">·</tspan><tspan x="88"> ↑ 23.4k </tspan><tspan x="169" opacity="0.55">·</tspan><tspan x="178"> ⧉ 85% </tspan><tspan x="241" opacity="0.55">·</tspan><tspan x="250"> ⌂ 64.5k </tspan><tspan x="331" opacity="0.55">·</tspan><tspan x="340"> ⚙ 102</tspan></text>
+<text y="71"><tspan x="16" opacity="0.55">↳</tspan><tspan x="25">                                    5h: </tspan><tspan x="385" fill="#1a7f37">████▌</tspan><tspan x="430" font-weight="bold">┃</tspan><tspan x="439" opacity="0.55">░░░░</tspan><tspan x="475"> 45% </tspan><tspan x="520" opacity="0.55">·</tspan><tspan x="529"> 7d: </tspan><tspan x="574" fill="#9a6700">█████</tspan><tspan x="619" font-weight="bold">┃</tspan><tspan x="628" fill="#9a6700">▎</tspan><tspan x="637" opacity="0.55">░░░</tspan><tspan x="664"> 62%</tspan></text>
+</g>
+</svg>

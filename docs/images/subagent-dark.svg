@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="72" viewBox="0 0 860 72">
+<rect width="860" height="72" rx="8" fill="#0d1117"/>
+<g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace" font-size="15" fill="#c9d1d9" xml:space="preserve">
+<text y="31"><tspan x="16" font-weight="bold">reviewer</tspan><tspan x="97" opacity="0.55">·</tspan><tspan x="106"> sonnet-4-5</tspan><tspan x="205" opacity="0.55"> [high]</tspan><tspan x="277" opacity="0.55">·</tspan><tspan x="286"> ctx: </tspan><tspan x="340" fill="#3fb950">████▎</tspan><tspan x="385" opacity="0.55">░░░░░</tspan><tspan x="439" fill="#3fb950">42%</tspan><tspan x="475" opacity="0.55">·</tspan><tspan x="484"> 84.5k </tspan><tspan x="547" opacity="0.55">·</tspan><tspan x="565" opacity="0.55">Review the payment retry change</tspan></text>
+<text y="51"><tspan x="16" font-weight="bold">tester</tspan><tspan x="79" opacity="0.55">·</tspan><tspan x="88"> opus-4-7</tspan><tspan x="169" opacity="0.55"> [xhigh]</tspan><tspan x="250" opacity="0.55">·</tspan><tspan x="259"> ctx: </tspan><tspan x="313" fill="#ff7b72">█████████▎</tspan><tspan x="412" fill="#ff7b72">92%</tspan><tspan x="448" opacity="0.55">·</tspan><tspan x="457"> 185.0k </tspan><tspan x="529" opacity="0.55">·</tspan><tspan x="547" opacity="0.55">Run the suite</tspan></text>
+</g>
+</svg>

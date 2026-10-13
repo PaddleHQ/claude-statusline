@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for helping with claude-statusline. This page covers what you need to change the code and get the change merged. For what the tool does and how a render works, start with the [README](README.md).
+Thank you for helping with claude-statusline. This page covers what you need to change the code and get the change merged. For what the tool does, start with the [README](README.md); [How it works](docs/how_it_works.md) explains how a render runs, and [Customising](docs/customising.md) documents every setting.
 
 ## Prerequisites
 
@@ -32,7 +32,10 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `internal/setup` | Adds `statusLine` and `subagentStatusLine` to `settings.json` once, backing the file up first. |
 | `hooks/` | The plugin's `SessionStart` hook: `hooks.json` and `bootstrap.sh`, which installs the latest release. |
 | `tests/` | Shell tests for the bootstrap hook. |
-| `testdata/` | Golden fixtures for the end-to-end tests. |
+| `internal/screenshot` | Renders the status line's output to SVG images for the documentation. |
+| `tools/screenshots` | The command that regenerates the documentation images. |
+| `docs/` | The user documentation, and the generated images in `docs/images/`. |
+| `testdata/` | Golden fixtures for the end-to-end tests, and the fixtures the documentation images are made from. |
 | `.claude-plugin/` | The plugin and marketplace manifests. |
 
 ## Verifying a change
@@ -88,11 +91,11 @@ HOME="$tmp" CLAUDE_CONFIG_DIR="$tmp" go run . < testdata/golden/default_all/inpu
 
 ### Configuration keys
 
-Every key the code reads must appear in `internal/config/defaults.conf` with a one-line comment above it, and every key in that file must be read by something. `TestKeysMatchDefaults` in `internal/statusline` enforces both directions, so a new setting cannot ship undocumented and a dead one cannot linger. Add the key to the table in the README too.
+Every key the code reads must appear in `internal/config/defaults.conf` with a one-line comment above it, and every key in that file must be read by something. `TestKeysMatchDefaults` in `internal/statusline` enforces both directions, so a new setting cannot ship undocumented and a dead one cannot linger. Add the key to the table in [`docs/customising.md`](docs/customising.md) too.
 
 ### Adding a built-in theme
 
-Built-in themes are YAML files in `internal/theme/themes/`, embedded in the binary; the file name without `.yaml` is the name users put in `theme`. Write one in the format the README's Themes section describes, with comments, since the files double as examples. Start with `extends: classic` unless the theme needs every field. Parsing is strict (unknown keys are an error), so a typo fails the tests rather than shipping. Add a test in `internal/theme` for what is new, and a golden case under `testdata/golden/` that selects the theme in its `config`. Mention the theme in the README. Keep the loader's fallback to `classic` silent: a status line never prints an error.
+Built-in themes are YAML files in `internal/theme/themes/`, embedded in the binary; the file name without `.yaml` is the name users put in `theme`. Write one in the format the Themes section of [`docs/customising.md`](docs/customising.md) describes, with comments, since the files double as examples. Start with `extends: classic` unless the theme needs every field. Parsing is strict (unknown keys are an error), so a typo fails the tests rather than shipping. Add a test in `internal/theme` for what is new, and a golden case under `testdata/golden/` that selects the theme in its `config`. Mention the theme in the Themes section of `docs/customising.md`. Keep the loader's fallback to `classic` silent: a status line never prints an error.
 
 ### Adding a segment
 
@@ -100,13 +103,25 @@ Built-in themes are YAML files in `internal/theme/themes/`, embedded in the bina
 2. Register it in the `registry` map in `internal/segment/segment.go`.
 3. Add its keys to `defaults.conf`, and add its name to the default `segments` list if it should show by default.
 4. Cover it with a unit test and at least one golden case, including the case where its data is missing.
-5. Document it in the README, in the table of keys and the section that fits.
+5. Document it in `docs/customising.md`, in the table of keys and the section that fits.
 
 A segment should be hidden, not wrong, when its data is missing.
 
 ### Custom segment output
 
 Scripts in the hook directory are user code, so their output is treated as untrusted. `internal/hook` strips control characters from it and keeps only colour sequences, so a script cannot move the cursor or redraw the terminal. If you change that path, keep the rule and extend its tests. The same applies to strings taken from the session payload, which `internal/payload` sanitises.
+
+### Documentation images
+
+The pictures of the status line in the README and `docs/` are generated, not drawn. Each one comes from a fixture directory under `testdata/screenshots/<name>/`, which follows the same conventions as `testdata/golden` (`input.json`, and optionally `config`, `env` and `tree`; the run fixes the time and a 200 column terminal unless `env` says otherwise). A file named `command` containing `subagent` renders the agent panel rows instead of the status line. The generator runs the real status line against the fixture and writes `docs/images/<name>-dark.svg` and `docs/images/<name>-light.svg`, which the docs embed with a `<picture>` element so GitHub shows the one that matches the reader's theme.
+
+After changing a fixture, or anything that changes what the line looks like, regenerate the images from the repository root and commit the result:
+
+```sh
+go run ./tools/screenshots
+```
+
+`TestScreenshotsUpToDate` regenerates every image in memory and fails when a committed one differs, is missing or has no fixture, so a stale picture cannot be merged.
 
 ### Go style
 
