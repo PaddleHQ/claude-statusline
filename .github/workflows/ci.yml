@@ -93,7 +93,11 @@ jobs:
           go-version-file: go.mod
 
       - name: Install syft
-        uses: anchore/sbom-action/download-syft@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        uses: step-security/action-install-gh-release@fcc32674e8d9158ed77bb8ec6d54b7d49ed259b9 # v3.0.0
+        with:
+          repo: anchore/syft
+          rename-to: syft
+          tag: v1.54.1
 
       - name: Check GoReleaser config
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
