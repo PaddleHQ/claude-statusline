@@ -6,36 +6,50 @@ It is at a very early stage: for now it prints only the model name, for example 
 
 ## Install
 
+### From a release
+
+Each [release](https://github.com/PaddleHQ/claude-statusline/releases) has a binary for macOS and Linux on arm64 and amd64, plus `checksums.txt`, an SBOM per archive and a GitHub build provenance attestation. Set the version and your platform, then download, verify and install:
+
+```sh
+VERSION=0.1.0   # without the leading v
+OS=darwin       # or linux
+ARCH=arm64      # or amd64
+ARCHIVE="claude-statusline_${VERSION}_${OS}_${ARCH}.tar.gz"
+
+gh release download "v${VERSION}" --repo PaddleHQ/claude-statusline \
+  --pattern "$ARCHIVE" --pattern checksums.txt
+shasum -a 256 -c checksums.txt --ignore-missing
+gh attestation verify "$ARCHIVE" --repo PaddleHQ/claude-statusline
+
+mkdir -p ~/.local/bin
+tar -xzf "$ARCHIVE" -C ~/.local/bin claude-statusline
+```
+
+`shasum` checks the archive against the published checksums. `gh attestation verify` proves it was built by this repository's release workflow.
+
+### With Go
+
 ```sh
 go install github.com/PaddleHQ/claude-statusline@latest
 ```
 
-Then add it to `~/.claude/settings.json`:
+This builds from source into `$(go env GOPATH)/bin`.
+
+### Configure Claude Code
+
+Add this to `~/.claude/settings.json`, using the path you installed to:
 
 ```json
 {
   "statusLine": {
     "type": "command",
-    "command": "claude-statusline",
+    "command": "~/.local/bin/claude-statusline",
     "refreshInterval": 60
   }
 }
 ```
 
-`$(go env GOPATH)/bin` must be on your `PATH`, otherwise use the full path to the binary as the command.
-
 Run `claude-statusline --version` to print the installed version.
-
-## Releases
-
-Every pull request needs exactly one of the labels `norelease`, `release:major`, `release:minor` or `release:patch`. Merging a `release:*` pull request tags a semantic version release and publishes binaries for macOS and Linux (amd64 and arm64), together with `checksums.txt`, SBOMs and a GitHub build provenance attestation.
-
-To verify a download:
-
-```sh
-gh attestation verify <archive> --repo PaddleHQ/claude-statusline
-sha256sum -c checksums.txt --ignore-missing
-```
 
 ## Development
 
@@ -43,6 +57,8 @@ sha256sum -c checksums.txt --ignore-missing
 go test ./...
 golangci-lint run
 ```
+
+Every pull request needs exactly one of the labels `norelease`, `release:major`, `release:minor` or `release:patch`. Merging a `release:*` pull request tags the next semantic version and publishes the release binaries.
 
 ## Licence
 
