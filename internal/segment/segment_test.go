@@ -1,10 +1,14 @@
-package segment
+package segment_test
 
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
+	"github.com/PaddleHQ/claude-statusline/internal/segment"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 )
 
@@ -15,10 +19,8 @@ func testPayload() payload.Payload {
 func TestRegistryNamesMatch(t *testing.T) {
 	t.Parallel()
 
-	for name, s := range registry {
-		if s.Name() != name {
-			t.Errorf("segment registered as %q reports Name() %q", name, s.Name())
-		}
+	for name, s := range segment.Registry {
+		assert.Equal(t, name, s.Name(), "segment registered as %q", name)
 	}
 }
 
@@ -44,10 +46,8 @@ func TestRender(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			ctx := &Context{Payload: testPayload(), Config: config.New(tt.cfg), Theme: tt.th}
-			if got := Render(ctx); got != tt.want {
-				t.Errorf("Render() = %q, want %q", got, tt.want)
-			}
+			ctx := &segment.Context{Payload: testPayload(), Config: config.New(tt.cfg), Theme: tt.th}
+			assert.Equal(t, tt.want, segment.Render(ctx))
 		})
 	}
 }
@@ -55,10 +55,8 @@ func TestRender(t *testing.T) {
 func TestRenderDropsEmptySegments(t *testing.T) {
 	t.Parallel()
 
-	ctx := &Context{Config: config.New("segments = model model"), Theme: theme.Lookup("default")}
-	if got := Render(ctx); got != "" {
-		t.Errorf("Render() with an empty payload = %q, want empty", got)
-	}
+	ctx := &segment.Context{Config: config.New("segments = model model"), Theme: theme.Lookup("default")}
+	assert.Empty(t, segment.Render(ctx), "Render() with an empty payload")
 }
 
 func TestModelRender(t *testing.T) {
@@ -81,10 +79,10 @@ func TestModelRender(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			ctx := &Context{Payload: payload.Parse([]byte(tt.json)), Config: config.New(tt.cfg), Theme: tt.theme}
-			if got := (model{}).Render(ctx); got != tt.want {
-				t.Errorf("Render() = %q, want %q", got, tt.want)
-			}
+			ctx := &segment.Context{Payload: payload.Parse([]byte(tt.json)), Config: config.New(tt.cfg), Theme: tt.theme}
+			model, ok := segment.Lookup("model")
+			require.True(t, ok)
+			assert.Equal(t, tt.want, model.Render(ctx))
 		})
 	}
 }

@@ -1,12 +1,18 @@
-package theme
+package theme_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/PaddleHQ/claude-statusline/internal/theme"
+)
 
 func TestLookupDefault(t *testing.T) {
 	t.Parallel()
 
-	got := Lookup("default")
-	want := Theme{
+	got := theme.Lookup("default")
+	want := theme.Theme{
 		Muted:       "\033[2m",
 		Good:        "\033[32m",
 		Warn:        "\033[33m",
@@ -18,41 +24,36 @@ func TestLookupDefault(t *testing.T) {
 		Empty:       "░",
 		MarkerGlyph: "┃",
 	}
-	if got != want {
-		t.Errorf("Lookup(default) = %+v, want %+v", got, want)
-	}
+	assert.Equal(t, want, got)
 }
 
 func TestLookupUnknownFallsBack(t *testing.T) {
 	t.Parallel()
 
 	for _, name := range []string{"", "nonexistent", "Default", "../x"} {
-		if Lookup(name) != Lookup("default") {
-			t.Errorf("Lookup(%q) is not the default theme", name)
-		}
+		assert.Equal(t, theme.Lookup("default"), theme.Lookup(name), "theme %q", name)
 	}
 }
 
 func TestWithoutColor(t *testing.T) {
 	t.Parallel()
 
-	d := Lookup("default")
+	d := theme.Lookup("default")
 	got := d.WithoutColor()
-	if got.Text != "" || got.Muted != "" || got.Good != "" || got.Warn != "" || got.Bad != "" || got.Marker != "" || got.Reset != "" {
-		t.Errorf("WithoutColor() kept a colour: %+v", got)
+	for _, colour := range []string{got.Text, got.Muted, got.Good, got.Warn, got.Bad, got.Marker, got.Reset} {
+		assert.Empty(t, colour, "WithoutColor() kept a colour: %+v", got)
 	}
-	if got.Full != d.Full || got.Partials != d.Partials || got.Empty != d.Empty || got.MarkerGlyph != d.MarkerGlyph {
-		t.Errorf("WithoutColor() changed the glyphs: %+v", got)
-	}
-	if d.Muted == "" {
-		t.Error("WithoutColor() modified the receiver")
-	}
+	assert.Equal(t, d.Full, got.Full)
+	assert.Equal(t, d.Partials, got.Partials)
+	assert.Equal(t, d.Empty, got.Empty)
+	assert.Equal(t, d.MarkerGlyph, got.MarkerGlyph)
+	assert.NotEmpty(t, d.Muted, "WithoutColor() modified the receiver")
 }
 
 func TestPaint(t *testing.T) {
 	t.Parallel()
 
-	d := Lookup("default")
+	d := theme.Lookup("default")
 	tests := []struct {
 		name   string
 		colour string
@@ -62,8 +63,6 @@ func TestPaint(t *testing.T) {
 		{"leaves text bare without colour", d.Text, "x"},
 	}
 	for _, tt := range tests {
-		if got := d.Paint(tt.colour, "x"); got != tt.want {
-			t.Errorf("%s: Paint() = %q, want %q", tt.name, got, tt.want)
-		}
+		assert.Equal(t, tt.want, d.Paint(tt.colour, "x"), tt.name)
 	}
 }

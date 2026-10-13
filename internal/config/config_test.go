@@ -1,39 +1,34 @@
-package config
+package config_test
 
 import (
 	"os"
 	"path/filepath"
 	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/PaddleHQ/claude-statusline/internal/config"
 )
 
 func TestDefaultsParse(t *testing.T) {
 	t.Parallel()
 
-	c := New("")
-	if got := c.String("segments"); got != "model rate5h rate7d" {
-		t.Errorf("segments = %q, want model rate5h rate7d", got)
-	}
-	if got := c.String("separator"); got != "·" {
-		t.Errorf("separator = %q, want ·", got)
-	}
-	if got := c.String("theme"); got != "default" {
-		t.Errorf("theme = %q, want default", got)
-	}
-	if !c.Bool("model.effort") {
-		t.Error("model.effort = false, want true")
-	}
+	c := config.New("")
+	assert.Equal(t, "model rate5h rate7d", c.String("segments"))
+	assert.Equal(t, "·", c.String("separator"))
+	assert.Equal(t, "default", c.String("theme"))
+	assert.True(t, c.Bool("model.effort"))
 }
 
 func TestDefaultKeys(t *testing.T) {
 	t.Parallel()
 
-	keys := DefaultKeys()
+	keys := config.DefaultKeys()
 	slices.Sort(keys)
 	want := []string{"model.effort", "rate5h.bad", "rate5h.hard_cap", "rate5h.label", "rate5h.warn", "rate5h.width", "rate7d.bad", "rate7d.hard_cap", "rate7d.label", "rate7d.warn", "rate7d.width", "segments", "separator", "theme"}
-	if !slices.Equal(keys, want) {
-		t.Errorf("DefaultKeys() = %v, want %v", keys, want)
-	}
+	assert.Equal(t, want, keys)
 }
 
 func TestParse(t *testing.T) {
@@ -61,15 +56,7 @@ func TestParse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := parse(tt.text)
-			if len(got) != len(tt.want) {
-				t.Fatalf("parse() = %v, want %v", got, tt.want)
-			}
-			for k, v := range tt.want {
-				if got[k] != v {
-					t.Errorf("parse()[%q] = %q, want %q", k, got[k], v)
-				}
-			}
+			assert.Equal(t, tt.want, config.Parse(tt.text))
 		})
 	}
 }
@@ -90,9 +77,7 @@ func TestString(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := New(tt.user).String("separator"); got != tt.want {
-				t.Errorf("String() = %q, want %q", got, tt.want)
-			}
+			assert.Equal(t, tt.want, config.New(tt.user).String("separator"))
 		})
 	}
 }
@@ -120,20 +105,17 @@ func TestParseNumber(t *testing.T) {
 		{" 3", 0, false},
 	}
 	for _, tt := range tests {
-		got, ok := ParseNumber(tt.in)
-		if got != tt.want || ok != tt.wantOK {
-			t.Errorf("ParseNumber(%q) = %d, %v; want %d, %v", tt.in, got, ok, tt.want, tt.wantOK)
-		}
+		got, ok := config.ParseNumber(tt.in)
+		assert.Equal(t, tt.want, got, "ParseNumber(%q)", tt.in)
+		assert.Equal(t, tt.wantOK, ok, "ParseNumber(%q)", tt.in)
 	}
 }
 
 func TestIntAndBool(t *testing.T) {
 	t.Parallel()
 
-	c := &Config{
-		defaults: map[string]string{"n": "7", "b": "true", "f": "false", "bad": "x"},
-		user:     map[string]string{},
-	}
+	defaults := map[string]string{"n": "7", "b": "true", "f": "false", "bad": "x"}
+	c := config.NewWithDefaults(defaults, map[string]string{})
 	tests := []struct {
 		name string
 		user map[string]string
@@ -150,28 +132,16 @@ func TestIntAndBool(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			c := &Config{defaults: c.defaults, user: tt.user}
-			if got := c.Int("n"); got != tt.n {
-				t.Errorf("Int() = %d, want %d", got, tt.n)
-			}
-			if got := c.Bool("b"); got != tt.b {
-				t.Errorf("Bool(b) = %v, want %v", got, tt.b)
-			}
-			if got := c.Bool("f"); got != tt.f {
-				t.Errorf("Bool(f) = %v, want %v", got, tt.f)
-			}
+			c := config.NewWithDefaults(defaults, tt.user)
+			assert.Equal(t, tt.n, c.Int("n"))
+			assert.Equal(t, tt.b, c.Bool("b"))
+			assert.Equal(t, tt.f, c.Bool("f"))
 		})
 	}
 
-	if got := c.Int("bad"); got != 0 {
-		t.Errorf("Int() with an invalid default = %d, want 0", got)
-	}
-	if got := c.Int("absent"); got != 0 {
-		t.Errorf("Int() of an unknown key = %d, want 0", got)
-	}
-	if c.Bool("absent") {
-		t.Error("Bool() of an unknown key = true, want false")
-	}
+	assert.Zero(t, c.Int("bad"), "Int() with an invalid default")
+	assert.Zero(t, c.Int("absent"), "Int() of an unknown key")
+	assert.False(t, c.Bool("absent"), "Bool() of an unknown key")
 }
 
 func TestLoad(t *testing.T) {
@@ -179,19 +149,11 @@ func TestLoad(t *testing.T) {
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config")
-	if err := os.WriteFile(path, []byte("separator = |\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(path, []byte("separator = |\n"), 0o600))
 
-	if got := Load(path).String("separator"); got != "|" {
-		t.Errorf("separator = %q, want |", got)
-	}
-	if got := Load(filepath.Join(dir, "missing")).String("separator"); got != "·" {
-		t.Errorf("separator with no file = %q, want ·", got)
-	}
-	if got := Load(dir).String("separator"); got != "·" {
-		t.Errorf("separator with an unreadable file = %q, want ·", got)
-	}
+	assert.Equal(t, "|", config.Load(path).String("separator"))
+	assert.Equal(t, "·", config.Load(filepath.Join(dir, "missing")).String("separator"), "with no file")
+	assert.Equal(t, "·", config.Load(dir).String("separator"), "with an unreadable file")
 }
 
 func TestPath(t *testing.T) {
@@ -210,9 +172,7 @@ func TestPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := Path(func(k string) string { return tt.env[k] }); got != tt.want {
-				t.Errorf("Path() = %q, want %q", got, tt.want)
-			}
+			assert.Equal(t, tt.want, config.Path(func(k string) string { return tt.env[k] }))
 		})
 	}
 }

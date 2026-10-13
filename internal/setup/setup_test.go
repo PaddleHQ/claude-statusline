@@ -1,4 +1,4 @@
-package setup
+package setup_test
 
 import (
 	"bytes"
@@ -8,7 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
+
+	"github.com/PaddleHQ/claude-statusline/internal/setup"
 )
 
 const testBin = "/opt/cs/bin/claude-statusline"
@@ -20,15 +24,13 @@ func newDir(t *testing.T, settings *string) (string, string) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "settings.json")
 	if settings != nil {
-		if err := os.WriteFile(path, []byte(*settings), 0o640); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.WriteFile(path, []byte(*settings), 0o640))
 	}
 	return dir, path
 }
 
 func run(dir, event string) string {
-	return apply(config{dir: dir, bin: testBin, event: event, version: "1.2.3"})
+	return setup.Apply(dir, testBin, event, "1.2.3")
 }
 
 func sentinelExists(dir string) bool {
@@ -53,15 +55,15 @@ func TestApply(t *testing.T) {
 		wantSettings string
 		wantSentinel bool
 	}{
-		{"leaves settings alone when already wired and current", &prettySettings, true, EventCurrent, "", prettySettings, true},
-		{"announces an update when already wired", &prettySettings, true, EventUpdated, "updated to v1.2.3", prettySettings, true},
-		{"stays silent when already wired and installed", &prettySettings, true, EventInstalled, "", prettySettings, true},
-		{"leaves invalid JSON alone and says so on install", &invalid, false, EventInstalled, "not valid JSON", invalid, false},
-		{"leaves invalid JSON alone silently on later events", &invalid, false, EventCurrent, "", invalid, false},
-		{"leaves a non-object alone", &array, false, EventInstalled, "not valid JSON", array, false},
-		{"keeps our own statusLine and says installed", &own, false, EventInstalled, "v1.2.3 installed.", own, true},
-		{"keeps our own statusLine silently on current", &own, false, EventCurrent, "", own, true},
-		{"leaves someone else's statusLine and explains the switch", &other, false, EventCurrent, "already have a statusLine", other, true},
+		{"leaves settings alone when already wired and current", &prettySettings, true, setup.EventCurrent, "", prettySettings, true},
+		{"announces an update when already wired", &prettySettings, true, setup.EventUpdated, "updated to v1.2.3", prettySettings, true},
+		{"stays silent when already wired and installed", &prettySettings, true, setup.EventInstalled, "", prettySettings, true},
+		{"leaves invalid JSON alone and says so on install", &invalid, false, setup.EventInstalled, "not valid JSON", invalid, false},
+		{"leaves invalid JSON alone silently on later events", &invalid, false, setup.EventCurrent, "", invalid, false},
+		{"leaves a non-object alone", &array, false, setup.EventInstalled, "not valid JSON", array, false},
+		{"keeps our own statusLine and says installed", &own, false, setup.EventInstalled, "v1.2.3 installed.", own, true},
+		{"keeps our own statusLine silently on current", &own, false, setup.EventCurrent, "", own, true},
+		{"leaves someone else's statusLine and explains the switch", &other, false, setup.EventCurrent, "already have a statusLine", other, true},
 	}
 
 	for _, tt := range tests {
@@ -69,26 +71,21 @@ func TestApply(t *testing.T) {
 			t.Parallel()
 			dir, path := newDir(t, tt.settings)
 			if tt.sentinel {
-				if err := touch(filepath.Join(dir, "claude-statusline", ".bootstrapped")); err != nil {
-					t.Fatal(err)
-				}
+				require.NoError(t, setup.Touch(filepath.Join(dir, "claude-statusline", ".bootstrapped")))
 			}
 
 			msg := run(dir, tt.event)
 
-			if tt.wantMsg == "" && msg != "" || !strings.Contains(msg, tt.wantMsg) {
-				t.Errorf("message = %q, want containing %q", msg, tt.wantMsg)
+			if tt.wantMsg == "" {
+				assert.Empty(t, msg)
+			} else {
+				assert.Contains(t, msg, tt.wantMsg)
 			}
-			got, _ := os.ReadFile(path)
-			if string(got) != tt.wantSettings {
-				t.Errorf("settings = %q, want %q", got, tt.wantSettings)
-			}
-			if sentinelExists(dir) != tt.wantSentinel {
-				t.Errorf("sentinel exists = %v, want %v", sentinelExists(dir), tt.wantSentinel)
-			}
-			if _, err := os.Stat(path + ".bak"); err == nil {
-				t.Error("unexpected backup")
-			}
+			got, err := os.ReadFile(path)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantSettings, string(got))
+			assert.Equal(t, tt.wantSentinel, sentinelExists(dir))
+			assert.NoFileExists(t, path+".bak")
 		})
 	}
 }
@@ -174,17 +171,11 @@ func TestInsertStatusLine(t *testing.T) {
 		t.Run("inserts into a "+tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, ok := insertStatusLine([]byte(tt.in), []byte(`{"type":"command","command":"`+testBin+`","refreshInterval":60}`))
+			got, ok := setup.InsertStatusLine([]byte(tt.in), []byte(`{"type":"command","command":"`+testBin+`","refreshInterval":60}`))
 
-			if !ok {
-				t.Fatal("insertion failed")
-			}
-			if string(got) != tt.want {
-				t.Errorf("got:\n%q\nwant:\n%q", got, tt.want)
-			}
-			if !gjson.ValidBytes(got) {
-				t.Errorf("result is not valid JSON: %s", got)
-			}
+			require.True(t, ok, "insertion failed")
+			assert.Equal(t, tt.want, string(got))
+			assert.True(t, gjson.ValidBytes(got), "result is not valid JSON: %s", got)
 		})
 	}
 }
@@ -196,22 +187,17 @@ func TestApplyWiring(t *testing.T) {
 		t.Parallel()
 		dir, path := newDir(t, &prettySettings)
 
-		msg := run(dir, EventInstalled)
+		msg := run(dir, setup.EventInstalled)
 
-		if !strings.Contains(msg, "installed and enabled") {
-			t.Errorf("message = %q", msg)
-		}
-		got, _ := os.ReadFile(path)
-		if gjson.GetBytes(got, "statusLine.command").String() != testBin || gjson.GetBytes(got, "statusLine.refreshInterval").Int() != 60 {
-			t.Errorf("statusLine not set: %s", got)
-		}
-		bak, _ := os.ReadFile(path + ".bak")
-		if string(bak) != prettySettings {
-			t.Errorf("backup = %q, want original", bak)
-		}
-		if !sentinelExists(dir) {
-			t.Error("no sentinel")
-		}
+		assert.Contains(t, msg, "installed and enabled")
+		got, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, testBin, gjson.GetBytes(got, "statusLine.command").String())
+		assert.EqualValues(t, 60, gjson.GetBytes(got, "statusLine.refreshInterval").Int())
+		bak, err := os.ReadFile(path + ".bak")
+		require.NoError(t, err)
+		assert.Equal(t, prettySettings, string(bak))
+		assert.True(t, sentinelExists(dir), "no sentinel")
 	})
 }
 
@@ -222,63 +208,52 @@ func TestApplyFiles(t *testing.T) {
 		t.Parallel()
 		dir, path := newDir(t, &prettySettings)
 
-		run(dir, EventInstalled)
+		run(dir, setup.EventInstalled)
 
 		fi, err := os.Stat(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if fi.Mode().Perm() != 0o640 {
-			t.Errorf("mode = %v, want 0640", fi.Mode().Perm())
-		}
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o640), fi.Mode().Perm())
 	})
 
 	t.Run("creates a missing settings file with mode 0600", func(t *testing.T) {
 		t.Parallel()
 		dir, path := newDir(t, nil)
 
-		msg := run(dir, EventInstalled)
+		msg := run(dir, setup.EventInstalled)
 
-		if !strings.Contains(msg, "installed and enabled") {
-			t.Errorf("message = %q", msg)
-		}
+		assert.Contains(t, msg, "installed and enabled")
 		fi, err := os.Stat(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if fi.Mode().Perm() != 0o600 {
-			t.Errorf("mode = %v, want 0600", fi.Mode().Perm())
-		}
-		got, _ := os.ReadFile(path)
-		if !strings.Contains(string(got), testBin) {
-			t.Errorf("settings = %s", got)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o600), fi.Mode().Perm())
+		got, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Contains(t, string(got), testBin)
 	})
 
 	t.Run("does nothing on a second run", func(t *testing.T) {
 		t.Parallel()
 		dir, path := newDir(t, &prettySettings)
-		run(dir, EventInstalled)
-		first, _ := os.ReadFile(path)
+		run(dir, setup.EventInstalled)
+		first, err := os.ReadFile(path)
+		require.NoError(t, err)
 
-		msg := run(dir, EventCurrent)
+		msg := run(dir, setup.EventCurrent)
 
-		second, _ := os.ReadFile(path)
-		if msg != "" || !bytes.Equal(first, second) {
-			t.Errorf("second run changed things: msg %q", msg)
-		}
+		second, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Empty(t, msg)
+		assert.True(t, bytes.Equal(first, second), "second run changed the settings")
 	})
 
 	t.Run("leaves no temp files behind", func(t *testing.T) {
 		t.Parallel()
 		dir, _ := newDir(t, &prettySettings)
-		run(dir, EventInstalled)
+		run(dir, setup.EventInstalled)
 
-		entries, _ := os.ReadDir(dir)
+		entries, err := os.ReadDir(dir)
+		require.NoError(t, err)
 		for _, e := range entries {
-			if strings.HasPrefix(e.Name(), ".settings-") {
-				t.Errorf("left %s behind", e.Name())
-			}
+			assert.False(t, strings.HasPrefix(e.Name(), ".settings-"), "left %s behind", e.Name())
 		}
 	})
 }
@@ -289,27 +264,22 @@ func TestRun(t *testing.T) {
 		t.Setenv("CLAUDE_CONFIG_DIR", dir)
 
 		var out bytes.Buffer
-		Run(&out, EventInstalled, "1.2.3")
+		setup.Run(&out, setup.EventInstalled, "1.2.3")
 
 		var msg struct {
 			SystemMessage string `json:"systemMessage"`
 		}
-		if err := json.Unmarshal(out.Bytes(), &msg); err != nil {
-			t.Fatalf("output %q: %v", out.String(), err)
-		}
-		if !strings.Contains(msg.SystemMessage, "installed and enabled") || strings.Count(out.String(), "\n") != 1 {
-			t.Errorf("output = %q", out.String())
-		}
+		require.NoError(t, json.Unmarshal(out.Bytes(), &msg), "output %q", out.String())
+		assert.Contains(t, msg.SystemMessage, "installed and enabled")
+		assert.Equal(t, 1, strings.Count(out.String(), "\n"), "output = %q", out.String())
 	})
 
 	t.Run("prints nothing when there is nothing to say", func(t *testing.T) {
 		t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
 		var out bytes.Buffer
-		Run(&out, EventInstalled, "1.2.3")
+		setup.Run(&out, setup.EventInstalled, "1.2.3")
 		out.Reset()
-		Run(&out, EventCurrent, "1.2.3")
-		if out.Len() != 0 {
-			t.Errorf("output = %q", out.String())
-		}
+		setup.Run(&out, setup.EventCurrent, "1.2.3")
+		assert.Zero(t, out.Len(), "output = %q", out.String())
 	})
 }

@@ -1,12 +1,16 @@
-package segment
+package segment_test
 
 import (
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
+	"github.com/PaddleHQ/claude-statusline/internal/segment"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 )
 
@@ -38,11 +42,10 @@ func TestRateRender(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			s, _ := Lookup(tt.seg)
-			ctx := &Context{Rates: tt.rates, Config: config.New(tt.cfg), Theme: plain, Now: now, Columns: tt.columns}
-			if got := s.Render(ctx); got != tt.want {
-				t.Errorf("Render() = %q, want %q", got, tt.want)
-			}
+			s, ok := segment.Lookup(tt.seg)
+			require.True(t, ok)
+			ctx := &segment.Context{Rates: tt.rates, Config: config.New(tt.cfg), Theme: plain, Now: now, Columns: tt.columns}
+			assert.Equal(t, tt.want, s.Render(ctx))
 		})
 	}
 }
@@ -51,17 +54,11 @@ func TestRateKeysArePrefixed(t *testing.T) {
 	t.Parallel()
 
 	for _, name := range []string{"rate5h", "rate7d"} {
-		s, ok := Lookup(name)
-		if !ok {
-			t.Fatalf("%s is not registered", name)
-		}
-		if len(s.Keys()) != 5 {
-			t.Errorf("%s declares %v", name, s.Keys())
-		}
+		s, ok := segment.Lookup(name)
+		require.True(t, ok, "%s is not registered", name)
+		assert.Len(t, s.Keys(), 5, "%s declares %v", name, s.Keys())
 		for _, k := range s.Keys() {
-			if !strings.HasPrefix(k, name+".") {
-				t.Errorf("%s declares %q", name, k)
-			}
+			assert.True(t, strings.HasPrefix(k, name+"."), "%s declares %q", name, k)
 		}
 	}
 }

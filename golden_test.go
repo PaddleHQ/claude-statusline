@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Each testdata/golden/<case>/ holds input.json and expected, plus optional config, env, cache (seeded
@@ -15,9 +18,8 @@ func TestGolden(t *testing.T) {
 	t.Parallel()
 
 	cases, err := filepath.Glob(filepath.Join("testdata", "golden", "*"))
-	if err != nil || len(cases) == 0 {
-		t.Fatalf("no golden cases found: %v", err)
-	}
+	require.NoError(t, err)
+	require.NotEmpty(t, cases, "no golden cases found")
 
 	for _, dir := range cases {
 		t.Run(filepath.Base(dir), func(t *testing.T) {
@@ -47,52 +49,32 @@ func runGolden(t *testing.T, dir string) {
 
 	if data, err := os.ReadFile(filepath.Join(dir, "config")); err == nil {
 		appDir := filepath.Join(tmp, "claude-statusline")
-		if err := os.MkdirAll(appDir, 0o700); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.MkdirAll(appDir, 0o700))
 		text := strings.ReplaceAll(string(data), "@TMP@", tmp)
-		if err := os.WriteFile(filepath.Join(appDir, "config"), []byte(text), 0o600); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.WriteFile(filepath.Join(appDir, "config"), []byte(text), 0o600))
 	}
 
 	cacheFile := filepath.Join(tmp, "claude-statusline", "cache", "ratelimits")
 	if data, err := os.ReadFile(filepath.Join(dir, "cache")); err == nil {
-		if err := os.MkdirAll(filepath.Dir(cacheFile), 0o700); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(cacheFile, data, 0o600); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.MkdirAll(filepath.Dir(cacheFile), 0o700))
+		require.NoError(t, os.WriteFile(cacheFile, data, 0o600))
 	}
 
 	input, err := os.ReadFile(filepath.Join(dir, "input.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	want, err := os.ReadFile(filepath.Join(dir, "expected"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	var out bytes.Buffer
 	run(bytes.NewReader(input), &out, func(k string) string { return env[k] })
 
 	got := strings.ReplaceAll(out.String(), "\033", `\e`)
 	wantText := strings.TrimSuffix(strings.ReplaceAll(string(want), "@TMP@", tmp), "\n")
-	if got != wantText {
-		t.Errorf("output mismatch\n got: %s\nwant: %s", got, wantText)
-	}
-	if strings.Contains(out.String(), "\n") {
-		t.Error("output contains a newline")
-	}
+	assert.Equal(t, wantText, got)
+	assert.NotContains(t, out.String(), "\n", "output contains a newline")
 	if wantCache, err := os.ReadFile(filepath.Join(dir, "expected_cache")); err == nil {
 		gotCache, _ := os.ReadFile(cacheFile)
-		if strings.TrimSpace(string(gotCache)) != strings.TrimSpace(string(wantCache)) {
-			t.Errorf("cache mismatch\n got: %s\nwant: %s", gotCache, wantCache)
-		}
+		assert.Equal(t, strings.TrimSpace(string(wantCache)), strings.TrimSpace(string(gotCache)), "cache mismatch")
 	}
-	if _, err := os.Stat(filepath.Join(tmp, "pwned")); err == nil {
-		t.Error("a config value was executed")
-	}
+	assert.NoFileExists(t, filepath.Join(tmp, "pwned"), "a config value was executed")
 }

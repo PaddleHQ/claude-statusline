@@ -1,4 +1,4 @@
-package statusline
+package statusline_test
 
 import (
 	"os"
@@ -7,7 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/PaddleHQ/claude-statusline/internal/config"
+	"github.com/PaddleHQ/claude-statusline/internal/statusline"
 )
 
 func env(m map[string]string) func(string) string {
@@ -17,18 +21,14 @@ func env(m map[string]string) func(string) string {
 func TestKeysMatchDefaults(t *testing.T) {
 	t.Parallel()
 
-	used := slices.Compact(slices.Sorted(slices.Values(Keys())))
+	used := slices.Compact(slices.Sorted(slices.Values(statusline.Keys())))
 	defined := slices.Sorted(slices.Values(config.DefaultKeys()))
 
 	for _, k := range used {
-		if !slices.Contains(defined, k) {
-			t.Errorf("key %q is read by the code but missing from defaults.conf", k)
-		}
+		assert.Contains(t, defined, k, "key %q is read by the code but missing from defaults.conf", k)
 	}
 	for _, k := range defined {
-		if !slices.Contains(used, k) {
-			t.Errorf("key %q is in defaults.conf but nothing reads it", k)
-		}
+		assert.Contains(t, used, k, "key %q is in defaults.conf but nothing reads it", k)
 	}
 }
 
@@ -46,17 +46,14 @@ func TestNow(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := now(env(tt.env)).Unix(); got != tt.want {
-				t.Errorf("now() = %d, want %d", got, tt.want)
-			}
+			assert.Equal(t, tt.want, statusline.Now(env(tt.env)).Unix())
 		})
 	}
 
 	for _, bad := range []string{"", "abc", "-1", "1e9", "1760000000000000"} {
 		before := time.Now().Add(-time.Minute)
-		if got := now(env(map[string]string{"STATUSLINE_NOW": bad})); got.Before(before) || got.After(time.Now().Add(time.Minute)) {
-			t.Errorf("now() with STATUSLINE_NOW=%q = %v, want the current time", bad, got)
-		}
+		got := statusline.Now(env(map[string]string{"STATUSLINE_NOW": bad}))
+		assert.False(t, got.Before(before) || got.After(time.Now().Add(time.Minute)), "now() with STATUSLINE_NOW=%q = %v, want the current time", bad, got)
 	}
 }
 
@@ -74,9 +71,7 @@ func TestColumns(t *testing.T) {
 		{"12x", 999},
 	}
 	for _, tt := range tests {
-		if got := columns(env(map[string]string{"COLUMNS": tt.value})); got != tt.want {
-			t.Errorf("columns(%q) = %d, want %d", tt.value, got, tt.want)
-		}
+		assert.Equal(t, tt.want, statusline.Columns(env(map[string]string{"COLUMNS": tt.value})), "COLUMNS=%q", tt.value)
 	}
 }
 
@@ -86,12 +81,8 @@ func TestBuild(t *testing.T) {
 	const input = `{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"}}`
 
 	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, "claude-statusline"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "claude-statusline", "config"), []byte("model.effort = false\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "claude-statusline"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "claude-statusline", "config"), []byte("model.effort = false\n"), 0o600))
 
 	tests := []struct {
 		name  string
@@ -107,9 +98,7 @@ func TestBuild(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := Build([]byte(tt.input), env(tt.env)); got != tt.want {
-				t.Errorf("Build() = %q, want %q", got, tt.want)
-			}
+			assert.Equal(t, tt.want, statusline.Build([]byte(tt.input), env(tt.env)))
 		})
 	}
 }

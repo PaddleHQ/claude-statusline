@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func noEnv(string) string { return "" }
@@ -34,9 +36,7 @@ func TestRun(t *testing.T) {
 			var out bytes.Buffer
 			run(strings.NewReader(tt.input), &out, noEnv)
 
-			if got := out.String(); got != tt.want {
-				t.Errorf("run() printed %q, want %q", got, tt.want)
-			}
+			assert.Equal(t, tt.want, out.String())
 		})
 	}
 }
@@ -69,9 +69,7 @@ func TestExecute(t *testing.T) {
 			var out bytes.Buffer
 			execute(tt.args, strings.NewReader(payloadJSON), &out, noEnv)
 
-			if got := out.String(); got != tt.want {
-				t.Errorf("execute() printed %q, want %q", got, tt.want)
-			}
+			assert.Equal(t, tt.want, out.String())
 		})
 	}
 }
@@ -92,9 +90,7 @@ func TestEventFlag(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := eventFlag(tt.args); got != tt.want {
-				t.Errorf("eventFlag(%v) = %q, want %q", tt.args, got, tt.want)
-			}
+			assert.Equal(t, tt.want, eventFlag(tt.args))
 		})
 	}
 }

@@ -1,9 +1,12 @@
-package bar
+package bar_test
 
 import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
+	"github.com/PaddleHQ/claude-statusline/internal/bar"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 )
 
@@ -28,9 +31,7 @@ func TestResponsiveWidth(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := ResponsiveWidth(tt.width, tt.columns); got != tt.want {
-				t.Errorf("ResponsiveWidth(%d, %d) = %d, want %d", tt.width, tt.columns, got, tt.want)
-			}
+			assert.Equal(t, tt.want, bar.ResponsiveWidth(tt.width, tt.columns))
 		})
 	}
 }
@@ -54,9 +55,7 @@ func TestElapsedPercent(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := ElapsedPercent(tt.now, tt.resetsAt, window); got != tt.want {
-				t.Errorf("ElapsedPercent() = %d, want %d", got, tt.want)
-			}
+			assert.Equal(t, tt.want, bar.ElapsedPercent(tt.now, tt.resetsAt, window))
 		})
 	}
 }
@@ -73,30 +72,28 @@ func TestRender(t *testing.T) {
 	plain := markers.WithoutColor()
 	tests := []struct {
 		name string
-		p    Params
+		p    bar.Params
 		th   theme.Theme
 		want string
 	}{
-		{"empty bar with marker at the start", Params{Usage: 0, Target: 0, Width: 4, Warn: 20, Bad: 40, HardCap: 95}, plain, "MEEE"},
-		{"half full, marker inside the fill", Params{Usage: 50, Target: 50, Width: 4, Warn: 20, Bad: 40, HardCap: 95}, plain, "FFME"},
-		{"partial cell uses the matching glyph", Params{Usage: 10, Target: 90, Width: 4, Warn: 20, Bad: 40, HardCap: 95}, plain, "3EEM"},
-		{"rounds eighths to nearest", Params{Usage: 45, Target: 90, Width: 4, Warn: 20, Bad: 40, HardCap: 95}, plain, "F6EM"},
-		{"full bar", Params{Usage: 100, Target: 0, Width: 3, Warn: 20, Bad: 40, HardCap: 95}, plain, "MFF"},
-		{"usage over 100 is clamped", Params{Usage: 400, Target: 0, Width: 3, Warn: 20, Bad: 40, HardCap: 500}, plain, "MFF"},
-		{"target at 100 sits in the last cell", Params{Usage: 0, Target: 100, Width: 4, Warn: 20, Bad: 40, HardCap: 95}, plain, "EEEM"},
-		{"good within warn", Params{Usage: 70, Target: 50, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, markers, "<g>F</><m>M</>"},
-		{"warn just past the limit", Params{Usage: 71, Target: 50, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, markers, "<w>F</><m>M</>"},
-		{"bad just past the limit", Params{Usage: 91, Target: 50, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, markers, "<b>F</><m>M</>"},
-		{"behind pace also deviates", Params{Usage: 5, Target: 50, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, markers, "<b>1</><m>M</>"},
-		{"hard cap overrides pace", Params{Usage: 96, Target: 96, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, markers, "<b>F</><m>M</>"},
-		{"empty cells are muted", Params{Usage: 0, Target: 0, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, markers, "<m>M</><d>E</>"},
+		{"empty bar with marker at the start", bar.Params{Usage: 0, Target: 0, Width: 4, Warn: 20, Bad: 40, HardCap: 95}, plain, "MEEE"},
+		{"half full, marker inside the fill", bar.Params{Usage: 50, Target: 50, Width: 4, Warn: 20, Bad: 40, HardCap: 95}, plain, "FFME"},
+		{"partial cell uses the matching glyph", bar.Params{Usage: 10, Target: 90, Width: 4, Warn: 20, Bad: 40, HardCap: 95}, plain, "3EEM"},
+		{"rounds eighths to nearest", bar.Params{Usage: 45, Target: 90, Width: 4, Warn: 20, Bad: 40, HardCap: 95}, plain, "F6EM"},
+		{"full bar", bar.Params{Usage: 100, Target: 0, Width: 3, Warn: 20, Bad: 40, HardCap: 95}, plain, "MFF"},
+		{"usage over 100 is clamped", bar.Params{Usage: 400, Target: 0, Width: 3, Warn: 20, Bad: 40, HardCap: 500}, plain, "MFF"},
+		{"target at 100 sits in the last cell", bar.Params{Usage: 0, Target: 100, Width: 4, Warn: 20, Bad: 40, HardCap: 95}, plain, "EEEM"},
+		{"good within warn", bar.Params{Usage: 70, Target: 50, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, markers, "<g>F</><m>M</>"},
+		{"warn just past the limit", bar.Params{Usage: 71, Target: 50, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, markers, "<w>F</><m>M</>"},
+		{"bad just past the limit", bar.Params{Usage: 91, Target: 50, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, markers, "<b>F</><m>M</>"},
+		{"behind pace also deviates", bar.Params{Usage: 5, Target: 50, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, markers, "<b>1</><m>M</>"},
+		{"hard cap overrides pace", bar.Params{Usage: 96, Target: 96, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, markers, "<b>F</><m>M</>"},
+		{"empty cells are muted", bar.Params{Usage: 0, Target: 0, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, markers, "<m>M</><d>E</>"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := Render(tt.p, tt.th); got != tt.want {
-				t.Errorf("Render() = %q, want %q", got, tt.want)
-			}
+			assert.Equal(t, tt.want, bar.Render(tt.p, tt.th))
 		})
 	}
 }
@@ -104,11 +101,7 @@ func TestRender(t *testing.T) {
 func TestRenderWidth(t *testing.T) {
 	t.Parallel()
 
-	got := Render(Params{Usage: 33, Target: 66, Width: 20, Warn: 20, Bad: 40, HardCap: 95}, markers.WithoutColor())
-	if n := len([]rune(got)); n != 20 {
-		t.Errorf("bar has %d cells, want 20: %q", n, got)
-	}
-	if strings.Count(got, "M") != 1 {
-		t.Errorf("bar should hold exactly one marker: %q", got)
-	}
+	got := bar.Render(bar.Params{Usage: 33, Target: 66, Width: 20, Warn: 20, Bad: 40, HardCap: 95}, markers.WithoutColor())
+	assert.Len(t, []rune(got), 20, "bar = %q", got)
+	assert.Equal(t, 1, strings.Count(got, "M"), "bar should hold exactly one marker: %q", got)
 }
