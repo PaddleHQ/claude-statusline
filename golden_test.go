@@ -43,7 +43,7 @@ func runGolden(t *testing.T, dir string) {
 		"STATUSLINE_NOW":    "1760000000",
 	}
 	if data, err := os.ReadFile(filepath.Join(dir, "env")); err == nil {
-		for _, line := range strings.Split(string(data), "\n") {
+		for line := range strings.SplitSeq(string(data), "\n") {
 			if k, v, ok := strings.Cut(line, "="); ok && !strings.HasPrefix(k, "#") {
 				env[k] = v
 			}
@@ -64,7 +64,7 @@ func runGolden(t *testing.T, dir string) {
 	}
 
 	if data, err := os.ReadFile(filepath.Join(dir, "tree")); err == nil {
-		for _, line := range strings.Split(string(data), "\n") {
+		for line := range strings.SplitSeq(string(data), "\n") {
 			if line == "" {
 				continue
 			}

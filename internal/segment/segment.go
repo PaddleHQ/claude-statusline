@@ -43,16 +43,18 @@ type Context struct {
 const (
 	keySegments  = "segments"
 	keySeparator = "separator"
+	nameCtx      = "ctx"
+	nameModel    = "model"
 )
 
 var registry = map[string]Segment{
-	"path":   path{},
-	"model":  model{},
-	"ctx":    ctxBar{},
-	"tokens": tokens{},
-	"cache":  cache{},
-	"rate5h": rate{name: "rate5h", seconds: fiveHourSeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.FiveHour }},
-	"rate7d": rate{name: "rate7d", seconds: sevenDaySeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.SevenDay }},
+	"path":    path{},
+	nameModel: model{},
+	nameCtx:   ctxBar{},
+	"tokens":  tokens{},
+	"cache":   cache{},
+	"rate5h":  rate{name: "rate5h", seconds: fiveHourSeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.FiveHour }},
+	"rate7d":  rate{name: "rate7d", seconds: sevenDaySeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.SevenDay }},
 }
 
 func init() {

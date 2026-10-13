@@ -36,7 +36,7 @@ func runGoldenSubagent(t *testing.T, dir string) {
 	tmp := t.TempDir()
 	env := map[string]string{"HOME": tmp, "CLAUDE_CONFIG_DIR": tmp}
 	if data, err := os.ReadFile(filepath.Join(dir, "env")); err == nil {
-		for _, line := range strings.Split(string(data), "\n") {
+		for line := range strings.SplitSeq(string(data), "\n") {
 			if k, v, ok := strings.Cut(line, "="); ok && !strings.HasPrefix(k, "#") {
 				env[k] = v
 			}
@@ -57,7 +57,7 @@ func runGoldenSubagent(t *testing.T, dir string) {
 	execute([]string{"subagent"}, bytes.NewReader(input), &out, func(k string) string { return env[k] })
 
 	var rows, contents []string
-	for _, line := range strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSuffix(out.String(), "\n"), "\n") {
 		if line == "" {
 			continue
 		}

@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/PaddleHQ/claude-statusline/internal/snapshot"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/PaddleHQ/claude-statusline/internal/snapshot"
 )
 
 func TestWrite(t *testing.T) {

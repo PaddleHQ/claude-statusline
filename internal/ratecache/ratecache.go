@@ -87,7 +87,7 @@ func (l Limits) Visible(now int64) Limits {
 
 // Load reads the cache; a missing or corrupt file, or a half entry, counts as empty.
 func Load(path string) Limits {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304: the cache path derives from the user's own Claude config directory
 	if err != nil {
 		return Limits{}
 	}
@@ -114,7 +114,7 @@ func (r *rawReading) reading() *Reading {
 }
 
 // Store writes the cache through a temporary file and a rename, so concurrent sessions
-// never see a partial file. Failures are ignored: the cache is an optimisation.
+// never see a partial file. Failures are ignored: the cache is an optimization.
 func Store(path string, l Limits) {
 	data, err := json.Marshal(l)
 	if err != nil {

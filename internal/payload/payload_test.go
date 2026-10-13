@@ -3,10 +3,10 @@ package payload_test
 import (
 	"testing"
 
+	"github.com/PaddleHQ/claude-statusline/internal/payload"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/PaddleHQ/claude-statusline/internal/payload"
 )
 
 func TestParse(t *testing.T) {
@@ -24,11 +24,11 @@ func TestParse(t *testing.T) {
 		t.Parallel()
 		p := payload.Parse([]byte(`{"rate_limits":{"five_hour":{"used_percentage":45.4,"resets_at":1760009000},"seven_day":{"used_percentage":40}}}`))
 		require.NotNil(t, p.RateLimits.FiveHour.UsedPercentage)
-		assert.Equal(t, 45.4, *p.RateLimits.FiveHour.UsedPercentage)
+		assert.InDelta(t, 45.4, *p.RateLimits.FiveHour.UsedPercentage, 1e-9)
 		require.NotNil(t, p.RateLimits.FiveHour.ResetsAt)
-		assert.Equal(t, 1760009000.0, *p.RateLimits.FiveHour.ResetsAt)
+		assert.InDelta(t, 1760009000.0, *p.RateLimits.FiveHour.ResetsAt, 1e-9)
 		require.NotNil(t, p.RateLimits.SevenDay.UsedPercentage)
-		assert.Equal(t, 40.0, *p.RateLimits.SevenDay.UsedPercentage)
+		assert.InDelta(t, 40.0, *p.RateLimits.SevenDay.UsedPercentage, 1e-9)
 		assert.Nil(t, p.RateLimits.SevenDay.ResetsAt)
 	})
 }
@@ -161,7 +161,7 @@ func TestParseContextWindow(t *testing.T) {
 		p := payload.Parse([]byte(`{"context_window":{"used_percentage":42.5,"total_input_tokens":1500,"total_output_tokens":20,"current_usage":{"input_tokens":1,"cache_creation_input_tokens":2,"cache_read_input_tokens":3}}}`))
 		cw := p.ContextWindow
 		require.NotNil(t, cw.UsedPercentage)
-		assert.Equal(t, 42.5, *cw.UsedPercentage)
+		assert.InDelta(t, 42.5, *cw.UsedPercentage, 1e-9)
 		require.NotNil(t, cw.TotalInput)
 		assert.Equal(t, int64(1500), *cw.TotalInput)
 		require.NotNil(t, cw.TotalOutput)

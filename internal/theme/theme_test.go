@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/PaddleHQ/claude-statusline/internal/theme"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/PaddleHQ/claude-statusline/internal/theme"
 )
 
 func TestLoadClassic(t *testing.T) {
@@ -176,7 +176,7 @@ func TestInvalidThemesFallBack(t *testing.T) {
 		{"extends loop", filepath.Join(dir, "loop-a.yaml"), ""},
 		{"extends itself", filepath.Join(dir, "self.yaml"), ""},
 		{"invalid YAML", "", "colors: [unclosed"},
-		{"unknown top-level key", "", "colours:\n  good: green\n"},
+		{"unknown top-level key", "", "colors:\n  good: green\n"},
 		{"unknown nested key", "", "extends: classic\ncolors:\n  goood: green\n"},
 		{"bad color spec", "", "extends: classic\ncolors:\n  good: chartreuse\n"},
 		{"color out of range", "", "extends: classic\ncolors:\n  good: 256\n"},

@@ -4,15 +4,16 @@ package setup
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
+	appconfig "github.com/PaddleHQ/claude-statusline/internal/config"
+
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/pretty"
-
-	appconfig "github.com/PaddleHQ/claude-statusline/internal/config"
 )
 
 // Events describe what the bootstrap hook just did to the binary.
@@ -73,39 +74,49 @@ func apply(c config) string {
 	subSentinel := filepath.Join(appDir, ".bootstrapped-subagent")
 	wantMain, wantSub := !exists(mainSentinel), !exists(subSentinel)
 	if !wantMain && !wantSub {
-		if c.event == EventUpdated {
-			return "claude-statusline updated to v" + c.version + "."
-		}
-		return ""
+		return upToDateMessage(c)
 	}
 
 	settings := filepath.Join(c.dir, "settings.json")
-	data, err := os.ReadFile(settings)
-	mode := os.FileMode(0o600)
-	switch {
-	case os.IsNotExist(err):
-		data = []byte("{}\n")
-		if err := writeAtomic(settings, data, mode); err != nil {
-			return ""
-		}
-	case err != nil:
+	data, mode, ok := readSettings(settings)
+	if !ok {
 		return ""
-	default:
-		if fi, err := os.Stat(settings); err == nil {
-			mode = fi.Mode().Perm()
-		}
 	}
-
 	if !gjson.ValidBytes(data) || !gjson.ParseBytes(data).IsObject() {
-		if c.event == EventInstalled {
-			return "claude-statusline v" + c.version + " installed, but " + settings + " is not valid JSON so it was left alone. It will retry next session."
-		}
-		return ""
+		return invalidMessage(c, settings)
 	}
 
 	subCommand := shellWord(c.bin) + " subagent"
-	out := data
-	var status, sub outcome
+	out, status, sub, ok := wireBoth(c, data, subCommand, wantMain, wantSub)
+	if !ok {
+		return ""
+	}
+	if !bytes.Equal(out, data) && !backUpAndWrite(settings, data, out, mode) {
+		return ""
+	}
+	if !touchSentinels(map[string]bool{mainSentinel: wantMain, subSentinel: wantSub}) {
+		return ""
+	}
+	return message(c, settings, subCommand, status, sub)
+}
+
+func upToDateMessage(c config) string {
+	if c.event == EventUpdated {
+		return "claude-statusline updated to v" + c.version + "."
+	}
+	return ""
+}
+
+func invalidMessage(c config, settings string) string {
+	if c.event != EventInstalled {
+		return ""
+	}
+	return "claude-statusline v" + c.version + " installed, but " + settings +
+		" is not valid JSON so it was left alone. It will retry next session."
+}
+
+func wireBoth(c config, data []byte, subCommand string, wantMain, wantSub bool) (out []byte, status, sub outcome, ok bool) {
+	out = data
 	if wantMain {
 		status, out = wire(out, "statusLine", c.bin, `{"type":"command","command":%s,"refreshInterval":60}`)
 	}
@@ -113,29 +124,49 @@ func apply(c config) string {
 		sub, out = wire(out, "subagentStatusLine", subCommand, `{"type":"command","command":%s}`)
 	}
 	if (wantMain && status == skipped) || (wantSub && sub == skipped) || !gjson.ValidBytes(out) {
-		return ""
+		return nil, status, sub, false
 	}
+	return out, status, sub, true
+}
 
-	if !bytes.Equal(out, data) {
-		if err := writeAtomic(settings+".bak", data, mode); err != nil {
-			return ""
+// readSettings returns the settings file, creating an empty one when it is missing, and the mode to write it back with.
+func readSettings(settings string) (data []byte, mode os.FileMode, ok bool) {
+	data, err := os.ReadFile(settings) //nolint:gosec // G304: settings.json inside the Claude config directory is the file this command edits
+	mode = 0o600
+	switch {
+	case os.IsNotExist(err):
+		data = []byte("{}\n")
+		if err := writeAtomic(settings, data, mode); err != nil {
+			return nil, mode, false
 		}
-		if err := writeAtomic(settings, out, mode); err != nil {
-			return ""
+	case err != nil:
+		return nil, mode, false
+	default:
+		if fi, err := os.Stat(settings); err == nil {
+			mode = fi.Mode().Perm()
 		}
 	}
-	for sentinel, want := range map[string]bool{mainSentinel: wantMain, subSentinel: wantSub} {
-		if want {
-			if err := touch(sentinel); err != nil {
-				return ""
-			}
+	return data, mode, true
+}
+
+func backUpAndWrite(settings string, before, after []byte, mode os.FileMode) bool {
+	if err := writeAtomic(settings+".bak", before, mode); err != nil {
+		return false
+	}
+	return writeAtomic(settings, after, mode) == nil
+}
+
+func touchSentinels(want map[string]bool) bool {
+	for sentinel, wanted := range want {
+		if wanted && touch(sentinel) != nil {
+			return false
 		}
 	}
-	return message(c, settings, subCommand, status, sub)
+	return true
 }
 
 // wire adds the key unless the file already has it, reporting which of the two happened.
-func wire(data []byte, key, command, entryFormat string) (outcome, []byte) {
+func wire(data []byte, key, command, entryFormat string) (result outcome, out []byte) {
 	if existing := gjson.GetBytes(data, key); existing.Exists() {
 		if existing.Get("command").String() == command {
 			return ours, data
@@ -155,36 +186,8 @@ func wire(data []byte, key, command, entryFormat string) (outcome, []byte) {
 
 func message(c config, settings, subCommand string, status, sub outcome) string {
 	lead := "claude-statusline v" + c.version
-	var sentences []string
-	switch status {
-	case inserted:
-		sentences = append(sentences, lead+" installed and enabled. It appears after your first message.")
-	case ours:
-		if c.event == EventInstalled {
-			sentences = append(sentences, lead+" installed.")
-		}
-	case other:
-		sentences = append(sentences, lead+" installed, but you already have a statusLine so it was left unchanged. To switch, set statusLine.command in "+settings+" to "+c.bin+".")
-	case skipped:
-		if c.event == EventUpdated {
-			sentences = append(sentences, "claude-statusline updated to v"+c.version+".")
-		}
-	}
-
-	switch sub {
-	case inserted:
-		if status == inserted {
-			sentences = append(sentences, "It also styles the subagent rows.")
-		} else {
-			sentences = append(sentences, "claude-statusline now also styles the subagent rows.")
-		}
-	case other:
-		note := "You already have a subagentStatusLine so it was left unchanged. To switch, set subagentStatusLine.command in " + settings + " to " + subCommand + "."
-		if len(sentences) == 0 {
-			note = lead + ": " + note
-		}
-		sentences = append(sentences, note)
-	}
+	sentences := statusSentences(c, lead, settings, status)
+	sentences = subSentences(sentences, lead, settings, subCommand, status, sub)
 
 	var added []string
 	if status == inserted {
@@ -194,9 +197,48 @@ func message(c config, settings, subCommand string, status, sub outcome) string 
 		added = append(added, "subagentStatusLine")
 	}
 	if len(added) > 0 {
-		sentences = append(sentences, "Your previous settings are backed up at "+settings+".bak. To disable it, remove the "+strings.Join(added, " and ")+" block from settings.json.")
+		sentences = append(sentences, "Your previous settings are backed up at "+settings+".bak. To disable it, remove the "+
+			strings.Join(added, " and ")+" block from settings.json.")
 	}
 	return strings.Join(sentences, " ")
+}
+
+func statusSentences(c config, lead, settings string, status outcome) []string {
+	switch status {
+	case inserted:
+		return []string{lead + " installed and enabled. It appears after your first message."}
+	case ours:
+		if c.event == EventInstalled {
+			return []string{lead + " installed."}
+		}
+	case other:
+		return []string{lead + " installed, but you already have a statusLine so it was left unchanged. To switch, set statusLine.command in " +
+			settings + " to " + c.bin + "."}
+	case skipped:
+		if c.event == EventUpdated {
+			return []string{"claude-statusline updated to v" + c.version + "."}
+		}
+	}
+	return nil
+}
+
+func subSentences(sentences []string, lead, settings, subCommand string, status, sub outcome) []string {
+	switch sub {
+	case inserted:
+		if status == inserted {
+			return append(sentences, "It also styles the subagent rows.")
+		}
+		return append(sentences, "claude-statusline now also styles the subagent rows.")
+	case other:
+		note := "You already have a subagentStatusLine so it was left unchanged. To switch, set subagentStatusLine.command in " +
+			settings + " to " + subCommand + "."
+		if len(sentences) == 0 {
+			note = lead + ": " + note
+		}
+		return append(sentences, note)
+	default:
+		return sentences
+	}
 }
 
 func exists(path string) bool {
@@ -221,33 +263,40 @@ func needsQuoting(r rune) bool {
 }
 
 func touch(path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("create sentinel directory: %w", err)
 	}
-	return os.WriteFile(path, nil, 0o644)
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		return fmt.Errorf("write sentinel: %w", err)
+	}
+	return nil
 }
 
 func writeAtomic(path string, data []byte, mode os.FileMode) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("create settings directory: %w", err)
 	}
-	f, err := os.CreateTemp(filepath.Dir(path), ".settings-*")
+	f, err := os.CreateTemp(dir, ".settings-*")
 	if err != nil {
-		return err
+		return fmt.Errorf("create temporary settings file: %w", err)
 	}
 	defer func() { _ = os.Remove(f.Name()) }()
 	if _, err := f.Write(data); err != nil {
 		_ = f.Close()
-		return err
+		return fmt.Errorf("write temporary settings file: %w", err)
 	}
 	if err := f.Chmod(mode); err != nil {
 		_ = f.Close()
-		return err
+		return fmt.Errorf("set settings file mode: %w", err)
 	}
 	if err := f.Close(); err != nil {
-		return err
+		return fmt.Errorf("close temporary settings file: %w", err)
 	}
-	return os.Rename(f.Name(), path)
+	if err := os.Rename(f.Name(), path); err != nil {
+		return fmt.Errorf("replace settings file: %w", err)
+	}
+	return nil
 }
 
 // insertMember adds key with the entry as the last member of the root object, matching

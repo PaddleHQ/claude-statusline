@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -133,6 +133,6 @@ func TestRenderMeasuresVisibleWidth(t *testing.T) {
 	t.Parallel()
 
 	red := "\x1b[31mred\x1b[0m"
-	assert.Equal(t, red+sep+red, render(9, id(red), id(red)), "colour sequences take no room")
+	assert.Equal(t, red+sep+red, render(9, id(red), id(red)), "color sequences take no room")
 	assert.Equal(t, red+"\n"+red, render(8, id(red), id(red)))
 }

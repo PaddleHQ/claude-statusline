@@ -33,7 +33,7 @@ func New(userText string) *Config {
 
 // Load reads the user's config file; a missing or unreadable file means defaults only.
 func Load(path string) *Config {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304: reading the config file the user named is the feature
 	if err != nil {
 		return New("")
 	}
@@ -124,7 +124,7 @@ func ParseNumber(s string) (int, bool) {
 // parse reads key = value lines as data; nothing in a value is ever interpreted.
 func parse(text string) map[string]string {
 	values := map[string]string{}
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue

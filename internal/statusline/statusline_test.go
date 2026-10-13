@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/statusline"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func env(m map[string]string) func(string) string {
@@ -191,7 +191,7 @@ func TestBuildSnapshot(t *testing.T) {
 		path := filepath.Join(dir, "usage-latest.json")
 		data, err := os.ReadFile(path)
 		require.NoError(t, err)
-		assert.Equal(t, input, string(data))
+		assert.JSONEq(t, input, string(data))
 		fi, err := os.Stat(path)
 		require.NoError(t, err)
 		assert.Equal(t, os.FileMode(0o600), fi.Mode().Perm())
@@ -206,7 +206,7 @@ func TestBuildSnapshot(t *testing.T) {
 		assert.FileExists(t, filepath.Join(home, ".claude", "usage-latest.json"))
 	})
 
-	t.Run("honours snapshot.path", func(t *testing.T) {
+	t.Run("honors snapshot.path", func(t *testing.T) {
 		t.Parallel()
 		dir, elsewhere := t.TempDir(), filepath.Join(t.TempDir(), "out", "latest.json")
 		configure(t, dir, "snapshot.path = "+elsewhere+"\n")
@@ -248,7 +248,7 @@ func TestBuildSnapshot(t *testing.T) {
 
 		data, err := os.ReadFile(filepath.Join(dir, "usage-latest.json"))
 		require.NoError(t, err)
-		assert.Equal(t, input, string(data))
+		assert.JSONEq(t, input, string(data))
 	})
 
 	t.Run("an unwritable directory does not break rendering", func(t *testing.T) {

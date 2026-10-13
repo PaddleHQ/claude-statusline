@@ -12,36 +12,15 @@ import (
 // A hook named in the segments list renders there, and replaces a built-in of the same name.
 // Every other hook goes to its slot: after the context segment, after the usage group, or at the end.
 func items(ctx *Context) []layout.Item {
-	byName := map[string][]hook.Result{}
-	var unplaced []hook.Result
-	listed := map[string]bool{}
 	names := strings.Fields(ctx.Config.String(keySegments))
-	for _, name := range names {
-		listed[name] = true
-	}
-	for _, h := range ctx.Hooks {
-		if h.Name != "" && listed[h.Name] {
-			byName[h.Name] = append(byName[h.Name], h)
-		} else {
-			unplaced = append(unplaced, h)
-		}
-	}
+	byName, unplaced := partitionHooks(ctx.Hooks, names)
 
 	var out []layout.Item
 	ctxAt, modelAt := -1, -1
 	for _, name := range names {
 		builtin, isBuiltin := Lookup(name)
 		if hooks := byName[name]; len(hooks) > 0 {
-			for _, h := range hooks {
-				if h.Text == "" {
-					continue
-				}
-				group := slotGroup(h.Slot)
-				if isBuiltin {
-					group = builtin.Group()
-				}
-				out = append(out, layout.Item{Group: group, Text: h.Text})
-			}
+			out = appendNamedHooks(out, hooks, builtin, isBuiltin)
 			continue
 		}
 		if !isBuiltin {
@@ -53,13 +32,44 @@ func items(ctx *Context) []layout.Item {
 		}
 		out = append(out, layout.Item{Group: builtin.Group(), Text: text})
 		switch name {
-		case "ctx":
+		case nameCtx:
 			ctxAt = len(out) - 1
-		case "model":
+		case nameModel:
 			modelAt = len(out) - 1
 		}
 	}
 	return place(out, unplaced, ctxAt, modelAt, separator(ctx))
+}
+
+// partitionHooks splits the hooks into those named in the segments list, keyed by name, and the rest.
+func partitionHooks(hooks []hook.Result, names []string) (byName map[string][]hook.Result, unplaced []hook.Result) {
+	listed := map[string]bool{}
+	for _, name := range names {
+		listed[name] = true
+	}
+	byName = map[string][]hook.Result{}
+	for _, h := range hooks {
+		if h.Name != "" && listed[h.Name] {
+			byName[h.Name] = append(byName[h.Name], h)
+		} else {
+			unplaced = append(unplaced, h)
+		}
+	}
+	return byName, unplaced
+}
+
+func appendNamedHooks(out []layout.Item, hooks []hook.Result, builtin Segment, isBuiltin bool) []layout.Item {
+	for _, h := range hooks {
+		if h.Text == "" {
+			continue
+		}
+		group := slotGroup(h.Slot)
+		if isBuiltin {
+			group = builtin.Group()
+		}
+		out = append(out, layout.Item{Group: group, Text: h.Text})
+	}
+	return out
 }
 
 func slotGroup(s hook.Slot) layout.Group {
@@ -124,6 +134,8 @@ func usageEnd(out []layout.Item) int {
 			last = i
 		case layout.Rates:
 			firstRate = min(firstRate, i)
+		default:
+			continue
 		}
 	}
 	if last >= 0 {

@@ -71,7 +71,7 @@ func head(gitDir string) string {
 }
 
 func readFile(path string) (string, bool) {
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // G304: reading .git files under the working directory Claude Code passed is the feature
 	if err != nil {
 		return "", false
 	}

@@ -8,10 +8,10 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
 )
 
-// ctxBar draws context-window usage as "ctx: <bar> <NN>%", coloured by absolute usage.
+// ctxBar draws context-window usage as "ctx: <bar> <NN>%", colored by absolute usage.
 type ctxBar struct{}
 
-func (ctxBar) Name() string { return "ctx" }
+func (ctxBar) Name() string { return nameCtx }
 
 func (ctxBar) Group() layout.Group { return layout.Identity }
 
@@ -28,7 +28,7 @@ func (ctxBar) Render(ctx *Context) string {
 	pct := int(math.RoundToEven(*used))
 	params := bar.Params{
 		Usage:    pct,
-		Width:    barWidth(ctx, "ctx"),
+		Width:    barWidth(ctx, nameCtx),
 		Warn:     cfg.Int("ctx.warn"),
 		Bad:      cfg.Int("ctx.bad"),
 		NoTarget: true,

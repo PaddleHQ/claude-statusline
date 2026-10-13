@@ -6,7 +6,7 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
 )
 
-// families are the model families recognised by a substring of the model id, checked in order.
+// families are the model families recognized by a substring of the model id, checked in order.
 var families = []struct{ key, label string }{
 	{"haiku", "Haiku"},
 	{"sonnet", "Sonnet"},
@@ -17,7 +17,7 @@ var families = []struct{ key, label string }{
 
 type model struct{}
 
-func (model) Name() string { return "model" }
+func (model) Name() string { return nameModel }
 
 func (model) Group() layout.Group { return layout.Identity }
 

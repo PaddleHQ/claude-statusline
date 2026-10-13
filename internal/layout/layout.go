@@ -40,7 +40,7 @@ const minRoom = 24
 
 var sgr = regexp.MustCompile("\x1b\\[[0-9;]*m")
 
-// Width is the number of columns s occupies once colour sequences are removed, counting every rune as one column.
+// Width is the number of columns s occupies once color sequences are removed, counting every rune as one column.
 func Width(s string) int {
 	return utf8.RuneCountInString(sgr.ReplaceAllString(s, ""))
 }
@@ -77,8 +77,27 @@ type rows struct {
 }
 
 func wrap(items []Item, o Options, sepw int) string {
-	by := map[Group][]string{}
-	var firstIdentity string
+	by, firstIdentity := groupItems(items)
+
+	r := newRows(o, sepw, firstIdentity)
+	for _, s := range by[Identity] {
+		r.emit(s)
+	}
+	r.flush()
+
+	usage := r.usageRow(strings.Join(by[Usage], o.Separator), strings.Join(by[Rates], o.Separator))
+	out := r.out.String() + usage
+	if extra := strings.Join(by[Extra], o.Separator); extra != "" {
+		if usage != "" {
+			out += "\n"
+		}
+		out += extra
+	}
+	return strings.TrimSuffix(out, "\n")
+}
+
+func groupItems(items []Item) (by map[Group][]string, firstIdentity string) {
+	by = map[Group][]string{}
 	for _, it := range items {
 		if it.Text == "" {
 			continue
@@ -88,7 +107,10 @@ func wrap(items []Item, o Options, sepw int) string {
 		}
 		by[it.Group] = append(by[it.Group], it.Text)
 	}
+	return by, firstIdentity
+}
 
+func newRows(o Options, sepw int, firstIdentity string) *rows {
 	r := &rows{o: o, sepw: sepw}
 	if firstIdentity != "" {
 		r.indw = Width(firstIdentity) + sepw
@@ -99,15 +121,10 @@ func wrap(items []Item, o Options, sepw int) string {
 	if r.indw > 0 {
 		r.indent = o.Anchor + strings.Repeat(" ", r.indw-1)
 	}
+	return r
+}
 
-	for _, s := range by[Identity] {
-		r.emit(s)
-	}
-	r.flush()
-
-	var usage string
-	tok := strings.Join(by[Usage], o.Separator)
-	rates := strings.Join(by[Rates], o.Separator)
+func (r *rows) usageRow(tok, rates string) string {
 	switch {
 	case tok != "" && rates != "":
 		tokw, ratew := Width(tok), Width(rates)
@@ -115,26 +132,16 @@ func wrap(items []Item, o Options, sepw int) string {
 		if tokw >= r.indw {
 			end = tokw + 1 + ratew
 		}
-		if end <= o.Columns {
-			usage = tok + strings.Repeat(" ", max(r.indw-tokw, 1)) + rates
-		} else {
-			usage = tok + "\n" + r.indent + rates
+		if end <= r.o.Columns {
+			return tok + strings.Repeat(" ", max(r.indw-tokw, 1)) + rates
 		}
+		return tok + "\n" + r.indent + rates
 	case tok != "":
-		usage = tok
+		return tok
 	case rates != "":
-		usage = r.indent + rates
+		return r.indent + rates
 	}
-
-	extra := strings.Join(by[Extra], o.Separator)
-	out := r.out.String() + usage
-	if extra != "" {
-		if usage != "" {
-			out += "\n"
-		}
-		out += extra
-	}
-	return strings.TrimSuffix(out, "\n")
+	return ""
 }
 
 func (r *rows) emit(s string) {

@@ -34,6 +34,21 @@ func (path) Render(ctx *Context) string {
 // displayPath strips the longest matching prefix, else abbreviates home to ~, else returns dir.
 func displayPath(dir, home string, prefixes []string) string {
 	home = strings.TrimRight(home, "/")
+	if best := longestPrefix(dir, home, prefixes); best != "" {
+		return dir[len(best)+1:]
+	}
+	if home != "" {
+		if dir == home {
+			return "~"
+		}
+		if rest, ok := strings.CutPrefix(dir, home+"/"); ok {
+			return "~/" + rest
+		}
+	}
+	return dir
+}
+
+func longestPrefix(dir, home string, prefixes []string) string {
 	var best string
 	for _, prefix := range prefixes {
 		if rest, ok := strings.CutPrefix(prefix, "~"); ok && (rest == "" || rest[0] == '/') {
@@ -47,16 +62,5 @@ func displayPath(dir, home string, prefixes []string) string {
 			best = prefix
 		}
 	}
-	if best != "" {
-		return dir[len(best)+1:]
-	}
-	if home != "" {
-		if dir == home {
-			return "~"
-		}
-		if rest, ok := strings.CutPrefix(dir, home+"/"); ok {
-			return "~/" + rest
-		}
-	}
-	return dir
+	return best
 }

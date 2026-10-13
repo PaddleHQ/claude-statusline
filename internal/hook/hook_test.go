@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/PaddleHQ/claude-statusline/internal/hook"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/PaddleHQ/claude-statusline/internal/hook"
 )
 
 var epoch = time.Unix(1760000000, 0)
@@ -46,8 +46,9 @@ func TestDiscover(t *testing.T) {
 	script(t, dir, ".hidden", "#!/bin/sh\n", 0o700)
 	require.NoError(t, os.Mkdir(filepath.Join(dir, "subdir"), 0o700))
 
-	var files []string
-	for _, h := range hook.Discover(dir) {
+	discovered := hook.Discover(dir)
+	files := make([]string, 0, len(discovered))
+	for _, h := range discovered {
 		files = append(files, h.File)
 	}
 	assert.Equal(t, []string{"10-a.sh", "20-b.sh"}, files, "regular executable files in filename order")
@@ -106,7 +107,7 @@ func TestHeaderDirectives(t *testing.T) {
 		{"end slot", "#!/bin/sh\n#statusline-slot:end\n", hook.SlotEnd, -1},
 		{"ctx slot", "#!/bin/sh\n# statusline-slot: ctx\n", hook.SlotCtx, -1},
 		{"unknown slot falls back to ctx", "#!/bin/sh\n# statusline-slot: bogus\n", hook.SlotCtx, -1},
-		{"capitalised slot is not a slot", "#!/bin/sh\n# statusline-slot: Usage\n", hook.SlotCtx, -1},
+		{"capitalized slot is not a slot", "#!/bin/sh\n# statusline-slot: Usage\n", hook.SlotCtx, -1},
 		{"slot with trailing words is not a slot", "#!/bin/sh\n# statusline-slot: usage now\n", hook.SlotCtx, -1},
 		{"ttl", "#!/bin/sh\n# statusline-ttl: 300\n", hook.SlotCtx, 300 * time.Second},
 		{"ttl with trailing text", "#!/bin/sh\n# statusline-ttl: 30 seconds\n", hook.SlotCtx, 30 * time.Second},
@@ -353,8 +354,8 @@ func TestRunSanitisesOutput(t *testing.T) {
 		body string
 		want string
 	}{
-		{"colour is kept", `printf '\033[32mok\033[0m'`, "\x1b[32mok\x1b[0m"},
-		{"compound colour is kept", `printf '\033[1;38;5;33mok\033[0m'`, "\x1b[1;38;5;33mok\x1b[0m"},
+		{"color is kept", `printf '\033[32mok\033[0m'`, "\x1b[32mok\x1b[0m"},
+		{"compound color is kept", `printf '\033[1;38;5;33mok\033[0m'`, "\x1b[1;38;5;33mok\x1b[0m"},
 		{"cursor movement is stripped", `printf 'a\033[2Ab\033[Hc\033[2Jd'`, "a[2Ab[Hc[2Jd"},
 		{"other escapes are stripped", `printf 'a\033]0;title\007b\033cd'`, "a]0;titlebcd"},
 		{"carriage return and tab are stripped", `printf 'a\rb\tc'`, "abc"},

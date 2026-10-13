@@ -17,6 +17,19 @@ import (
 //go:embed themes/*.yaml
 var builtins embed.FS
 
+var (
+	errExtendsItself     = errors.New("extends itself")
+	errNoHome            = errors.New("no home directory")
+	errNoBase            = errors.New("relative theme path without a base directory")
+	errTooLarge          = errors.New("too large")
+	errGlyph             = errors.New("a printable glyph")
+	errPartialsPrintable = errors.New("bar.partials must be printable glyphs")
+	errPartialsCount     = errors.New("bar.partials must hold")
+	errRampCount         = errors.New("bar.ramp must hold")
+	errStyle             = errors.New("not solid or gradient")
+	errRampFormat        = errors.New("#rrggbb")
+)
+
 const (
 	fallbackName = "classic"
 	legacyName   = "default"
@@ -84,7 +97,7 @@ func resolve(value, home, base string, seen map[string]bool) (spec, error) {
 		return spec{}, err
 	}
 	if seen[id] {
-		return spec{}, fmt.Errorf("theme %q extends itself", id)
+		return spec{}, fmt.Errorf("theme %q %w", id, errExtendsItself)
 	}
 	seen[id] = true
 
@@ -111,35 +124,53 @@ func read(value, home, base string) (data []byte, id, dir string, err error) {
 			name = fallbackName
 		}
 		data, err = builtins.ReadFile("themes/" + name + ".yaml")
-		return data, "builtin:" + name, "", err
+		if err != nil {
+			return nil, "", "", fmt.Errorf("read built-in theme %q: %w", name, err)
+		}
+		return data, "builtin:" + name, "", nil
 	}
+	path, err := themePath(value, home, base)
+	if err != nil {
+		return nil, "", "", err
+	}
+	data, err = readLimited(path)
+	if err != nil {
+		return nil, "", "", err
+	}
+	return data, path, filepath.Dir(path), nil
+}
+
+func themePath(value, home, base string) (string, error) {
 	path := value
 	switch {
 	case value == "~" || strings.HasPrefix(value, "~/"):
 		if home == "" {
-			return nil, "", "", errors.New("no home directory")
+			return "", errNoHome
 		}
 		path = filepath.Join(home, value[1:])
 	case !filepath.IsAbs(value):
 		if base == "" {
-			return nil, "", "", errors.New("relative theme path without a base directory")
+			return "", errNoBase
 		}
 		path = filepath.Join(base, value)
 	}
-	path = filepath.Clean(path)
-	f, err := os.Open(path)
+	return filepath.Clean(path), nil
+}
+
+func readLimited(path string) ([]byte, error) {
+	f, err := os.Open(path) //nolint:gosec // G304: opening the theme file the user configured is the feature
 	if err != nil {
-		return nil, "", "", err
+		return nil, fmt.Errorf("open theme file: %w", err)
 	}
 	defer func() { _ = f.Close() }()
-	data, err = io.ReadAll(io.LimitReader(f, maxFileBytes+1))
+	data, err := io.ReadAll(io.LimitReader(f, maxFileBytes+1))
 	if err != nil {
-		return nil, "", "", err
+		return nil, fmt.Errorf("read theme file %q: %w", path, err)
 	}
 	if len(data) > maxFileBytes {
-		return nil, "", "", fmt.Errorf("theme file %q is too large", path)
+		return nil, fmt.Errorf("theme file %q is %w", path, errTooLarge)
 	}
-	return data, path, filepath.Dir(path), nil
+	return data, nil
 }
 
 func pick[T any](child, parent *T) *T {
@@ -197,16 +228,51 @@ func (s spec) overlay(child spec) spec {
 
 func (s spec) compile() (Theme, error) {
 	t := Theme{Reset: resetSeq}
-	c := colorsSpec{}
-	if s.Colors != nil {
-		c = *s.Colors
-	}
-	b := barSpec{}
-	if s.Bar != nil {
-		b = *s.Bar
-	}
+	c := deref(s.Colors)
+	b := deref(s.Bar)
 
-	var err error
+	if err := t.compileColors(c, b); err != nil {
+		return Theme{}, err
+	}
+	if err := t.compileGlyphs(b); err != nil {
+		return Theme{}, err
+	}
+	if err := t.compilePartials(b.Partials); err != nil {
+		return Theme{}, err
+	}
+	if err := t.compileStyle(b); err != nil {
+		return Theme{}, err
+	}
+	return t, nil
+}
+
+func deref[T any](p *T) T {
+	var zero T
+	if p == nil {
+		return zero
+	}
+	return *p
+}
+
+func (t *Theme) compileStyle(b barSpec) error {
+	style := styleSolid
+	if b.Style != nil {
+		style = *b.Style
+	}
+	switch style {
+	case styleSolid:
+		if len(b.Partials) == 0 {
+			return fmt.Errorf("%w %d glyphs", errPartialsCount, partialCount)
+		}
+	case styleGrad:
+		return t.compileRamp(b.Ramp)
+	default:
+		return fmt.Errorf("bar.style %q is %w", style, errStyle)
+	}
+	return nil
+}
+
+func (t *Theme) compileColors(c colorsSpec, b barSpec) error {
 	for _, f := range []struct {
 		dst *string
 		src *string
@@ -224,63 +290,61 @@ func (s spec) compile() (Theme, error) {
 		if f.src == nil {
 			continue
 		}
-		if *f.dst, err = ParseColor(*f.src); err != nil {
-			return Theme{}, err
+		seq, err := ParseColor(*f.src)
+		if err != nil {
+			return err
 		}
+		*f.dst = seq
 	}
+	return nil
+}
 
-	style := styleSolid
-	if b.Style != nil {
-		style = *b.Style
-	}
+func (t *Theme) compileGlyphs(b barSpec) error {
 	for _, g := range []struct {
 		dst  *string
 		src  *string
 		name string
 	}{{&t.Full, b.Full, "full"}, {&t.Empty, b.Empty, "empty"}, {&t.MarkerGlyph, b.Marker, "marker"}} {
 		if g.src == nil || !validGlyph(*g.src) {
-			return Theme{}, fmt.Errorf("bar.%s must be a printable glyph", g.name)
+			return fmt.Errorf("bar.%s must be %w", g.name, errGlyph)
 		}
 		*g.dst = *g.src
 	}
+	return nil
+}
 
-	if len(b.Partials) != 0 && len(b.Partials) != partialCount {
-		return Theme{}, fmt.Errorf("bar.partials must hold %d glyphs", partialCount)
+func (t *Theme) compilePartials(partials []string) error {
+	if len(partials) != 0 && len(partials) != partialCount {
+		return fmt.Errorf("%w %d glyphs", errPartialsCount, partialCount)
 	}
-	for i, p := range b.Partials {
+	for i, p := range partials {
 		if !validGlyph(p) {
-			return Theme{}, errors.New("bar.partials must be printable glyphs")
+			return errPartialsPrintable
 		}
 		t.Partials[i] = p
 	}
+	return nil
+}
 
-	switch style {
-	case styleSolid:
-		if len(b.Partials) == 0 {
-			return Theme{}, fmt.Errorf("bar.partials must hold %d glyphs", partialCount)
-		}
-	case styleGrad:
-		t.Gradient = true
-		if len(b.Ramp) != rampStops {
-			return Theme{}, fmt.Errorf("bar.ramp must hold %d colors", rampStops)
-		}
-		for _, hex := range b.Ramp {
-			r, g, bl, err := parseRampStop(hex)
-			if err != nil {
-				return Theme{}, err
-			}
-			t.Ramp = append(t.Ramp, [channelsRGB]int{r, g, bl})
-		}
-	default:
-		return Theme{}, fmt.Errorf("bar.style %q is not solid or gradient", style)
+func (t *Theme) compileRamp(ramp []string) error {
+	t.Gradient = true
+	if len(ramp) != rampStops {
+		return fmt.Errorf("%w %d colors", errRampCount, rampStops)
 	}
-	return t, nil
+	for _, hex := range ramp {
+		r, g, bl, err := parseRampStop(hex)
+		if err != nil {
+			return err
+		}
+		t.Ramp = append(t.Ramp, [channelsRGB]int{r, g, bl})
+	}
+	return nil
 }
 
 func parseRampStop(s string) (r, g, b int, err error) {
 	rgb, ok := strings.CutPrefix(s, "#")
 	if !ok {
-		return 0, 0, 0, fmt.Errorf("ramp stop %q must be #rrggbb", s)
+		return 0, 0, 0, fmt.Errorf("ramp stop %q must be %w", s, errRampFormat)
 	}
 	if r, g, b, err = parseHex(rgb); err != nil {
 		return 0, 0, 0, fmt.Errorf("ramp stop %q: %w", s, err)

@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func val(used, resets int64) ratecache.Reading {
@@ -85,8 +85,6 @@ func TestVisible(t *testing.T) {
 	assert.NotNil(t, got.SevenDay, "a window resetting later should stay")
 }
 
-func f(v float64) *float64 { return &v }
-
 func TestFromPayload(t *testing.T) {
 	t.Parallel()
 
@@ -95,12 +93,12 @@ func TestFromPayload(t *testing.T) {
 		in   payload.Window
 		want *ratecache.Reading
 	}{
-		{"rounds usage to nearest", payload.Window{UsedPercentage: f(45.5), ResetsAt: f(100)}, r(46, 100)},
-		{"rounds down below half", payload.Window{UsedPercentage: f(45.4), ResetsAt: f(100)}, r(45, 100)},
-		{"floors the reset time", payload.Window{UsedPercentage: f(1), ResetsAt: f(100.9)}, r(1, 100)},
-		{"missing usage", payload.Window{ResetsAt: f(100)}, nil},
-		{"missing reset", payload.Window{UsedPercentage: f(1)}, nil},
-		{"too large", payload.Window{UsedPercentage: f(1), ResetsAt: f(1e13)}, nil},
+		{"rounds usage to nearest", payload.Window{UsedPercentage: new(45.5), ResetsAt: new(100.0)}, r(46, 100)},
+		{"rounds down below half", payload.Window{UsedPercentage: new(45.4), ResetsAt: new(100.0)}, r(45, 100)},
+		{"floors the reset time", payload.Window{UsedPercentage: new(1.0), ResetsAt: new(100.9)}, r(1, 100)},
+		{"missing usage", payload.Window{ResetsAt: new(100.0)}, nil},
+		{"missing reset", payload.Window{UsedPercentage: new(1.0)}, nil},
+		{"too large", payload.Window{UsedPercentage: new(1.0), ResetsAt: new(1e13)}, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -9,13 +9,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tidwall/gjson"
-
 	"github.com/PaddleHQ/claude-statusline/internal/bar"
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/segment"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
+
+	"github.com/tidwall/gjson"
 )
 
 const (
@@ -28,7 +28,7 @@ const (
 )
 
 var (
-	dateSuffix = regexp.MustCompile(`-[0-9]{8}$`)
+	dateSuffix = regexp.MustCompile(`-\d{8}$`)
 	ctxKeys    = []string{"ctx.width", "ctx.width_medium", "ctx.width_narrow", "ctx.warn", "ctx.bad"}
 )
 
@@ -89,39 +89,58 @@ type renderer struct {
 
 func (r renderer) content(task gjson.Result) string {
 	th := r.th
-	name := scalar(task.Get("name"))
-	if name == nil {
-		name = scalar(task.Get("type"))
-	}
-	if name == nil {
-		fallback := fallbackName
-		name = &fallback
-	}
-	parts := []string{th.Paint(th.Marker, *name)}
-
-	if model := task.Get("model"); truthy(model) && model.Type == gjson.String {
-		part := th.Paint(th.Text, shortModel(model.String()))
-		if effort := scalar(task.Get("effort")); effort != nil {
-			part += th.Paint(th.Muted, " ["+*effort+"]")
-		}
-		parts = append(parts, part)
-	}
-
-	tokens, hasTokens := number(task.Get("tokenCount"))
-	if window, ok := number(task.Get("contextWindowSize")); hasTokens && ok && window > 0 {
-		parts = append(parts, r.ctx(tokens*percentScale/window))
-	}
-	if hasTokens {
-		parts = append(parts, segment.FormatTokens(int64(math.Min(tokens, maxPercent*maxPercent))))
-	}
-	if desc := task.Get("description"); desc.Type == gjson.String && desc.String() != "" {
-		if text := payload.Sanitize(desc.String()); text != "" {
-			parts = append(parts, th.Paint(th.Muted, text))
-		}
-	}
+	parts := []string{th.Paint(th.Marker, taskName(task))}
+	parts = r.appendModel(parts, task)
+	parts = r.appendTokens(parts, task)
+	parts = r.appendDescription(parts, task)
 
 	sep := " " + th.Paint(th.Muted, r.cfg.String(keySeparator)) + " "
 	return strings.Join(parts, sep)
+}
+
+func taskName(task gjson.Result) string {
+	if name := scalar(task.Get("name")); name != nil {
+		return *name
+	}
+	if name := scalar(task.Get("type")); name != nil {
+		return *name
+	}
+	return fallbackName
+}
+
+func (r renderer) appendModel(parts []string, task gjson.Result) []string {
+	model := task.Get("model")
+	if !truthy(model) || model.Type != gjson.String {
+		return parts
+	}
+	th := r.th
+	part := th.Paint(th.Text, shortModel(model.String()))
+	if effort := scalar(task.Get("effort")); effort != nil {
+		part += th.Paint(th.Muted, " ["+*effort+"]")
+	}
+	return append(parts, part)
+}
+
+func (r renderer) appendTokens(parts []string, task gjson.Result) []string {
+	tokens, hasTokens := number(task.Get("tokenCount"))
+	if !hasTokens {
+		return parts
+	}
+	if window, ok := number(task.Get("contextWindowSize")); ok && window > 0 {
+		parts = append(parts, r.ctx(tokens*percentScale/window))
+	}
+	return append(parts, segment.FormatTokens(int64(math.Min(tokens, maxPercent*maxPercent))))
+}
+
+func (r renderer) appendDescription(parts []string, task gjson.Result) []string {
+	desc := task.Get("description")
+	if desc.Type != gjson.String || desc.String() == "" {
+		return parts
+	}
+	if text := payload.Sanitize(desc.String()); text != "" {
+		parts = append(parts, r.th.Paint(r.th.Muted, text))
+	}
+	return parts
 }
 
 func (r renderer) ctx(raw float64) string {
@@ -138,7 +157,7 @@ func truthy(r gjson.Result) bool {
 	return r.Exists() && r.Type != gjson.Null && r.Type != gjson.False
 }
 
-// scalar returns a sanitised string for a present string, number or true, and nil otherwise.
+// scalar returns a sanitized string for a present string, number or true, and nil otherwise.
 func scalar(r gjson.Result) *string {
 	if !truthy(r) {
 		return nil
@@ -147,8 +166,9 @@ func scalar(r gjson.Result) *string {
 	case gjson.String, gjson.Number, gjson.True:
 		s := payload.Sanitize(r.String())
 		return &s
+	default:
+		return nil
 	}
-	return nil
 }
 
 func number(r gjson.Result) (float64, bool) {

@@ -5,13 +5,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/segment"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testPayload() payload.Payload {
@@ -40,7 +40,7 @@ func TestRender(t *testing.T) {
 		{"unknown names are skipped", "segments = bogus model Bad-Name ../x", th, "Opus 4.7 [high]"},
 		{"repeated segment is joined with the painted separator", "segments = model model", th, "Opus 4.7 [high] \033[2m·\033[0m Opus 4.7 [high]"},
 		{"custom separator is painted muted", "segments = model model\nseparator = |", th, "Opus 4.7 [high] \033[2m|\033[0m Opus 4.7 [high]"},
-		{"no colour leaves the separator bare", "segments = model model", th.WithoutColor(), "Opus 4.7 [high] · Opus 4.7 [high]"},
+		{"no color leaves the separator bare", "segments = model model", th.WithoutColor(), "Opus 4.7 [high] · Opus 4.7 [high]"},
 		{"only unknown segments render nothing", "segments = bogus", th, ""},
 		{"empty segments falls back to the default", "segments =", th, "Opus 4.7 [high]"},
 		{"separator injection stays data", "segments = model model\nseparator = $(touch x)", th, "Opus 4.7 [high] \033[2m$(touch x)\033[0m Opus 4.7 [high]"},
@@ -76,7 +76,7 @@ func TestModelRender(t *testing.T) {
 		{"effort hidden", `{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"}}`, "model.effort = false", theme.Load("classic", "", ""), "Opus 4.7"},
 		{"invalid effort setting uses the default", `{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"}}`, "model.effort = maybe", theme.Load("classic", "", ""), "Opus 4.7 [high]"},
 		{"no model", `{"effort":{"level":"high"}}`, "", theme.Load("classic", "", ""), ""},
-		{"painted with the text colour", `{"model":{"display_name":"Opus"}}`, "", theme.Theme{Text: "<t>", Reset: "</t>"}, "<t>Opus</t>"},
+		{"painted with the text color", `{"model":{"display_name":"Opus"}}`, "", theme.Theme{Text: "<t>", Reset: "</t>"}, "<t>Opus</t>"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -156,8 +156,8 @@ func TestPathRender(t *testing.T) {
 		{"home abbreviated", `{"cwd":"/home/me/x"}`, "", plain, "~/x"},
 		{"branch appended", jsonFor(repo), "path.strip = " + tmp, plain, "repo (main)"},
 		{"branch can be turned off", jsonFor(repo), "path.strip = " + tmp + "\npath.branch = false", plain, "repo"},
-		{"branch is sanitised", jsonFor(hostile), "path.strip = " + tmp, plain, "hostile (a[31mb)"},
-		{"painted with the path colour", `{"cwd":"/srv/x"}`, "", theme.Theme{Path: "<p>", Reset: "</p>"}, "<p>/srv/x</p>"},
+		{"branch is sanitized", jsonFor(hostile), "path.strip = " + tmp, plain, "hostile (a[31mb)"},
+		{"painted with the path color", `{"cwd":"/srv/x"}`, "", theme.Theme{Path: "<p>", Reset: "</p>"}, "<p>/srv/x</p>"},
 		{"no directory hides the segment", `{}`, "", plain, ""},
 	}
 	for _, tt := range tests {

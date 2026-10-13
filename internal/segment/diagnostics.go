@@ -10,9 +10,9 @@ const charsPerToken = 4
 
 // diagnostic is a usage-group segment drawn from the session transcript; show returns "" when there is nothing to report.
 type diagnostic struct {
-	name   string
-	show   func(*Context) string
-	colour func(*Context) string
+	name  string
+	show  func(*Context) string
+	color func(*Context) string
 }
 
 func (d diagnostic) Name() string { return d.name }
@@ -26,7 +26,7 @@ func (d diagnostic) Render(ctx *Context) string {
 	if text == "" {
 		return ""
 	}
-	return ctx.Theme.Paint(d.colour(ctx), text)
+	return ctx.Theme.Paint(d.color(ctx), text)
 }
 
 func text(ctx *Context) string { return ctx.Theme.Text }

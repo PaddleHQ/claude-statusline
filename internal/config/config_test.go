@@ -6,10 +6,10 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/PaddleHQ/claude-statusline/internal/config"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/PaddleHQ/claude-statusline/internal/config"
 )
 
 func TestDefaultsParse(t *testing.T) {

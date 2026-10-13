@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/segment"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRateRender(t *testing.T) {

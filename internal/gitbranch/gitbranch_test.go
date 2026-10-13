@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/PaddleHQ/claude-statusline/internal/gitbranch"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/PaddleHQ/claude-statusline/internal/gitbranch"
 )
 
 const sha = "0123456789abcdef0123456789abcdef01234567"

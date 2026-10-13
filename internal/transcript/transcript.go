@@ -6,6 +6,7 @@ package transcript
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -64,7 +65,13 @@ type reader struct {
 	open func(string) (source, error)
 }
 
-func openFile(path string) (source, error) { return os.Open(path) }
+func openFile(path string) (source, error) {
+	f, err := os.Open(path) //nolint:gosec // G304: reading the transcript path Claude Code passed is the feature
+	if err != nil {
+		return nil, fmt.Errorf("open transcript: %w", err)
+	}
+	return f, nil
+}
 
 // Read gathers Info from the transcript at path. An empty path or any read error yields the zero Info.
 func Read(path string) Info { return reader{open: openFile}.read(path) }
@@ -98,7 +105,7 @@ func (r reader) read(path string) Info {
 // the first assistant line. It returns the opening lines that hold attachments and the prompt size of that assistant line.
 func head(src io.Reader, limit int64, wantBoot bool) (lines []string, boot int64) {
 	br := bufio.NewReaderSize(io.LimitReader(src, limit), headChunk)
-	for n := 0; n < headLines || (wantBoot && boot == 0 && n < maxBootSearch); n++ {
+	for n := 0; moreHead(n, wantBoot, boot); n++ {
 		line, ok := nextLine(br)
 		if !ok {
 			break
@@ -112,6 +119,10 @@ func head(src io.Reader, limit int64, wantBoot bool) (lines []string, boot int64
 		}
 	}
 	return lines, boot
+}
+
+func moreHead(n int, wantBoot bool, boot int64) bool {
+	return n < headLines || (wantBoot && boot == 0 && n < maxBootSearch)
 }
 
 // maxBootSearch bounds how many lines are read looking for the first assistant turn.
@@ -147,23 +158,23 @@ func lastModel(f io.ReaderAt, size int64) string {
 	off, seen := size, 0
 	trailing := true
 	for off > 0 && size-off < tailBytes {
-		n := int64(min(chunkBytes, off))
+		n := min(chunkBytes, off)
 		off -= n
-		buf := make([]byte, n)
-		if _, err := f.ReadAt(buf, off); err != nil && err != io.EOF {
+		buf := make([]byte, n+int64(len(pending)))
+		if _, err := f.ReadAt(buf[:n], off); err != nil && err != io.EOF {
 			return ""
 		}
-		buf = append(buf, pending...)
+		copy(buf[n:], pending)
 		pending = nil
 
 		complete := buf
 		if off > 0 {
-			i := bytes.IndexByte(buf, '\n')
-			if i < 0 {
+			before, after, ok := bytes.Cut(buf, []byte{'\n'})
+			if !ok {
 				pending = buf
 				continue
 			}
-			pending, complete = buf[:i], buf[i+1:]
+			pending, complete = before, after
 		}
 		if trailing {
 			complete, trailing = bytes.TrimSuffix(complete, []byte("\n")), false
@@ -234,7 +245,7 @@ func skillCounts(lines []string) (bare, total int, ok bool) {
 		if a.Get("isInitial").Type != gjson.True {
 			continue
 		}
-		for _, entry := range strings.Split(a.Get("content").String(), "\n") {
+		for entry := range strings.SplitSeq(a.Get("content").String(), "\n") {
 			if !strings.HasPrefix(entry, "- ") {
 				continue
 			}

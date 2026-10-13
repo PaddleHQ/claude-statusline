@@ -3,17 +3,17 @@ package segment_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/hook"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/segment"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func hookResult(name string, slot hook.Slot, text string) hook.Result {
-	return hook.Result{Hook: hook.Hook{File: name + ".sh", Name: name, Slot: slot}, Text: text}
+	return hook.Result{File: name + ".sh", Name: name, Slot: slot, Text: text}
 }
 
 func TestRenderPlacesHooks(t *testing.T) {
@@ -139,7 +139,7 @@ func TestRenderPaintsTheContinuationAnchor(t *testing.T) {
 }
 
 func stripBars(s string) string {
-	out := []rune{}
+	out := make([]rune, 0, len(s))
 	for _, r := range s {
 		switch r {
 		case '█', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '░', '┃':

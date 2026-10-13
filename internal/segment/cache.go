@@ -24,9 +24,9 @@ func (cache) Render(ctx *Context) string {
 		return ""
 	}
 	pct := u.CacheRead * percentScale / total
-	colour := ctx.Theme.Text
+	color := ctx.Theme.Text
 	if pct < int64(ctx.Config.Int("cache.warn")) {
-		colour = ctx.Theme.Bad
+		color = ctx.Theme.Bad
 	}
-	return ctx.Theme.Paint(colour, "⧉ "+strconv.FormatInt(pct, 10)+"%")
+	return ctx.Theme.Paint(color, "⧉ "+strconv.FormatInt(pct, 10)+"%")
 }

@@ -84,30 +84,38 @@ func PercentColor(p Params, th theme.Theme) string {
 func Render(p Params, th theme.Theme) string {
 	maxEighths := p.Width * eighths
 	filled := min((p.Usage*maxEighths+percentScale/2)/percentScale, maxEighths)
-	fullCells, remainder := filled/eighths, filled%eighths
 
 	targetCell := -1
 	if !p.NoTarget {
 		targetCell = min(p.Target*p.Width/percentScale, p.Width-1)
 	}
+	if th.Gradient {
+		return gradientCells(p, th, filled, targetCell)
+	}
+	return solidCells(p, th, filled, targetCell)
+}
+
+func gradientCells(p Params, th theme.Theme, filled, targetCell int) string {
+	var b strings.Builder
+	cells := (filled + eighths/2) / eighths
+	for cell := range p.Width {
+		switch {
+		case cell == targetCell:
+			b.WriteString(th.Paint(th.MarkerColor, th.MarkerGlyph))
+		case cell < cells:
+			b.WriteString(th.Paint(th.RampColor(cell, p.Width), th.Full))
+		default:
+			b.WriteString(th.Paint(th.EmptyColor, th.Empty))
+		}
+	}
+	return b.String()
+}
+
+func solidCells(p Params, th theme.Theme, filled, targetCell int) string {
+	fullCells, remainder := filled/eighths, filled%eighths
 	fill := Fill(p, th)
 
 	var b strings.Builder
-	if th.Gradient {
-		cells := (filled + eighths/2) / eighths
-		for cell := range p.Width {
-			switch {
-			case cell == targetCell:
-				b.WriteString(th.Paint(th.MarkerColor, th.MarkerGlyph))
-			case cell < cells:
-				b.WriteString(th.Paint(th.RampColor(cell, p.Width), th.Full))
-			default:
-				b.WriteString(th.Paint(th.EmptyColor, th.Empty))
-			}
-		}
-		return b.String()
-	}
-
 	for cell := range p.Width {
 		switch {
 		case cell == targetCell:

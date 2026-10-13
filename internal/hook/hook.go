@@ -44,8 +44,8 @@ const (
 
 var (
 	slotLine    = regexp.MustCompile(`^#\s*statusline-slot:\s*([a-z]+)\s*$`)
-	ttlLine     = regexp.MustCompile(`^#\s*statusline-ttl:\s*([0-9]+)`)
-	numPrefix   = regexp.MustCompile(`^[0-9]+-`)
+	ttlLine     = regexp.MustCompile(`^#\s*statusline-ttl:\s*(\d+)`)
+	numPrefix   = regexp.MustCompile(`^\d+-`)
 	sgrSeq      = regexp.MustCompile("^\x1b\\[[0-9;]*m")
 	sessionSafe = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 )
@@ -111,7 +111,7 @@ func nameOf(file string) string {
 
 // readHeader applies the first slot and ttl directive found in the script's opening lines.
 func readHeader(h *Hook) {
-	f, err := os.Open(h.Path)
+	f, err := os.Open(h.Path) //nolint:gosec // G304: reading the header of the user's own hook script is the feature
 	if err != nil {
 		return
 	}
@@ -124,19 +124,35 @@ func readHeader(h *Hook) {
 			break
 		}
 		line = strings.TrimSuffix(line, "\r")
-		if m := slotLine.FindStringSubmatch(line); m != nil && !seenSlot {
-			seenSlot = true
-			if s := Slot(m[1]); s == SlotUsage || s == SlotEnd {
-				h.Slot = s
-			}
+		if !seenSlot {
+			seenSlot = h.applySlot(line)
 		}
-		if m := ttlLine.FindStringSubmatch(line); m != nil && !seenTTL {
-			seenTTL = true
-			if n, ok := config.ParseNumber(m[1]); ok {
-				h.TTL = time.Duration(n) * time.Second
-			}
+		if !seenTTL {
+			seenTTL = h.applyTTL(line)
 		}
 	}
+}
+
+func (h *Hook) applySlot(line string) bool {
+	m := slotLine.FindStringSubmatch(line)
+	if m == nil {
+		return false
+	}
+	if s := Slot(m[1]); s == SlotUsage || s == SlotEnd {
+		h.Slot = s
+	}
+	return true
+}
+
+func (h *Hook) applyTTL(line string) bool {
+	m := ttlLine.FindStringSubmatch(line)
+	if m == nil {
+		return false
+	}
+	if n, ok := config.ParseNumber(m[1]); ok {
+		h.TTL = time.Duration(n) * time.Second
+	}
+	return true
 }
 
 // SafeSession returns id when it is safe to use as a directory name, else "shared".
@@ -154,11 +170,9 @@ func Run(hooks []Hook, o Options) []Result {
 
 	var wg sync.WaitGroup
 	for i, h := range hooks {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			results[i] = Result{Hook: h, Text: sanitise(o.value(h, dir))}
-		}()
+		wg.Go(func() {
+			results[i] = Result{Hook: h, Text: sanitize(o.value(h, dir))}
+		})
 	}
 	wg.Wait()
 	return results
@@ -227,7 +241,7 @@ func (o Options) run(h Hook) ([]byte, bool) {
 	defer cancel()
 
 	var out limitedBuffer
-	cmd := exec.CommandContext(ctx, h.Path)
+	cmd := exec.CommandContext(ctx, h.Path) //nolint:gosec // G204: launching the user's own hook script is the feature
 	cmd.Stdin = bytes.NewReader(o.Input)
 	cmd.Stdout = &out
 	cmd.WaitDelay = waitDelay
@@ -252,18 +266,18 @@ func firstLine(out []byte) string {
 	return strings.TrimSuffix(line, "\r")
 }
 
-func readCache(path string) (int64, string) {
-	data, err := os.ReadFile(path)
+func readCache(path string) (ts int64, value string) {
+	data, err := os.ReadFile(path) //nolint:gosec // G304: the cache file sits in the user's own cache directory
 	if err != nil {
 		return 0, ""
 	}
 	head, rest, _ := strings.Cut(string(data), "\n")
-	ts, err := strconv.ParseInt(head, 10, 64)
-	if err != nil || ts < 0 {
+	parsed, err := strconv.ParseInt(head, 10, 64)
+	if err != nil || parsed < 0 {
 		return 0, ""
 	}
-	value, _, _ := strings.Cut(rest, "\n")
-	return ts, value
+	value, _, _ = strings.Cut(rest, "\n")
+	return parsed, value
 }
 
 // writeCache replaces the file atomically so a concurrent render never reads half a write.
@@ -282,9 +296,9 @@ func writeCache(dir, path string, ts int64, value string) {
 	}
 }
 
-// sanitise drops control characters from a hook's line, keeping only colour sequences, so that
-// a hook can colour its output but cannot move the cursor or otherwise redraw the terminal.
-func sanitise(s string) string {
+// sanitize drops control characters from a hook's line, keeping only color sequences, so that
+// a hook can color its output but cannot move the cursor or otherwise redraw the terminal.
+func sanitize(s string) string {
 	var b strings.Builder
 	for i := 0; i < len(s); {
 		if m := sgrSeq.FindString(s[i:]); m != "" {

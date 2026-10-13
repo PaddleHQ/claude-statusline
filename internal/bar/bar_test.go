@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/PaddleHQ/claude-statusline/internal/bar"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestWidthFor(t *testing.T) {
@@ -154,7 +154,7 @@ func TestRenderGradient(t *testing.T) {
 		{"half a cell rounds up", bar.Params{Usage: 38, Width: 4, Warn: 50, Bad: 90, NoTarget: true}, th, c(0) + "F</>" + c(66) + "F</><e>E</><e>E</>"},
 		{"below half a cell rounds down", bar.Params{Usage: 35, Width: 4, Warn: 50, Bad: 90, NoTarget: true}, th, c(0) + "F</><e>E</><e>E</><e>E</>"},
 		{"marker replaces its cell", bar.Params{Usage: 100, Target: 50, Width: 3, Warn: 20, Bad: 40, HardCap: 95}, th, c(0) + "F</><m>M</>" + c(200) + "F</>"},
-		{"no ramp colour without colour", bar.Params{Usage: 50, Target: 0, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, th.WithoutColor(), "ME"},
+		{"no ramp color without color", bar.Params{Usage: 50, Target: 0, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, th.WithoutColor(), "ME"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -168,7 +168,7 @@ func TestPercentColor(t *testing.T) {
 	t.Parallel()
 
 	p := bar.Params{Usage: 71, Target: 50, Width: 2, Warn: 20, Bad: 40, HardCap: 95}
-	assert.Empty(t, bar.PercentColor(p, markers), "solid bars colour the fill, not the text")
+	assert.Empty(t, bar.PercentColor(p, markers), "solid bars color the fill, not the text")
 	grad := markers
 	grad.Gradient = true
 	assert.Equal(t, "<w>", bar.PercentColor(p, grad))

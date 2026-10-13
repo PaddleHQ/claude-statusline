@@ -8,21 +8,21 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/PaddleHQ/claude-statusline/internal/setup"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
-
-	"github.com/PaddleHQ/claude-statusline/internal/setup"
 )
 
 const testBin = "/opt/cs/bin/claude-statusline"
 
 var prettySettings = "{\n  \"theme\": \"dark\",\n  \"env\": {\n    \"B\": \"1\",\n    \"A\": \"2\"\n  },\n  \"model\": \"opus\",\n  \"alpha\": [1, 2]\n}\n"
 
-func newDir(t *testing.T, settings *string) (string, string) {
+func newDir(t *testing.T, settings *string) (dir, path string) {
 	t.Helper()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "settings.json")
+	dir = t.TempDir()
+	path = filepath.Join(dir, "settings.json")
 	if settings != nil {
 		require.NoError(t, os.WriteFile(path, []byte(*settings), 0o640))
 	}

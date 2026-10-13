@@ -7,8 +7,7 @@ import (
 )
 
 // Counted reads a transcript through a wrapper that counts every byte read, and returns the total.
-func Counted(path string) (Info, int64) {
-	var total int64
+func Counted(path string) (info Info, total int64) {
 	r := reader{open: func(p string) (source, error) {
 		f, err := os.Open(p)
 		if err != nil {
@@ -16,7 +15,8 @@ func Counted(path string) (Info, int64) {
 		}
 		return &countingFile{File: f, total: &total}, nil
 	}}
-	return r.read(path), total
+	info = r.read(path)
+	return info, total
 }
 
 type countingFile struct {

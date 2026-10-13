@@ -152,8 +152,9 @@ func text(r gjson.Result) string {
 	switch r.Type {
 	case gjson.String, gjson.Number, gjson.True, gjson.False:
 		return Sanitize(r.String())
+	default:
+		return ""
 	}
-	return ""
 }
 
 // Sanitize drops control characters so a payload cannot inject terminal escapes.

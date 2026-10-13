@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/PaddleHQ/claude-statusline/internal/transcript"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/PaddleHQ/claude-statusline/internal/transcript"
 )
 
 const (
@@ -151,7 +151,8 @@ func TestReadActualModel(t *testing.T) {
 	t.Run("only the last 200 lines", func(t *testing.T) {
 		t.Parallel()
 		path := filepath.Join(t.TempDir(), "t.jsonl")
-		lines := []string{haiku}
+		lines := make([]string, 0, 201)
+		lines = append(lines, haiku)
 		for range 200 {
 			lines = append(lines, user)
 		}
@@ -248,7 +249,8 @@ func TestReadCostsLittleIO(t *testing.T) {
 
 	sub := filepath.Join(dir, "session", "subagents")
 	for i := range 30 {
-		lines := []string{user, bare}
+		lines := make([]string, 0, 50002)
+		lines = append(lines, user, bare)
 		for range 50000 {
 			lines = append(lines, filler(100))
 		}
@@ -281,7 +283,8 @@ func TestReadModelAcrossChunks(t *testing.T) {
 	haiku := strings.Replace(assistant, "opus-4-7", "haiku-4-5", 1)
 	path := filepath.Join(t.TempDir(), "t.jsonl")
 
-	lines := []string{haiku}
+	lines := make([]string, 0, 150)
+	lines = append(lines, haiku)
 	for range 149 {
 		lines = append(lines, filler(3000))
 	}
@@ -290,14 +293,16 @@ func TestReadModelAcrossChunks(t *testing.T) {
 	assert.Equal(t, "claude-haiku-4-5", got.ActualModel, "found 149 lines from the end, several chunks back")
 	assert.Less(t, read, int64(1<<20))
 
-	lines = []string{haiku}
+	lines = make([]string, 0, 201)
+	lines = append(lines, haiku)
 	for range 200 {
 		lines = append(lines, filler(3000))
 	}
 	write(t, path, lines...)
 	assert.Empty(t, transcript.Read(path).ActualModel, "the 201st line from the end is out of range")
 
-	lines = []string{assistant}
+	lines = make([]string, 0, 6)
+	lines = append(lines, assistant)
 	for range 5 {
 		lines = append(lines, filler(100000))
 	}
