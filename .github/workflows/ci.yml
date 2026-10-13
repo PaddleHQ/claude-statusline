@@ -15,6 +15,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Install shellcheck
+        env:
+          SHELLCHECK_VERSION: v0.11.0
+          SHELLCHECK_SHA256: b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6
+        run: |
+          curl -fsSL -o shellcheck.tar.gz "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.gz"
+          echo "${SHELLCHECK_SHA256}  shellcheck.tar.gz" | sha256sum -c -
+          tar -xzf shellcheck.tar.gz
+          echo "$PWD/shellcheck-${SHELLCHECK_VERSION}" >> "$GITHUB_PATH"
+      - run: shellcheck --version
       - run: shellcheck -s sh -x statusline.sh segments/*.sh themes/*.sh tests/*.sh
 
   test:
