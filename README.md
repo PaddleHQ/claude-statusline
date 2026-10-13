@@ -6,7 +6,18 @@ It is at a very early stage: for now it prints only the model name, for example 
 
 ## Install
 
-### From a release
+### As a Claude Code plugin
+
+```text
+/plugin marketplace add PaddleHQ/claude-statusline
+/plugin install statusline@claude-statusline
+```
+
+On your next session start, a hook downloads the pinned release for your platform, checks its sha256 against the hashes committed in this repository, and installs it to `~/.claude/claude-statusline/bin`. It sets `statusLine` in `settings.json` only if you do not already have one, backing the file up first, and never touches it again. Once the right version is installed, later sessions make no network requests. Without `jq` the hook cannot edit `settings.json` and tells you what to add instead.
+
+### Manual install
+
+#### From a release
 
 Each [release](https://github.com/PaddleHQ/claude-statusline/releases) has a binary for macOS and Linux on arm64 and amd64, plus `checksums.txt`, an SBOM per archive and a GitHub build provenance attestation. Set the version and your platform, then download, verify and install:
 
@@ -27,7 +38,7 @@ tar -xzf "$ARCHIVE" -C ~/.local/bin claude-statusline
 
 `shasum` checks the archive against the published checksums. `gh attestation verify` proves it was built by this repository's release workflow.
 
-### With Go
+#### With Go
 
 ```sh
 go install github.com/PaddleHQ/claude-statusline@latest
@@ -35,7 +46,7 @@ go install github.com/PaddleHQ/claude-statusline@latest
 
 This builds from source into `$(go env GOPATH)/bin`.
 
-### Configure Claude Code
+#### Configure Claude Code
 
 Add this to `~/.claude/settings.json`, using the path you installed to:
 
@@ -58,7 +69,13 @@ go test ./...
 golangci-lint run
 ```
 
+Shell scripts are checked with `shellcheck -s sh hooks/bootstrap.sh scripts/pin-release.sh tests/bootstrap_test.sh` and tested with `sh tests/bootstrap_test.sh`.
+
 Every pull request needs exactly one of the labels `norelease`, `release:major`, `release:minor` or `release:patch`. Merging a `release:*` pull request tags the next semantic version and publishes the release binaries.
+
+### Pinning a release for the plugin
+
+The plugin installs the version recorded in `release/version`, not the latest release. After a release is published, run `scripts/pin-release.sh <version>` (for example `0.1.0`, without the leading `v`). It needs `gh`, verifies the build attestation and checksum of all four archives, and only then writes `release/version` and `release/checksums.txt`. Commit both files in a pull request. Until it merges, the plugin keeps installing the previous pin. While `release/version` is empty, the hook does nothing.
 
 ## Licence
 
