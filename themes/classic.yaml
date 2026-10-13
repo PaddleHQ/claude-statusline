@@ -1,8 +1,8 @@
 # classic: the built-in theme. Basic ANSI colors and a bold default-foreground
 # marker read well on light and dark terminals.
 #
-# A theme file uses this same format. Every field is optional when you
-# start from another theme with `extends`; unknown keys make the theme invalid.
+# A theme file uses this same format. Every field below is required, so copy a
+# built-in theme and edit it. Unknown keys make the theme invalid.
 
 # Color roles. Each value is space-separated tokens: bold, dim, italic,
 # underline, a color name (black, red, green, yellow, blue, magenta, cyan,
@@ -22,7 +22,7 @@ bar:
   # by position, with the pace color on the percentage (see gradient.yaml).
   style: solid
   full: "█"
-  # Seven partial-cell glyphs, from one eighth to seven eighths (solid only).
+  # Seven partial-cell glyphs, from one eighth to seven eighths.
   partials: ["▏", "▎", "▍", "▌", "▋", "▊", "▉"]
   empty: "░"
   marker: "┃"

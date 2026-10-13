@@ -2,7 +2,6 @@ package theme
 
 import (
 	"bytes"
-	"embed"
 	"errors"
 	"fmt"
 	"io"
@@ -11,14 +10,13 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/PaddleHQ/claude-statusline/themes"
+
 	"go.yaml.in/yaml/v3"
 )
 
-//go:embed themes/*.yaml
-var builtins embed.FS
-
 var (
-	errExtendsItself     = errors.New("extends itself")
+	errMissing           = errors.New("is required")
 	errNoHome            = errors.New("no home directory")
 	errNoBase            = errors.New("relative theme path without a base directory")
 	errTooLarge          = errors.New("too large")
@@ -41,9 +39,8 @@ const (
 )
 
 type spec struct {
-	Extends string      `yaml:"extends"`
-	Colors  *colorsSpec `yaml:"colors"`
-	Bar     *barSpec    `yaml:"bar"`
+	Colors *colorsSpec `yaml:"colors"`
+	Bar    *barSpec    `yaml:"bar"`
 }
 
 type colorsSpec struct {
@@ -80,9 +77,15 @@ func Load(value, home, base string) Theme {
 
 // Open is Load without the fallback: it reports why a theme could not be used.
 func Open(value, home, base string) (Theme, error) {
-	s, err := resolve(value, home, base, map[string]bool{})
+	data, id, err := read(value, home, base)
 	if err != nil {
 		return Theme{}, err
+	}
+	var s spec
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	if err := dec.Decode(&s); err != nil && !errors.Is(err, io.EOF) {
+		return Theme{}, fmt.Errorf("theme %q: %w", id, err)
 	}
 	return s.compile()
 }
@@ -91,53 +94,27 @@ func isPath(value string) bool {
 	return strings.Contains(value, "/") || strings.HasPrefix(value, "~")
 }
 
-func resolve(value, home, base string, seen map[string]bool) (spec, error) {
-	data, id, dir, err := read(value, home, base)
-	if err != nil {
-		return spec{}, err
-	}
-	if seen[id] {
-		return spec{}, fmt.Errorf("theme %q %w", id, errExtendsItself)
-	}
-	seen[id] = true
-
-	var s spec
-	dec := yaml.NewDecoder(bytes.NewReader(data))
-	dec.KnownFields(true)
-	if err := dec.Decode(&s); err != nil && !errors.Is(err, io.EOF) {
-		return spec{}, fmt.Errorf("theme %q: %w", id, err)
-	}
-	if s.Extends == "" {
-		return s, nil
-	}
-	parent, err := resolve(s.Extends, home, dir, seen)
-	if err != nil {
-		return spec{}, err
-	}
-	return parent.overlay(s), nil
-}
-
-func read(value, home, base string) (data []byte, id, dir string, err error) {
+func read(value, home, base string) (data []byte, id string, err error) {
 	if !isPath(value) {
 		name := value
 		if name == legacyName {
 			name = fallbackName
 		}
-		data, err = builtins.ReadFile("themes/" + name + ".yaml")
+		data, err = themes.FS.ReadFile(name + ".yaml")
 		if err != nil {
-			return nil, "", "", fmt.Errorf("read built-in theme %q: %w", name, err)
+			return nil, "", fmt.Errorf("read built-in theme %q: %w", name, err)
 		}
-		return data, "builtin:" + name, "", nil
+		return data, name, nil
 	}
 	path, err := themePath(value, home, base)
 	if err != nil {
-		return nil, "", "", err
+		return nil, "", err
 	}
 	data, err = readLimited(path)
 	if err != nil {
-		return nil, "", "", err
+		return nil, "", err
 	}
-	return data, path, filepath.Dir(path), nil
+	return data, path, nil
 }
 
 func themePath(value, home, base string) (string, error) {
@@ -173,122 +150,68 @@ func readLimited(path string) ([]byte, error) {
 	return data, nil
 }
 
-func pick[T any](child, parent *T) *T {
-	if child != nil {
-		return child
-	}
-	return parent
-}
-
-func pickList(child, parent []string) []string {
-	if child != nil {
-		return child
-	}
-	return parent
-}
-
-// overlay returns s with every field the child sets taking precedence.
-func (s *spec) overlay(child spec) spec {
-	var c, pc colorsSpec
-	if s.Colors != nil {
-		pc = *s.Colors
-	}
-	if child.Colors != nil {
-		c = *child.Colors
-	}
-	var b, pb barSpec
-	if s.Bar != nil {
-		pb = *s.Bar
-	}
-	if child.Bar != nil {
-		b = *child.Bar
-	}
-	return spec{
-		Colors: &colorsSpec{
-			Text:   pick(c.Text, pc.Text),
-			Muted:  pick(c.Muted, pc.Muted),
-			Good:   pick(c.Good, pc.Good),
-			Warn:   pick(c.Warn, pc.Warn),
-			Bad:    pick(c.Bad, pc.Bad),
-			Marker: pick(c.Marker, pc.Marker),
-			Path:   pick(c.Path, pc.Path),
-		},
-		Bar: &barSpec{
-			Style:       pick(b.Style, pb.Style),
-			Full:        pick(b.Full, pb.Full),
-			Partials:    pickList(b.Partials, pb.Partials),
-			Empty:       pick(b.Empty, pb.Empty),
-			Marker:      pick(b.Marker, pb.Marker),
-			Ramp:        pickList(b.Ramp, pb.Ramp),
-			EmptyColor:  pick(b.EmptyColor, pb.EmptyColor),
-			MarkerColor: pick(b.MarkerColor, pb.MarkerColor),
-		},
-	}
-}
-
 func (s *spec) compile() (Theme, error) {
+	if s.Colors == nil {
+		return Theme{}, fmt.Errorf("colors %w", errMissing)
+	}
+	if s.Bar == nil {
+		return Theme{}, fmt.Errorf("bar %w", errMissing)
+	}
 	t := Theme{Reset: resetSeq}
-	c := deref(s.Colors)
-	b := deref(s.Bar)
-
-	if err := t.compileColors(c, b); err != nil {
+	if err := t.compileColors(*s.Colors, *s.Bar); err != nil {
 		return Theme{}, err
 	}
-	if err := t.compileGlyphs(b); err != nil {
+	if err := t.compileGlyphs(*s.Bar); err != nil {
 		return Theme{}, err
 	}
-	if err := t.compilePartials(b.Partials); err != nil {
+	if err := t.compilePartials(s.Bar.Partials); err != nil {
 		return Theme{}, err
 	}
-	if err := t.compileStyle(b); err != nil {
+	if err := t.compileStyle(*s.Bar); err != nil {
 		return Theme{}, err
 	}
 	return t, nil
 }
 
-func deref[T any](p *T) T {
-	var zero T
-	if p == nil {
-		return zero
-	}
-	return *p
-}
-
 func (t *Theme) compileStyle(b barSpec) error {
-	style := styleSolid
-	if b.Style != nil {
-		style = *b.Style
+	if b.Style == nil {
+		return fmt.Errorf("bar.style %w", errMissing)
 	}
-	switch style {
+	switch *b.Style {
 	case styleSolid:
 		if len(b.Partials) == 0 {
 			return fmt.Errorf("%w %d glyphs", errPartialsCount, partialCount)
 		}
+		return nil
 	case styleGrad:
 		return t.compileRamp(b.Ramp)
 	default:
-		return fmt.Errorf("bar.style %q is %w", style, errStyle)
+		return fmt.Errorf("bar.style %q is %w", *b.Style, errStyle)
 	}
-	return nil
 }
 
 func (t *Theme) compileColors(c colorsSpec, b barSpec) error {
 	for _, f := range []struct {
-		dst *string
-		src *string
+		dst      *string
+		src      *string
+		name     string
+		optional bool
 	}{
-		{&t.Text, c.Text},
-		{&t.Muted, c.Muted},
-		{&t.Good, c.Good},
-		{&t.Warn, c.Warn},
-		{&t.Bad, c.Bad},
-		{&t.Marker, c.Marker},
-		{&t.Path, c.Path},
-		{&t.EmptyColor, b.EmptyColor},
-		{&t.MarkerColor, b.MarkerColor},
+		{&t.Text, c.Text, "colors.text", false},
+		{&t.Muted, c.Muted, "colors.muted", false},
+		{&t.Good, c.Good, "colors.good", false},
+		{&t.Warn, c.Warn, "colors.warn", false},
+		{&t.Bad, c.Bad, "colors.bad", false},
+		{&t.Marker, c.Marker, "colors.marker", false},
+		{&t.Path, c.Path, "colors.path", false},
+		{&t.EmptyColor, b.EmptyColor, "bar.empty_color", true},
+		{&t.MarkerColor, b.MarkerColor, "bar.marker_color", true},
 	} {
 		if f.src == nil {
-			continue
+			if f.optional {
+				continue
+			}
+			return fmt.Errorf("%s %w", f.name, errMissing)
 		}
 		seq, err := ParseColor(*f.src)
 		if err != nil {

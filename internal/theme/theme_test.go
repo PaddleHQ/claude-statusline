@@ -1,12 +1,14 @@
 package theme_test
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
+	"github.com/PaddleHQ/claude-statusline/themes"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,8 +46,8 @@ func TestLoadGradient(t *testing.T) {
 	assert.Equal(t, "▰", got.Full)
 	assert.Equal(t, "▱", got.Empty)
 	assert.Equal(t, "/", got.MarkerGlyph)
-	assert.Equal(t, classic.Path, got.Path, "colors come from classic")
-	assert.Equal(t, classic.Partials, got.Partials)
+	assert.Equal(t, classic.Path, got.Path)
+	assert.Equal(t, [7]string{}, got.Partials, "a gradient file has no partials")
 }
 
 func TestLoadDefaultAlias(t *testing.T) {
@@ -79,6 +81,7 @@ colors:
   marker: underline
   path: italic blue
 bar:
+  style: solid
   full: "#"
   partials: ["1", "2", "3", "4", "5", "6", "7"]
   empty: "."
@@ -104,64 +107,31 @@ bar:
 	}
 }
 
-func TestExtends(t *testing.T) {
-	t.Parallel()
-
-	dir := t.TempDir()
-	writeTheme(t, dir, "one.yaml", "extends: classic\ncolors:\n  good: cyan\n")
-	writeTheme(t, dir, "two.yaml", "extends: ./one.yaml\ncolors:\n  warn: magenta\nbar:\n  empty: \"-\"\n")
-	writeTheme(t, dir, "grad.yaml", "extends: gradient\ncolors:\n  text: bold\n")
-	writeTheme(t, dir, "back.yaml", "extends: gradient\nbar:\n  style: solid\n")
-	writeTheme(t, dir, "clear.yaml", "extends: classic\ncolors:\n  muted: \"\"\n")
-	classic := theme.Load("classic", "", "")
-
-	t.Run("one level overrides only what it sets", func(t *testing.T) {
-		t.Parallel()
-		got, err := theme.Open("./one.yaml", "", dir)
-		require.NoError(t, err)
-		want := classic
-		want.Good = "\033[36m"
-		assert.Equal(t, want, got)
-	})
-	t.Run("a chain applies each level in turn", func(t *testing.T) {
-		t.Parallel()
-		got, err := theme.Open("./two.yaml", "", dir)
-		require.NoError(t, err)
-		assert.Equal(t, "\033[36m", got.Good)
-		assert.Equal(t, "\033[35m", got.Warn)
-		assert.Equal(t, "-", got.Empty)
-		assert.Equal(t, classic.Bad, got.Bad)
-	})
-	t.Run("a built-in gradient can be extended", func(t *testing.T) {
-		t.Parallel()
-		got, err := theme.Open("./grad.yaml", "", dir)
-		require.NoError(t, err)
-		assert.True(t, got.Gradient)
-		assert.Equal(t, "\033[1m", got.Text)
-	})
-	t.Run("a child can switch a gradient back to solid", func(t *testing.T) {
-		t.Parallel()
-		got, err := theme.Open("./back.yaml", "", dir)
-		require.NoError(t, err)
-		assert.False(t, got.Gradient)
-		assert.Equal(t, "▱", got.Empty)
-		assert.Equal(t, classic.Partials, got.Partials)
-	})
-	t.Run("an empty string clears an inherited color", func(t *testing.T) {
-		t.Parallel()
-		got, err := theme.Open("./clear.yaml", "", dir)
-		require.NoError(t, err)
-		assert.Empty(t, got.Muted)
-	})
-}
+const validTheme = `
+colors:
+  text: ""
+  muted: dim
+  good: green
+  warn: yellow
+  bad: red
+  marker: bold
+  path: bold 33
+bar:
+  style: solid
+  full: "#"
+  partials: ["1", "2", "3", "4", "5", "6", "7"]
+  empty: "."
+  marker: "|"
+`
 
 func TestInvalidThemesFallBack(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	writeTheme(t, dir, "loop-a.yaml", "extends: ./loop-b.yaml\n")
-	writeTheme(t, dir, "loop-b.yaml", "extends: ./loop-a.yaml\n")
-	writeTheme(t, dir, "self.yaml", "extends: ./self.yaml\n")
+	broken := func(old, replacement string) string {
+		require.Contains(t, validTheme, old)
+		return strings.Replace(validTheme, old, replacement, 1)
+	}
 	tests := []struct {
 		name  string
 		value string
@@ -173,23 +143,25 @@ func TestInvalidThemesFallBack(t *testing.T) {
 		{"a directory", dir, ""},
 		{"relative path with no base", "x/y.yaml", ""},
 		{"tilde with no home", "~/x.yaml", ""},
-		{"extends loop", filepath.Join(dir, "loop-a.yaml"), ""},
-		{"extends itself", filepath.Join(dir, "self.yaml"), ""},
 		{"invalid YAML", "", "colors: [unclosed"},
-		{"unknown top-level key", "", "colors:\n  good: green\n"},
-		{"unknown nested key", "", "extends: classic\ncolors:\n  goood: green\n"},
-		{"bad color spec", "", "extends: classic\ncolors:\n  good: chartreuse\n"},
-		{"color out of range", "", "extends: classic\ncolors:\n  good: 256\n"},
-		{"short hex", "", "extends: classic\ncolors:\n  good: \"#fff\"\n"},
-		{"two colors", "", "extends: classic\ncolors:\n  good: red blue\n"},
-		{"unknown extends", "", "extends: nope\n"},
-		{"unknown style", "", "extends: classic\nbar:\n  style: rainbow\n"},
-		{"empty glyph", "", "extends: classic\nbar:\n  full: \"\"\n"},
-		{"control character in a glyph", "", "extends: classic\nbar:\n  full: \"\\e[0m\"\n"},
-		{"wrong number of partials", "", "extends: classic\nbar:\n  partials: [\"a\"]\n"},
-		{"gradient without a ramp", "", "extends: classic\nbar:\n  style: gradient\n"},
-		{"bad ramp stop", "", "extends: gradient\nbar:\n  ramp: [\"#000000\", \"red\", \"#ffffff\"]\n"},
-		{"standalone theme without glyphs", "", "colors:\n  good: green\n"},
+		{"unknown top-level key", "", "unknown: key\n" + validTheme},
+		{"unknown nested key", "", broken("good: green", "goood: green")},
+		{"bad color spec", "", broken("good: green", "good: chartreuse")},
+		{"color out of range", "", broken("good: green", "good: 256")},
+		{"short hex", "", broken("good: green", "good: \"#fff\"")},
+		{"two colors", "", broken("good: green", "good: red blue")},
+		{"missing color", "", broken("  good: green\n", "")},
+		{"missing colors section", "", "bar:\n  style: solid\n"},
+		{"missing bar section", "", "colors:\n  good: green\n"},
+		{"missing style", "", broken("  style: solid\n", "")},
+		{"unknown style", "", broken("style: solid", "style: rainbow")},
+		{"missing glyph", "", broken("  full: \"#\"\n", "")},
+		{"empty glyph", "", broken("full: \"#\"", "full: \"\"")},
+		{"control character in a glyph", "", broken("full: \"#\"", "full: \"\\e[0m\"")},
+		{"solid without partials", "", broken("  partials: [\"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\"]\n", "")},
+		{"wrong number of partials", "", broken("partials: [\"1\", ", "partials: [")},
+		{"gradient without a ramp", "", broken("style: solid", "style: gradient")},
+		{"bad ramp stop", "", broken("style: solid", "style: gradient\n  ramp: [\"#000000\", \"red\", \"#ffffff\"]")},
 		{"empty file", "", ""},
 	}
 	classic := theme.Load("classic", "", "")
@@ -205,6 +177,17 @@ func TestInvalidThemesFallBack(t *testing.T) {
 			assert.Equal(t, classic, theme.Load(value, "", ""))
 		})
 	}
+}
+
+func TestOpenCompleteGradientFile(t *testing.T) {
+	t.Parallel()
+
+	noPartials := "  partials: [\"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\"]\n"
+	text := strings.Replace(strings.Replace(validTheme, noPartials, "", 1), "style: solid", "style: gradient\n  ramp: [\"#000000\", \"#808080\", \"#ffffff\"]", 1)
+	got, err := theme.Open(writeTheme(t, t.TempDir(), "g.yaml", text), "", "")
+	require.NoError(t, err)
+	assert.True(t, got.Gradient)
+	assert.Equal(t, [][3]int{{0, 0, 0}, {128, 128, 128}, {255, 255, 255}}, got.Ramp)
 }
 
 func TestParseColor(t *testing.T) {
@@ -317,7 +300,7 @@ func TestPaint(t *testing.T) {
 func TestEveryBuiltinLoads(t *testing.T) {
 	t.Parallel()
 
-	files, err := filepath.Glob(filepath.Join("themes", "*.yaml"))
+	files, err := fs.Glob(themes.FS, "*.yaml")
 	require.NoError(t, err)
 	require.NotEmpty(t, files)
 	for _, file := range files {

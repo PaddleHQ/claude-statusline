@@ -1,1 +1,1 @@
-claude-statusline/ocean.yaml=colors:\n  good: cyan\n  muted: bright-black\nbar:\n  full: "#"\n  empty: "."\n  marker: "|"\n  partials: ["1", "2", "3", "4", "5", "6", "7"]
+claude-statusline/ocean.yaml=colors:\n  text: ""\n  muted: bright-black\n  good: cyan\n  warn: ""\n  bad: ""\n  marker: ""\n  path: ""\nbar:\n  style: solid\n  full: "#"\n  empty: "."\n  marker: "|"\n  partials: ["1", "2", "3", "4", "5", "6", "7"]

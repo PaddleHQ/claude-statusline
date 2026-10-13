@@ -1,1 +1,1 @@
-bad.yaml=extends: gradient\ncolours:\n  good: red
+bad.yaml=colours:\n  text: ""\n  muted: dim\n  good: green\n  warn: yellow\n  bad: red\n  marker: bold\n  path: bold 33\nbar:\n  style: gradient\n  full: "▰"\n  partials: ["▏", "▎", "▍", "▌", "▋", "▊", "▉"]\n  empty: "▱"\n  marker: "/"\n  ramp: ["#94e2ad", "#f9e2af", "#f38ba8"]

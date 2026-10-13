@@ -1,2 +1,0 @@
-a.yaml=extends: gradient\nbar:\n  full: "="
-b.yaml=extends: ./a.yaml\nbar:\n  empty: "_"
