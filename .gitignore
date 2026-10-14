@@ -1,2 +1,5 @@
 /claude-statusline
 dist/
+covdata/
+cover.out
+cover.filtered.out
