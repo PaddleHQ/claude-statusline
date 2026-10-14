@@ -1,0 +1,12 @@
+path.branch = false hides the branch even inside a git repository
+-- input.json --
+{"cwd":"@TMP@/repo"}
+-- config --
+segments = path
+path.branch = false
+-- env --
+NO_COLOR=1
+-- tree --
+repo/.git/HEAD=ref: refs/heads/main
+-- output --
+~/repo

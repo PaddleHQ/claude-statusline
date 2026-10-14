@@ -1,0 +1,7 @@
+model.effort = false hides the effort level after the model name
+-- input.json --
+{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"session_id":"abc123"}
+-- config --
+model.effort = false
+-- output --
+Opus 4.7

@@ -1,2 +1,0 @@
-theme = @TMP@/claude-statusline/ocean.yaml
-segments = rate5h

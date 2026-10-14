@@ -1,0 +1,12 @@
+The branch is found by walking up from a nested working directory to the repository's .git
+-- input.json --
+{"cwd":"@TMP@/repo/pkg/sub"}
+-- config --
+segments = path
+-- env --
+NO_COLOR=1
+-- tree --
+repo/.git/HEAD=ref: refs/heads/main
+repo/pkg/sub/
+-- output --
+~/repo/pkg/sub (main)

@@ -1,0 +1,7 @@
+A healthy 80% cache hit rate is shown without colour
+-- input.json --
+{"context_window":{"current_usage":{"input_tokens":10,"cache_creation_input_tokens":10,"cache_read_input_tokens":80}}}
+-- config --
+segments = cache
+-- output --
+⧉ 80%

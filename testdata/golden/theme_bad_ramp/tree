@@ -1,1 +1,0 @@
-bad.yaml=colors:\n  text: ""\n  muted: dim\n  good: green\n  warn: yellow\n  bad: red\n  marker: bold\n  path: bold 33\nbar:\n  style: gradient\n  full: "▰"\n  partials: ["▏", "▎", "▍", "▌", "▋", "▊", "▉"]\n  empty: "▱"\n  marker: "/"\n  ramp: ["#fff", "#000000", "#000000"]

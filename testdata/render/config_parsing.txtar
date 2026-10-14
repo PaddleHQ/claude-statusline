@@ -1,0 +1,16 @@
+Config parsing skips comments, blank lines, junk and unknown keys, ignores spacing around =, and lets the last duplicate win
+-- input.json --
+{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"session_id":"abc123"}
+-- config --
+# a comment
+
+   separator   =   |
+segments=model model
+model.effort = true
+model.effort = false
+model.effort = true
+model.label = ignored
+not a setting line
+unknown.key = 1
+-- output --
+Opus 4.7 [high] \e[2m|\e[0m Opus 4.7 [high]

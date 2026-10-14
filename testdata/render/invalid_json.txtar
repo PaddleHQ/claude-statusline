@@ -1,0 +1,4 @@
+Invalid JSON input prints nothing
+-- input.json --
+{"model":
+-- output --

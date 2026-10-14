@@ -1,0 +1,7 @@
+NO_COLOR removes every colour from agent rows
+-- input.json --
+{"tasks":[{"id":"t1","name":"reviewer","type":"local_agent","description":"Plain text only","model":"claude-sonnet-4-5","effort":"high","contextWindowSize":200000,"tokenCount":150000}]}
+-- env --
+NO_COLOR=1
+-- output --
+"t1"	reviewer · sonnet-4-5 [high] · ctx: ███████▌░░ 75% · 150.0k · Plain text only

@@ -1,0 +1,8 @@
+The ctx segment is hidden when the payload has no used percentage
+-- input.json --
+{"context_window":{"total_input_tokens":5}}
+-- config --
+segments = ctx
+-- env --
+NO_COLOR=1
+-- output --

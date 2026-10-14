@@ -1,12 +1,11 @@
-// Command screenshots regenerates the images under docs/images from the fixtures in testdata/screenshots.
+// Command screenshots turns the status line's terminal output into SVG images for the documentation.
+// It regenerates the images under docs/images from the fixtures in testdata/screenshots.
 // Run it from the repository root: go run ./tools/screenshots.
 package main
 
 import (
 	"fmt"
 	"os"
-
-	"github.com/PaddleHQ/claude-statusline/internal/screenshot"
 )
 
 const (
@@ -15,21 +14,21 @@ const (
 )
 
 func main() {
-	if err := run(); err != nil {
+	if err := generateAll(); err != nil {
 		fmt.Fprintln(os.Stderr, "screenshots:", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
+func generateAll() error {
 	if _, err := os.Stat(fixtures); err != nil {
 		return fmt.Errorf("%s not found; run this from the repository root: %w", fixtures, err)
 	}
-	images, err := screenshot.Generate(fixtures)
+	images, err := Generate(fixtures)
 	if err != nil {
 		return fmt.Errorf("generate: %w", err)
 	}
-	if err := screenshot.Write(outputDir, images); err != nil {
+	if err := Write(outputDir, images); err != nil {
 		return fmt.Errorf("write: %w", err)
 	}
 	_, _ = fmt.Fprintf(os.Stdout, "wrote %d images to %s\n", len(images), outputDir)

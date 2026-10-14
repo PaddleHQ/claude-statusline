@@ -1,0 +1,5 @@
+A payload without an effort level shows just the model name
+-- input.json --
+{"model":{"display_name":"Sonnet 5.5"},"session_id":"abc123"}
+-- output --
+Sonnet 5.5

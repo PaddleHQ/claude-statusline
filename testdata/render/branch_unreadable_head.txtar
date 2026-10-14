@@ -1,0 +1,11 @@
+A .git directory with no readable HEAD file shows the path without a branch
+-- input.json --
+{"cwd":"@TMP@/repo"}
+-- config --
+segments = path
+-- env --
+NO_COLOR=1
+-- tree --
+repo/.git/config=x
+-- output --
+~/repo

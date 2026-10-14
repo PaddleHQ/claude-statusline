@@ -1,0 +1,7 @@
+The path segment is drawn in bold blue
+-- input.json --
+{"cwd":"@TMP@/work/app"}
+-- config --
+segments = path
+-- output --
+\e[1m\e[38;5;33m~/work/app\e[0m

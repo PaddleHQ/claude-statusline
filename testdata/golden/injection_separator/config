@@ -1,2 +1,0 @@
-segments = model model
-separator = $(touch @TMP@/pwned)

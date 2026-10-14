@@ -1,0 +1,10 @@
+A theme file that is not valid YAML is rejected and the built-in theme is used
+-- input.json --
+{"rate_limits":{"five_hour":{"used_percentage":60,"resets_at":1760009000}},"session_id":"abc123"}
+-- config --
+theme = ~/bad.yaml
+segments = rate5h
+-- tree --
+bad.yaml=colors: [unclosed
+-- output --
+5h: \e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[1m┃\e[0m\e[32m█\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m 60%

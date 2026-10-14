@@ -1,0 +1,12 @@
+A linked worktree, where .git is a file pointing at the real git directory, still shows its branch
+-- input.json --
+{"cwd":"@TMP@/wt"}
+-- config --
+segments = path
+-- env --
+NO_COLOR=1
+-- tree --
+wt/.git=gitdir: ../main/.git/worktrees/wt
+main/.git/worktrees/wt/HEAD=ref: refs/heads/topic
+-- output --
+~/wt (topic)

@@ -1,0 +1,10 @@
+The gradient theme's context bar at 100 columns
+-- input.json --
+{"context_window":{"used_percentage":71}}
+-- config --
+theme = gradient
+segments = ctx
+-- env --
+COLUMNS=100
+-- output --
+ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;188;226;173m▰\e[0m\e[38;2;228;226;174m▰\e[0m\e[38;2;248;209;174m▰\e[0m\e[38;2;74;74;74m▱\e[0m\e[38;2;74;74;74m▱\e[0m \e[33m71%\e[0m

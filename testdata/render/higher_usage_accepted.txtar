@@ -1,0 +1,9 @@
+A higher usage reading replaces the cached one and is written back to the cache
+-- input.json --
+{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"rate_limits":{"five_hour":{"used_percentage":55,"resets_at":1760009000},"seven_day":{"used_percentage":40,"resets_at":1760302400}},"session_id":"abc123"}
+-- cache --
+{"five_hour":{"used":45,"resets_at":1760009000},"seven_day":{"used":40,"resets_at":1760302400}}
+-- expected_cache --
+{"five_hour":{"used":55,"resets_at":1760009000},"seven_day":{"used":40,"resets_at":1760302400}}
+-- output --
+Opus 4.7 [high] \e[2m·\e[0m 5h: \e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[1m┃\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m 55% \e[2m·\e[0m 7d: \e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[1m┃\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m 40%

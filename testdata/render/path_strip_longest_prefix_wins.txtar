@@ -1,0 +1,10 @@
+When several path.strip prefixes match, the longest one is removed
+-- input.json --
+{"cwd":"@TMP@/code/team/app"}
+-- config --
+segments = path
+path.strip = ~/code ~/code/team /srv
+-- env --
+NO_COLOR=1
+-- output --
+app

@@ -33,10 +33,10 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `internal/setup` | Adds `statusLine` and `subagentStatusLine` to `settings.json` once, backing the file up first. |
 | `hooks/` | The plugin's `SessionStart` hook: `hooks.json` and `bootstrap.sh`, which installs the latest release. |
 | `tests/` | Shell tests for the bootstrap hook. |
-| `internal/screenshot` | Renders the status line's output to SVG images for the documentation. |
-| `tools/screenshots` | The command that regenerates the documentation images. |
+| `internal/rendertest` | Loads the txtar files the render tests and the image generator read. |
+| `tools/screenshots` | The command that regenerates the documentation images: it runs each fixture through the status line and draws the output as SVG. It is one `main` package with its own tests. |
 | `docs/` | The user documentation, and the generated images in `docs/images/`. |
-| `testdata/` | Golden fixtures for the end-to-end tests, and the fixtures the documentation images are made from. |
+| `testdata/` | The render test cases for the end-to-end tests, and the fixtures the documentation images are made from. |
 | `.claude-plugin/` | The plugin and marketplace manifests. |
 
 ## Verifying a change
@@ -61,31 +61,56 @@ The workflow files in `.github/workflows/` are the source of truth if this list 
 
 Tests use [testify](https://github.com/stretchr/testify): `require` when the rest of the test cannot continue, `assert` otherwise. Test files live in external `_test` packages, so they exercise the public surface the way a caller would. Where a test needs to reach something unexported, the package has an `export_test.go` that exposes it to tests only, so production code gains no public API for the sake of testing.
 
-### Golden fixtures
+### Render tests
 
-Most behaviour is pinned by golden fixtures. Each case is a directory holding the input and the exact output expected.
+Most behaviour is pinned by render tests. Each case is one [txtar](https://pkg.go.dev/golang.org/x/tools/txtar) file: a one-line description, then named sections holding the input and the exact output expected. This one is `testdata/render/branch_worktree_file.txtar`:
 
-`testdata/golden/<case>/` is run through the status line by `golden_test.go`:
+```txtar
+A linked worktree, where .git is a file pointing at the real git directory, still shows its branch
+-- input.json --
+{"cwd":"@TMP@/wt"}
+-- config --
+segments = path
+-- env --
+NO_COLOR=1
+-- tree --
+wt/.git=gitdir: ../main/.git/worktrees/wt
+main/.git/worktrees/wt/HEAD=ref: refs/heads/topic
+-- output --
+~/wt (topic)
+```
 
-| File | Required | Purpose |
+`testdata/render/<case>.txtar` is run through the status line by `render_test.go` (`TestRender`), and the subtest is named after the file without `.txtar`. The text before the first section is the description of what the case shows; write one for every case. The sections are:
+
+| Section | Required | Purpose |
 |---|---|---|
 | `input.json` | yes | The session JSON Claude Code would send. |
-| `expected` | yes | The exact output. |
+| `output` | yes | The exact output. |
 | `config` | no | Written as the user's config file. |
 | `env` | no | `KEY=value` lines added to the environment; lines starting with `#` are ignored. |
 | `cache` | no | Seeds the rate-limit cache before the run. |
-| `expected_cache` | no | The rate-limit cache contents expected after the run. |
+| `expected_cache` | no | The rate-limit cache contents expected after the run, compared ignoring surrounding whitespace. |
 | `tree` | no | Files to create in the temporary directory before the run, one `path=content` per line. A path ending in `/` makes a directory, a leading `+x ` makes the file executable (which custom segment scripts need) and `\n` in content is a newline. |
 
-In `expected`, escape bytes are written as `\e`. `@TMP@` stands for the case's temporary directory in `input.json`, `config`, `tree` and `expected`. The run fixes the time (`STATUSLINE_NOW`) and a 200 column terminal unless the case's `env` says otherwise.
+In `output`, escape bytes are written as `\e`. `@TMP@` stands for the case's temporary directory in `input.json`, `config`, `tree` and `output`. The run fixes the time (`STATUSLINE_NOW`), a 200 column terminal and a 30 second hook timeout unless the case's `env` says otherwise.
 
-`testdata/golden-subagent/<case>/` is the same idea for the `subagent` command. It takes `input.json`, `expected`, and optionally `config` and `env`. Each expected row is the task id, a tab, then the row content with escapes written as `\e`.
+A txtar section always ends in a newline, so the runner removes exactly one trailing newline from `output` (and from `expected_cache`, which is then compared without surrounding whitespace) before comparing. Everything else in `output` is compared exactly, including any further trailing newlines. An empty output is an empty section.
 
-Tests must never touch your real Claude Code state. The golden runners point `HOME` and `CLAUDE_CONFIG_DIR` at a temporary directory, and any test you add should do the same. When you run the binary by hand, do the same:
+`testdata/subagent/<case>.txtar` is the same idea for the `subagent` command, run by `TestRenderSubagent`. It takes `input.json`, `output`, and optionally `config` and `env`. Each output row is the task id, a tab, then the row content with escapes written as `\e`.
+
+When you change what the line looks like on purpose, rewrite the expected output instead of editing it by hand:
+
+```sh
+go test -run TestRender -update
+```
+
+`-update` rewrites only the `output` and `expected_cache` sections from the current code. The description and every other section stay as they are, and a case that already passes is not touched, so `git diff` shows exactly which outputs changed. Read that diff before you commit it. CI never passes `-update`.
+
+Tests must never touch your real Claude Code state. The render runners point `HOME` and `CLAUDE_CONFIG_DIR` at a temporary directory, and any test you add should do the same. When you run the binary by hand, do the same:
 
 ```sh
 tmp=$(mktemp -d)
-HOME="$tmp" CLAUDE_CONFIG_DIR="$tmp" go run . < testdata/golden/default_all/input.json
+echo '{"model":{"display_name":"Opus 4.7"}}' | HOME="$tmp" CLAUDE_CONFIG_DIR="$tmp" go run .
 ```
 
 ## Conventions
@@ -96,14 +121,14 @@ Every key the code reads must appear in `internal/config/defaults.conf` with a o
 
 ### Adding a built-in theme
 
-Built-in themes are YAML files in the top-level `themes/` directory, embedded in the binary by `themes/themes.go`; the file name without `.yaml` is the name users put in `theme`. Write one in the format the Themes section of [`docs/customising.md`](docs/customising.md) describes, with comments, since the files double as examples. Every theme is a complete, standalone file, so start by copying `themes/classic.yaml` or `themes/gradient.yaml`. Parsing is strict (unknown keys are an error), so a typo fails the tests rather than shipping. Add a test in `internal/theme` for what is new, and a golden case under `testdata/golden/` that selects the theme in its `config`. Mention the theme in the Themes section of `docs/customising.md`. Keep the loader's fallback to `classic` silent: a status line never prints an error.
+Built-in themes are YAML files in the top-level `themes/` directory, embedded in the binary by `themes/themes.go`; the file name without `.yaml` is the name users put in `theme`. Write one in the format the Themes section of [`docs/customising.md`](docs/customising.md) describes, with comments, since the files double as examples. Every theme is a complete, standalone file, so start by copying `themes/classic.yaml` or `themes/gradient.yaml`. Parsing is strict (unknown keys are an error), so a typo fails the tests rather than shipping. Add a test in `internal/theme` for what is new, and a render test case under `testdata/render/` that selects the theme in its `config`. Mention the theme in the Themes section of `docs/customising.md`. Keep the loader's fallback to `classic` silent: a status line never prints an error.
 
 ### Adding a segment
 
 1. Write a type that satisfies the `Segment` interface in `internal/segment`: a name, the layout group it belongs to when the line wraps, the config keys it reads, and a `Render` that returns an empty string when it has nothing to show. A segment that only reads the transcript is simpler as an entry in the `diagnostics` list in `diagnostics.go`.
 2. Register it in the `registry` map in `internal/segment/segment.go`.
 3. Add its keys to `defaults.conf`, and add its name to the default `segments` list if it should show by default.
-4. Cover it with a unit test and at least one golden case, including the case where its data is missing.
+4. Cover it with a unit test and at least one render test case, including the case where its data is missing.
 5. Document it in `docs/customising.md`, in the table of keys and the section that fits.
 
 A segment should be hidden, not wrong, when its data is missing.
@@ -114,7 +139,7 @@ Scripts in the hook directory are user code, so their output is treated as untru
 
 ### Documentation images
 
-The pictures of the status line in the README and `docs/` are generated, not drawn. Each one comes from a fixture directory under `testdata/screenshots/<name>/`, which follows the same conventions as `testdata/golden` (`input.json`, and optionally `config`, `env` and `tree`; the run fixes the time and a 200 column terminal unless `env` says otherwise). A file named `command` containing `subagent` renders the agent panel rows instead of the status line. The generator runs the real status line against the fixture and writes `docs/images/<name>-dark.svg` and `docs/images/<name>-light.svg`, which the docs embed with a `<picture>` element so GitHub shows the one that matches the reader's theme.
+The pictures of the status line in the README and `docs/` are generated, not drawn. Each one comes from a txtar file, `testdata/screenshots/<name>.txtar`, which follows the same conventions as the render tests (an `input.json` section, and optionally `config`, `env` and `tree`, with the description before the first section; the run fixes the time and a 200 column terminal unless `env` says otherwise). It needs no `output`, because the image is the output. A `command` section containing `subagent` renders the agent panel rows instead of the status line. The generator runs the real status line against the fixture and writes `docs/images/<name>-dark.svg` and `docs/images/<name>-light.svg`, which the docs embed with a `<picture>` element so GitHub shows the one that matches the reader's theme.
 
 After changing a fixture, or anything that changes what the line looks like, regenerate the images from the repository root and commit the result:
 

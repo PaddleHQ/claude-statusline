@@ -1,0 +1,10 @@
+A theme path starting with ~ is resolved against the home directory
+-- input.json --
+{"rate_limits":{"five_hour":{"used_percentage":60,"resets_at":1760009000}},"session_id":"abc123"}
+-- config --
+theme = ~/mine/ocean.yaml
+segments = rate5h
+-- tree --
+mine/ocean.yaml=colors:\n  text: ""\n  muted: bright-black\n  good: cyan\n  warn: ""\n  bad: ""\n  marker: ""\n  path: ""\nbar:\n  style: solid\n  full: "#"\n  empty: "."\n  marker: "|"\n  partials: ["1", "2", "3", "4", "5", "6", "7"]
+-- output --
+5h: \e[36m#\e[0m\e[36m#\e[0m\e[36m#\e[0m\e[36m#\e[0m\e[36m#\e[0m\e[36m#\e[0m\e[36m#\e[0m\e[36m#\e[0m\e[36m#\e[0m\e[36m#\e[0m|\e[36m#\e[0m\e[90m.\e[0m\e[90m.\e[0m\e[90m.\e[0m\e[90m.\e[0m\e[90m.\e[0m\e[90m.\e[0m\e[90m.\e[0m\e[90m.\e[0m 60%

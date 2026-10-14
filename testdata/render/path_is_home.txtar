@@ -1,0 +1,9 @@
+The home directory itself is shown as ~
+-- input.json --
+{"cwd":"@TMP@"}
+-- config --
+segments = path
+-- env --
+NO_COLOR=1
+-- output --
+~

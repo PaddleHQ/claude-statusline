@@ -1,0 +1,8 @@
+A theme file that does not exist falls back to the built-in theme
+-- input.json --
+{"rate_limits":{"five_hour":{"used_percentage":60,"resets_at":1760009000}},"session_id":"abc123"}
+-- config --
+theme = ~/nope.yaml
+segments = rate5h
+-- output --
+5h: \e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[1m┃\e[0m\e[32m█\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m 60%

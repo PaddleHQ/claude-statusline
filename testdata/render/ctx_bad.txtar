@@ -1,0 +1,7 @@
+Context use of 90% is drawn in red
+-- input.json --
+{"context_window":{"used_percentage":90}}
+-- config --
+segments = ctx
+-- output --
+ctx: \e[31m█\e[0m\e[31m█\e[0m\e[31m█\e[0m\e[31m█\e[0m\e[31m█\e[0m\e[31m█\e[0m\e[31m█\e[0m\e[31m█\e[0m\e[31m█\e[0m\e[2m░\e[0m 90%

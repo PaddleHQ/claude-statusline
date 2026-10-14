@@ -1,0 +1,7 @@
+Rows omit the token count or the context bar when the data for them is missing or zero
+-- input.json --
+{"tasks":[{"id":"t1","name":"a","type":"local_agent","description":"No token count","model":"claude-opus-4-7","effort":"high"},{"id":"t2","name":"b","type":"local_agent","model":"claude-opus-4-7","tokenCount":4200},{"id":"t3","name":"c","type":"local_agent","description":"Zero window","model":"claude-opus-4-7","contextWindowSize":0,"tokenCount":4200}]}
+-- output --
+"t1"	\e[1ma\e[0m \e[2m·\e[0m opus-4-7\e[2m [high]\e[0m \e[2m·\e[0m \e[2mNo token count\e[0m
+"t2"	\e[1mb\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m 4.2k
+"t3"	\e[1mc\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m 4.2k \e[2m·\e[0m \e[2mZero window\e[0m

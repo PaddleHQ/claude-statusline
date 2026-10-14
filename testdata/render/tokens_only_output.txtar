@@ -1,0 +1,9 @@
+A payload with only an output token count still shows the tokens segment
+-- input.json --
+{"context_window":{"total_output_tokens":0}}
+-- config --
+segments = tokens
+-- env --
+NO_COLOR=1
+-- output --
+↑ 0

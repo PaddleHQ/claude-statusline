@@ -1,0 +1,9 @@
+An empty NO_COLOR variable does not disable colour; only a non-empty value does
+-- input.json --
+{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"session_id":"abc123"}
+-- config --
+segments = model model
+-- env --
+NO_COLOR=
+-- output --
+Opus 4.7 [high] \e[2m·\e[0m Opus 4.7 [high]

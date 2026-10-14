@@ -1,0 +1,7 @@
+An unknown name in the segments list is dropped and the rest are shown
+-- input.json --
+{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"session_id":"abc123"}
+-- config --
+segments = bogus model
+-- output --
+Opus 4.7 [high]

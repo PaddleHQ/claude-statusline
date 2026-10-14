@@ -1,0 +1,10 @@
+The status line with a custom segment script that prints a red backup warning, for the customising guide
+-- input.json --
+{"session_id":"demo","model":{"id":"claude-opus-4-7","display_name":"Opus 4.7"},"effort":{"level":"high"},"workspace":{"current_dir":"@TMP@/code/app"},"context_window":{"used_percentage":42.4,"total_input_tokens":1500,"total_output_tokens":23400,"current_usage":{"input_tokens":2000,"cache_creation_input_tokens":1000,"cache_read_input_tokens":17000}},"rate_limits":{"five_hour":{"used_percentage":45.4,"resets_at":1760009000},"seven_day":{"used_percentage":62,"resets_at":1760302400}}}
+-- config --
+segments = path model ctx tokens cache rate5h rate7d
+-- env --
+COLUMNS=200
+-- tree --
+code/app/.git/HEAD=ref: refs/heads/feature/retry-backoff
++x statusline.d/10-backup.sh=#!/bin/sh\n# statusline-ttl: 300\nprintf '\033[31m⚠ backup stale\033[0m'

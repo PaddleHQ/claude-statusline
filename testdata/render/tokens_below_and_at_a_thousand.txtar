@@ -1,0 +1,9 @@
+Token counts below a thousand are shown as they are, and exactly a thousand becomes 1.0k
+-- input.json --
+{"context_window":{"total_input_tokens":999,"total_output_tokens":1000}}
+-- config --
+segments = tokens
+-- env --
+NO_COLOR=1
+-- output --
+↓ 999 · ↑ 1.0k

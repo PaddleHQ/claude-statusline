@@ -7,6 +7,7 @@ require (
 	github.com/tidwall/gjson v1.20.0
 	github.com/tidwall/pretty v1.2.0
 	go.yaml.in/yaml/v3 v3.0.5
+	golang.org/x/tools v0.52.0
 )
 
 require github.com/tidwall/match v1.1.1 // indirect

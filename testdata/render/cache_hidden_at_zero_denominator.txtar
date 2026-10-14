@@ -1,0 +1,8 @@
+The cache segment is hidden when the token counts add up to zero, so there is no rate to compute
+-- input.json --
+{"context_window":{"current_usage":{"input_tokens":0,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}
+-- config --
+segments = cache
+-- env --
+NO_COLOR=1
+-- output --

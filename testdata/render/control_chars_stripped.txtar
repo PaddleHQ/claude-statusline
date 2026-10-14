@@ -1,0 +1,5 @@
+Control characters in the model name from the payload are stripped before display
+-- input.json --
+{"model":{"display_name":"Op\u001b[31mus"},"session_id":"abc123"}
+-- output --
+Op[31mus

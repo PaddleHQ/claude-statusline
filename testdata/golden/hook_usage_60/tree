@@ -1,1 +1,0 @@
-+x statusline.d/20-usagehook.sh=#!/bin/sh\n# statusline-slot: usage\nprintf '\033[32musage-hook\033[0m'

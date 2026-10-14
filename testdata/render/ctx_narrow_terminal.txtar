@@ -1,0 +1,10 @@
+At 100 columns the context bar is narrower and a fractional percentage is rounded
+-- input.json --
+{"context_window":{"used_percentage":64.6}}
+-- config --
+segments = ctx
+-- env --
+COLUMNS=100
+NO_COLOR=1
+-- output --
+ctx: ███▉░░ 65%

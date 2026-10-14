@@ -1,0 +1,4 @@
+Invalid JSON input prints no rows
+-- input.json --
+{"tasks":[
+-- output --

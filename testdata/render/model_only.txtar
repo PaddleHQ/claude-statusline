@@ -1,0 +1,5 @@
+A payload with only a model name shows just that
+-- input.json --
+{"model":{"display_name":"Opus 4.7"},"session_id":"abc123"}
+-- output --
+Opus 4.7

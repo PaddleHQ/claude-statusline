@@ -1,0 +1,10 @@
+path.strip removes the first listed prefix that matches
+-- input.json --
+{"cwd":"@TMP@/code/team/app"}
+-- config --
+segments = path
+path.strip = ~/projects ~/code
+-- env --
+NO_COLOR=1
+-- output --
+team/app

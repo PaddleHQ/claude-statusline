@@ -1,0 +1,4 @@
+A payload with no tasks key prints no rows
+-- input.json --
+{"session_id":"s"}
+-- output --

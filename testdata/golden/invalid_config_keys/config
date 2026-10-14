@@ -1,9 +1,0 @@
-model.effort.x = false
-Model.effort = false
-model-effort = false
-model..effort = false
-.effort = false
-model. = false
-segments.x = nothing
-separator = ok
-segments = model model

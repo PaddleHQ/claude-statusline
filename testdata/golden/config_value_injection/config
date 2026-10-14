@@ -1,4 +1,0 @@
-segments = model model
-separator = "; touch @TMP@/pwned; " `touch @TMP@/pwned`
-unused.key = "; touch @TMP@/pwned; " `touch @TMP@/pwned` $(touch @TMP@/pwned)
-model.effort = $(touch @TMP@/pwned)\

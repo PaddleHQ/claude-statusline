@@ -1,1 +1,0 @@
-+x statusline.d/30-endhook.sh=#!/bin/sh\n# statusline-slot: end\nprintf 'end-hook'

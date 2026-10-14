@@ -1,0 +1,9 @@
+Token counts in the millions are shown with an M suffix
+-- input.json --
+{"context_window":{"total_input_tokens":1000000,"total_output_tokens":1500000}}
+-- config --
+segments = tokens
+-- env --
+NO_COLOR=1
+-- output --
+↓ 1.0M · ↑ 1.5M

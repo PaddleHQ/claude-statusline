@@ -1,0 +1,7 @@
+A cache hit rate of 3% is shown in red
+-- input.json --
+{"context_window":{"current_usage":{"input_tokens":50,"cache_creation_input_tokens":50,"cache_read_input_tokens":4}}}
+-- config --
+segments = cache
+-- output --
+\e[31m⧉ 3%\e[0m
