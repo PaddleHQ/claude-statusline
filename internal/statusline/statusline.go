@@ -12,7 +12,9 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/render"
 	"github.com/PaddleHQ/claude-statusline/internal/snapshot"
+	"github.com/PaddleHQ/claude-statusline/internal/subagent"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
+	"github.com/PaddleHQ/claude-statusline/internal/transcript"
 	"github.com/PaddleHQ/claude-statusline/segments"
 )
 
@@ -31,7 +33,7 @@ func Keys() []string {
 			keys = append(keys, seg.Name()+"."+k)
 		}
 	}
-	return keys
+	return append(keys, subagent.Keys()...)
 }
 
 // Build renders the line. It reads the user's config and the clock and width overrides via getenv.
@@ -59,6 +61,9 @@ func Build(input []byte, getenv func(string) string) string {
 		Now:     at,
 		Columns: columns(getenv),
 		Home:    getenv("HOME"),
+		Transcript: func() transcript.Info {
+			return transcript.Read(p.TranscriptPath)
+		},
 		RateLimits: func() ratecache.Limits {
 			synced := ratecache.NewCache(cachePath(getenv)).Sync(ratecache.FromPayload(p.RateLimits))
 			return synced.Visible(at.Unix())

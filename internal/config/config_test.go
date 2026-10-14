@@ -16,7 +16,7 @@ func TestDefaultsParse(t *testing.T) {
 	t.Parallel()
 
 	c := config.New("")
-	assert.Equal(t, "path model ctx tokens cache rate5h rate7d", c.String("segments"))
+	assert.Equal(t, "path model ctx tokens cache boot skills skills_stripped agent_skills mem rate5h rate7d", c.String("segments"))
 	assert.Equal(t, "·", c.String("separator"))
 	assert.Equal(t, "classic", c.String("theme"))
 }

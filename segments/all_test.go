@@ -14,6 +14,7 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/render"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
+	"github.com/PaddleHQ/claude-statusline/internal/transcript"
 	"github.com/PaddleHQ/claude-statusline/segments"
 
 	"github.com/stretchr/testify/assert"
@@ -42,7 +43,7 @@ func TestEveryRegisteredNameIsUniqueAndFindable(t *testing.T) {
 		require.True(t, ok, seg.Name())
 		assert.Equal(t, seg.Name(), found.Name())
 	}
-	assert.Len(t, seen, 7)
+	assert.Len(t, seen, 12)
 	_, _, ok := env.Lookup("bogus")
 	assert.False(t, ok)
 }
@@ -51,13 +52,10 @@ func TestLayoutGroups(t *testing.T) {
 	t.Parallel()
 
 	want := map[string]layout.Group{
-		"path":   layout.Identity,
-		"model":  layout.Identity,
-		"ctx":    layout.Identity,
-		"tokens": layout.Usage,
-		"cache":  layout.Usage,
-		"rate5h": layout.Rates,
-		"rate7d": layout.Rates,
+		"path": layout.Identity, "model": layout.Identity, "ctx": layout.Identity,
+		"tokens": layout.Usage, "cache": layout.Usage,
+		"boot": layout.Usage, "skills": layout.Usage, "skills_stripped": layout.Usage, "agent_skills": layout.Usage, "mem": layout.Usage,
+		"rate5h": layout.Rates, "rate7d": layout.Rates,
 	}
 	env := newEnv("", `{}`)
 	for name, group := range want {
@@ -86,29 +84,39 @@ func TestPathBranchIsSanitized(t *testing.T) {
 func TestLazyDependencies(t *testing.T) {
 	t.Parallel()
 
-	const bare = `{"model":{"display_name":"Opus"}}`
+	const (
+		bare     = `{"model":{"display_name":"Opus"}}`
+		withPath = `{"model":{"display_name":"Opus"},"transcript_path":"/t.jsonl"}`
+	)
 	tests := []struct {
-		name      string
-		cfg       string
-		wantRates int
+		name           string
+		cfg            string
+		payload        string
+		wantTranscript int
+		wantRates      int
 	}{
-		{"segments that need no rate cache never trigger it", "segments = path model ctx tokens cache", 0},
-		{"a rate bar syncs the cache", "segments = rate5h rate7d", 1},
-		{"unlisted segments are never asked", "segments = path", 0},
+		{"model without a transcript asks for neither", "segments = model", bare, 0, 0},
+		{"model with a transcript reads it but never the rate cache", "segments = model", withPath, 1, 0},
+		{"model twice still reads the transcript once", "segments = model model", withPath, 1, 0},
+		{"segments that need neither never trigger either", "segments = path tokens cache ctx", withPath, 0, 0},
+		{"a rate bar syncs the cache and does not read the transcript", "segments = rate5h rate7d", withPath, 0, 1},
+		{"a diagnostic reads the transcript and does not sync the cache", "segments = boot mem", withPath, 1, 0},
+		{"unlisted segments are never asked", "segments = path", withPath, 0, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			var rateSyncs int
+			var transcriptReads, rateSyncs int
 			cfg := config.New(tt.cfg, segments.Defaults()...)
 			env := segments.NewEnv(segments.Env{
-				Payload:    payload.Parse([]byte(bare)),
+				Payload:    payload.Parse([]byte(tt.payload)),
 				Config:     cfg,
 				Theme:      theme.Load("classic", "", ""),
+				Transcript: func() transcript.Info { transcriptReads++; return transcript.Info{} },
 				RateLimits: func() ratecache.Limits { rateSyncs++; return ratecache.Limits{} },
 			})
 			env.All()
-			require.Zero(t, rateSyncs, "building the segments asks for nothing")
+			require.Zero(t, transcriptReads+rateSyncs, "building the segments asks for nothing")
 			line := &render.Line{
 				Names: strings.Fields(cfg.String("segments")),
 				Lookup: func(name string) (render.Segment, layout.Group, bool) {
@@ -121,6 +129,7 @@ func TestLazyDependencies(t *testing.T) {
 				Separator: env.Separator(),
 			}
 			line.Render()
+			assert.Equal(t, tt.wantTranscript, transcriptReads, "transcript reads")
 			assert.Equal(t, tt.wantRates, rateSyncs, "rate cache syncs")
 		})
 	}

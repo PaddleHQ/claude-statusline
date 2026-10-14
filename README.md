@@ -48,9 +48,15 @@ Then add this to `~/.claude/settings.json`, using the path you installed to:
     "type": "command",
     "command": "~/.local/bin/claude-statusline",
     "refreshInterval": 60
+  },
+  "subagentStatusLine": {
+    "type": "command",
+    "command": "~/.local/bin/claude-statusline subagent"
   }
 }
 ```
+
+`subagentStatusLine` is optional; it styles the rows of Claude Code's agent panel.
 
 Run `claude-statusline --version` to print the installed version.
 
