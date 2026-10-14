@@ -237,3 +237,19 @@ func TestVisibleHidesAWindowThatHasReset(t *testing.T) {
 	assert.Nil(t, got.FiveHour, "the five hour window reset 100 seconds ago")
 	assert.Equal(t, r(40, 1760302400), got.SevenDay)
 }
+
+func TestLimitsReadings(t *testing.T) {
+	t.Parallel()
+
+	l := ratecache.Limits{FiveHour: r(45, 9000)}
+	used, resets, ok := l.FiveHourReading()
+	assert.True(t, ok)
+	assert.Equal(t, []int64{45, 9000}, []int64{used, resets})
+	_, _, ok = l.SevenDayReading()
+	assert.False(t, ok)
+
+	l = ratecache.Limits{SevenDay: r(10, 20)}
+	used, resets, ok = l.SevenDayReading()
+	assert.True(t, ok)
+	assert.Equal(t, []int64{10, 20}, []int64{used, resets})
+}

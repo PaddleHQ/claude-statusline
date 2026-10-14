@@ -40,7 +40,7 @@ func TestWidthFor(t *testing.T) {
 
 // markers uses plain letters so cells can be counted without escape codes.
 var markers = theme.Theme{
-	Good: "<g>", Warn: "<w>", Bad: "<b>", Marker: "<m>", Muted: "<d>", Reset: "</>",
+	Good: "<g>", WarnColor: "<w>", BadColor: "<b>", Marker: "<m>", Muted: "<d>", Reset: "</>",
 	Full: "F", Partials: [7]string{"1", "2", "3", "4", "5", "6", "7"}, Empty: "E", MarkerGlyph: "M",
 }
 
@@ -114,7 +114,7 @@ func TestRenderGradient(t *testing.T) {
 	t.Parallel()
 
 	th := theme.Theme{
-		Good: "<g>", Warn: "<w>", Bad: "<b>", Reset: "</>",
+		Good: "<g>", WarnColor: "<w>", BadColor: "<b>", Reset: "</>",
 		Full: "F", Empty: "E", MarkerGlyph: "M",
 		Gradient: true, Ramp: [][3]int{{0, 0, 0}, {100, 100, 100}, {200, 200, 200}},
 		EmptyColor: "<e>", MarkerColor: "<m>",
@@ -200,12 +200,12 @@ func TestFillAgainstThePaceAtTheDefaultThresholds(t *testing.T) {
 	}{
 		{"60% with half the window elapsed is green", 60, 50, classic.Good},
 		{"exactly the warn deviation is still green", 70, 50, classic.Good},
-		{"75% with half the window elapsed is amber", 75, 50, classic.Warn},
-		{"exactly the bad deviation is still amber", 90, 50, classic.Warn},
-		{"92% with half the window elapsed is red", 92, 50, classic.Bad},
-		{"5% with half the window elapsed, far behind the pace, is red", 5, 50, classic.Bad},
-		{"96% is red from the hard cap even on the pace", 96, 96, classic.Bad},
-		{"96% a quarter of the window ahead of the pace is red", 96, 5, classic.Bad},
+		{"75% with half the window elapsed is amber", 75, 50, classic.WarnColor},
+		{"exactly the bad deviation is still amber", 90, 50, classic.WarnColor},
+		{"92% with half the window elapsed is red", 92, 50, classic.BadColor},
+		{"5% with half the window elapsed, far behind the pace, is red", 5, 50, classic.BadColor},
+		{"96% is red from the hard cap even on the pace", 96, 96, classic.BadColor},
+		{"96% a quarter of the window ahead of the pace is red", 96, 5, classic.BadColor},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -226,13 +226,46 @@ func TestFillByUsageAtTheDefaultContextThresholds(t *testing.T) {
 	}{
 		{30, classic.Good},
 		{49, classic.Good},
-		{50, classic.Warn},
-		{89, classic.Warn},
-		{90, classic.Bad},
-		{125, classic.Bad},
+		{50, classic.WarnColor},
+		{89, classic.WarnColor},
+		{90, classic.BadColor},
+		{125, classic.BadColor},
 	}
 	for _, tt := range tests {
 		p := &bar.Params{Usage: tt.usage, Width: 10, Warn: 50, Bad: 90, NoTarget: true}
 		assert.Equal(t, tt.want, p.Fill(classic), "usage %d", tt.usage)
 	}
+}
+
+func TestMeterDrawsTheBarAndItsPercentage(t *testing.T) {
+	t.Parallel()
+
+	classic := theme.Load("classic", "", "")
+	m := &bar.Meter{Theme: classic, Width: 10}
+
+	usage := &bar.Params{Usage: 85, Width: 10, Warn: 70, Bad: 90, NoTarget: true}
+	assert.Equal(t, usage.Render(classic)+" 85%", m.Usage(85, 70, 90), "a solid theme leaves the percentage uncolored")
+
+	pace := &bar.Params{Usage: 60, Target: 50, Width: 10, Warn: 20, Bad: 40, HardCap: 95}
+	assert.Equal(t, pace.Render(classic)+" 60%", m.Pace(60, 50, 20, 40, 95))
+}
+
+func TestMeterColorsThePercentageByStateOnAGradientTheme(t *testing.T) {
+	t.Parallel()
+
+	gradient := theme.Load("gradient", "", "")
+	params := &bar.Params{Usage: 95, Width: 4, Warn: 70, Bad: 90, NoTarget: true}
+
+	m := &bar.Meter{Theme: gradient, Width: 4}
+	assert.Equal(t, params.Render(gradient)+" "+gradient.BadColor+"95%"+gradient.Reset, m.Usage(95, 70, 90))
+}
+
+func TestMeterFillPercentColorsThePercentageWithTheFill(t *testing.T) {
+	t.Parallel()
+
+	classic := theme.Load("classic", "", "")
+	params := &bar.Params{Usage: 95, Width: 4, Warn: 70, Bad: 90, NoTarget: true}
+
+	m := &bar.Meter{Theme: classic, Width: 4, FillPercent: true}
+	assert.Equal(t, params.Render(classic)+" "+classic.BadColor+"95%"+classic.Reset, m.Usage(95, 70, 90))
 }

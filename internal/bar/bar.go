@@ -2,6 +2,7 @@
 package bar
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
@@ -56,18 +57,18 @@ func (p *Params) Fill(th theme.Theme) string {
 	if p.NoTarget {
 		switch {
 		case p.Usage >= p.Bad:
-			return th.Bad
+			return th.BadColor
 		case p.Usage >= p.Warn:
-			return th.Warn
+			return th.WarnColor
 		}
 		return th.Good
 	}
 	deviation := max(p.Usage-p.Target, p.Target-p.Usage)
 	switch {
 	case p.Usage >= p.HardCap || deviation > p.Bad:
-		return th.Bad
+		return th.BadColor
 	case deviation > p.Warn:
-		return th.Warn
+		return th.WarnColor
 	}
 	return th.Good
 }
@@ -159,4 +160,30 @@ func (r runs) paint(th theme.Theme) string {
 		b.WriteString(th.Paint(g.color, g.text.String()))
 	}
 	return b.String()
+}
+
+// Meter draws bars of one width in a theme, each followed by its percentage.
+type Meter struct {
+	Theme theme.Theme
+	Width int
+	// FillPercent colors the percentage with the fill's color even on a theme that colors its bar by position.
+	FillPercent bool
+}
+
+// Usage draws a bar with no pace marker; warn and bad are usage percentages at which the fill changes color.
+func (m *Meter) Usage(usage, warn, bad int) string {
+	return m.draw(&Params{Usage: usage, Width: m.Width, Warn: warn, Bad: bad, NoTarget: true})
+}
+
+// Pace draws a bar with a marker at the target; warn and bad are deviations from it, and the fill is bad from hardCap.
+func (m *Meter) Pace(usage, target, warn, bad, hardCap int) string {
+	return m.draw(&Params{Usage: usage, Target: target, Width: m.Width, Warn: warn, Bad: bad, HardCap: hardCap})
+}
+
+func (m *Meter) draw(params *Params) string {
+	color := params.PercentColor(m.Theme)
+	if m.FillPercent {
+		color = params.Fill(m.Theme)
+	}
+	return params.Render(m.Theme) + " " + m.Theme.Paint(color, strconv.Itoa(params.Usage)+"%")
 }

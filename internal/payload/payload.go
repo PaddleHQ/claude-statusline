@@ -92,6 +92,44 @@ func Parse(data []byte) Payload {
 	}
 }
 
+// DisplayName is the model's display name.
+func (p *Payload) DisplayName() string { return p.Model.DisplayName }
+
+// ModelID is the model's identifier.
+func (p *Payload) ModelID() string { return p.Model.ID }
+
+// EffortLevel is the session's reasoning effort.
+func (p *Payload) EffortLevel() string { return p.Effort.Level }
+
+// TranscriptFile is the path of the session transcript.
+func (p *Payload) TranscriptFile() string { return p.TranscriptPath }
+
+// WorkingDir is the session's working directory.
+func (p *Payload) WorkingDir() string { return p.Cwd }
+
+// LatestRequest is the token usage of the latest request.
+func (p *Payload) LatestRequest() (input, cacheCreation, cacheRead int64) {
+	u := p.ContextWindow.Current
+	return u.Input, u.CacheCreation, u.CacheRead
+}
+
+// TotalInput is the session's total input tokens; false means the payload did not report it.
+func (p *Payload) TotalInput() (int64, bool) { return reported(p.ContextWindow.TotalInput) }
+
+// TotalOutput is the session's total output tokens; false means the payload did not report it.
+func (p *Payload) TotalOutput() (int64, bool) { return reported(p.ContextWindow.TotalOutput) }
+
+// UsedPercentage is how full the context window is; false means the payload did not report it.
+func (p *Payload) UsedPercentage() (float64, bool) { return reported(p.ContextWindow.UsedPercentage) }
+
+func reported[T any](v *T) (T, bool) {
+	if v == nil {
+		var zero T
+		return zero, false
+	}
+	return *v, true
+}
+
 func sessionID(root gjson.Result) string {
 	id := root.Get("session_id")
 	if id.Type != gjson.String || id.String() == "" || strings.ContainsFunc(id.String(), unsafeInPath) {

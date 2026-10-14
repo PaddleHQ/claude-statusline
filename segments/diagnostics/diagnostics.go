@@ -12,13 +12,13 @@ type tokenFn = func(n int64) string
 
 // Transcript is what the segments need from the session transcript; every count is zero when the transcript has none.
 type Transcript interface {
-	Boot() int64
-	SkillsChars() int
-	SkillsBare() int
-	SkillsTotal() int
-	SubagentSkillsBare() int
-	SubagentSkillsTotal() int
-	MemDropped() bool
+	BootTokens() int64
+	SkillListChars() int
+	// SkillCounts is how many skills in the initial listing lost their description, and how many are listed.
+	SkillCounts() (bare, total int)
+	// SubagentSkillCounts is the same for the subagent with the most stripped skills.
+	SubagentSkillCounts() (bare, total int)
+	MemoryDropped() bool
 }
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Painter
@@ -55,31 +55,35 @@ func counts(bare, total int) string {
 
 var specs = []spec{
 	{"boot", "The prompt size on the first turn, before you said anything.", func(t Transcript, tokens tokenFn) string {
-		if t.Boot() <= 0 {
+		boot := t.BootTokens()
+		if boot <= 0 {
 			return ""
 		}
-		return "⌂ " + tokens(t.Boot())
+		return "⌂ " + tokens(boot)
 	}, text},
 	{"skills", "The size of the always-loaded skill listing, in tokens.", func(t Transcript, tokens tokenFn) string {
-		if t.SkillsChars() <= 0 {
+		chars := t.SkillListChars()
+		if chars <= 0 {
 			return ""
 		}
-		return "⚙ " + tokens(int64(t.SkillsChars()/charsPerToken))
+		return "⚙ " + tokens(int64(chars/charsPerToken))
 	}, text},
 	{"skills_stripped", "Red when skills lost their descriptions to fit the budget; shows how many.", func(t Transcript, _ tokenFn) string {
-		if t.SkillsBare() <= 0 {
+		bare, total := t.SkillCounts()
+		if bare <= 0 {
 			return ""
 		}
-		return "✗ skills " + counts(t.SkillsBare(), t.SkillsTotal())
+		return "✗ skills " + counts(bare, total)
 	}, bad},
 	{"agent_skills", "Amber when a subagent lost skill descriptions; shows how many.", func(t Transcript, _ tokenFn) string {
-		if t.SubagentSkillsBare() <= 0 {
+		bare, total := t.SubagentSkillCounts()
+		if bare <= 0 {
 			return ""
 		}
-		return "✗ agent skills " + counts(t.SubagentSkillsBare(), t.SubagentSkillsTotal())
+		return "✗ agent skills " + counts(bare, total)
 	}, warn},
 	{"mem", "Red when a SessionStart hook output was too large to inject.", func(t Transcript, _ tokenFn) string {
-		if !t.MemDropped() {
+		if !t.MemoryDropped() {
 			return ""
 		}
 		return "✗ mem"

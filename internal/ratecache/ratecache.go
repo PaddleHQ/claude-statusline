@@ -30,6 +30,19 @@ type Limits struct {
 	SevenDay *Reading `json:"seven_day,omitempty"`
 }
 
+// FiveHourReading is the five hour window's usage and reset time; false means there is no reading.
+func (l *Limits) FiveHourReading() (used, resetsAt int64, ok bool) { return l.FiveHour.values() }
+
+// SevenDayReading is the seven day window's usage and reset time; false means there is no reading.
+func (l *Limits) SevenDayReading() (used, resetsAt int64, ok bool) { return l.SevenDay.values() }
+
+func (r *Reading) values() (used, resetsAt int64, ok bool) {
+	if r == nil {
+		return 0, 0, false
+	}
+	return r.Used, r.ResetsAt, true
+}
+
 // FromPayload converts a payload's windows to whole-number readings. A window
 // missing either field, or out of range, has no reading.
 func FromPayload(r payload.RateLimits) Limits {

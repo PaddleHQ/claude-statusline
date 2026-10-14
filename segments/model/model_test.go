@@ -22,10 +22,10 @@ func build(t *testing.T, s session, effort bool, actual string) (seg *model.Mode
 	sess.EXPECT().DisplayName().Return(s.display).Maybe()
 	sess.EXPECT().ModelID().Return(s.id).Maybe()
 	sess.EXPECT().EffortLevel().Return(s.level).Maybe()
-	sess.EXPECT().TranscriptPath().Return(s.path).Maybe()
+	sess.EXPECT().TranscriptFile().Return(s.path).Maybe()
 
 	tr := mocks.NewTranscript(t)
-	tr.EXPECT().ActualModel().Return(actual).Maybe()
+	tr.EXPECT().LatestModel().Return(actual).Maybe()
 
 	cfg := mocks.NewConfig(t)
 	cfg.EXPECT().Bool("effort").Return(effort).Maybe()

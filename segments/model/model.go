@@ -1,7 +1,15 @@
 // Package model provides the model segment: the model's name, and its effort level.
 package model
 
-import "strings"
+import (
+	_ "embed"
+	"strings"
+)
+
+// Defaults is the text of the segment's defaults.conf, for layering under the user's config.
+//
+//go:embed defaults.conf
+var Defaults string
 
 const name = "model"
 
@@ -21,14 +29,14 @@ type Session interface {
 	DisplayName() string
 	ModelID() string
 	EffortLevel() string
-	TranscriptPath() string
+	TranscriptFile() string
 }
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Transcript
 
 // Transcript is what the segment needs from the session transcript.
 type Transcript interface {
-	ActualModel() string
+	LatestModel() string
 }
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Config
@@ -79,8 +87,8 @@ func (m *Model) Render() string {
 	display := m.d.Session.DisplayName()
 	level := m.d.Session.EffortLevel()
 	// A skill or subagent can run a different model than the session's, which the payload does not reflect.
-	if m.d.Session.TranscriptPath() != "" {
-		if actual, ok := family(m.d.Transcript().ActualModel()); ok {
+	if m.d.Session.TranscriptFile() != "" {
+		if actual, ok := family(m.d.Transcript().LatestModel()); ok {
 			if session, _ := family(m.d.Session.ModelID()); actual.key != session.key {
 				display, level = actual.label+" (skill)", ""
 			}

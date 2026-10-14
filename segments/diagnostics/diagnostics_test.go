@@ -24,13 +24,11 @@ func build(t *testing.T, name string, i info) (seg *diagnostics.Diagnostic, read
 	t.Helper()
 
 	tr := mocks.NewTranscript(t)
-	tr.EXPECT().Boot().Return(i.boot).Maybe()
-	tr.EXPECT().SkillsChars().Return(i.skillsChars).Maybe()
-	tr.EXPECT().SkillsBare().Return(i.skillsBare).Maybe()
-	tr.EXPECT().SkillsTotal().Return(i.skillsTotal).Maybe()
-	tr.EXPECT().SubagentSkillsBare().Return(i.subBare).Maybe()
-	tr.EXPECT().SubagentSkillsTotal().Return(i.subTotal).Maybe()
-	tr.EXPECT().MemDropped().Return(i.memDropped).Maybe()
+	tr.EXPECT().BootTokens().Return(i.boot).Maybe()
+	tr.EXPECT().SkillListChars().Return(i.skillsChars).Maybe()
+	tr.EXPECT().SkillCounts().Return(i.skillsBare, i.skillsTotal).Maybe()
+	tr.EXPECT().SubagentSkillCounts().Return(i.subBare, i.subTotal).Maybe()
+	tr.EXPECT().MemoryDropped().Return(i.memDropped).Maybe()
 
 	paint := mocks.NewPainter(t)
 	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + "</>" }).Maybe()

@@ -207,3 +207,39 @@ func TestSanitize(t *testing.T) {
 	assert.Equal(t, "a[31mb", payload.Sanitize("a\x1b[31mb\x00\n"))
 	assert.Equal(t, "é·", payload.Sanitize("é·"))
 }
+
+func TestSessionAccessors(t *testing.T) {
+	t.Parallel()
+
+	p := payload.Parse([]byte(`{"model":{"id":"m","display_name":"M"},"effort":{"level":"high"},"cwd":"/w","transcript_path":"/t",` +
+		`"context_window":{"used_percentage":42,"total_input_tokens":7,"total_output_tokens":0,` +
+		`"current_usage":{"input_tokens":1,"cache_creation_input_tokens":2,"cache_read_input_tokens":3}}}`))
+	assert.Equal(t, "M", p.DisplayName())
+	assert.Equal(t, "m", p.ModelID())
+	assert.Equal(t, "high", p.EffortLevel())
+	assert.Equal(t, "/w", p.WorkingDir())
+	assert.Equal(t, "/t", p.TranscriptFile())
+	input, creation, read := p.LatestRequest()
+	assert.Equal(t, []int64{1, 2, 3}, []int64{input, creation, read})
+	pct, ok := p.UsedPercentage()
+	assert.True(t, ok)
+	assert.InDelta(t, 42.0, pct, 0)
+	in, ok := p.TotalInput()
+	assert.True(t, ok)
+	assert.Equal(t, int64(7), in)
+	out, ok := p.TotalOutput()
+	assert.True(t, ok)
+	assert.Zero(t, out)
+}
+
+func TestSessionAccessorsReportWhatIsMissing(t *testing.T) {
+	t.Parallel()
+
+	p := payload.Parse([]byte(`{}`))
+	_, ok := p.UsedPercentage()
+	assert.False(t, ok)
+	_, ok = p.TotalInput()
+	assert.False(t, ok)
+	_, ok = p.TotalOutput()
+	assert.False(t, ok)
+}

@@ -31,7 +31,7 @@ func Help(getenv func(string) string) string {
 	}
 	th := theme.Load(cfg.String(keyTheme), getenv("HOME"), config.AppDir(getenv))
 	th = th.WithoutColor()
-	env := segments.NewEnv(&segments.Sources{Config: cfg, Theme: th, Home: getenv("HOME"), Columns: defaultColumns})
+	env := segments.NewEnv(segments.Env{Config: cfg, Theme: th, Home: getenv("HOME"), Columns: defaultColumns})
 
 	h := &helper{
 		env:   env,

@@ -16,14 +16,14 @@ const (
 // Theme holds role colors as raw escape sequences and the glyphs for bars.
 // An empty color means "leave the terminal's own".
 type Theme struct {
-	Text   string
-	Muted  string
-	Good   string
-	Warn   string
-	Bad    string
-	Marker string
-	Path   string
-	Reset  string
+	TextColor string
+	Muted     string
+	Good      string
+	WarnColor string
+	BadColor  string
+	Marker    string
+	PathColor string
+	Reset     string
 
 	Full        string
 	Partials    [7]string
@@ -42,7 +42,7 @@ type Theme struct {
 // WithoutColor clears every color and style, keeping the glyphs.
 func (t *Theme) WithoutColor() Theme {
 	c := *t
-	c.Text, c.Muted, c.Good, c.Warn, c.Bad, c.Marker, c.Path, c.Reset = "", "", "", "", "", "", "", ""
+	c.TextColor, c.Muted, c.Good, c.WarnColor, c.BadColor, c.Marker, c.PathColor, c.Reset = "", "", "", "", "", "", "", ""
 	c.Ramp, c.EmptyColor, c.MarkerColor = nil, "", ""
 	return c
 }
@@ -54,6 +54,18 @@ func (t *Theme) Paint(color, s string) string {
 	}
 	return color + s + t.Reset
 }
+
+// Text paints s in the text color.
+func (t *Theme) Text(s string) string { return t.Paint(t.TextColor, s) }
+
+// Warn paints s in the warning color.
+func (t *Theme) Warn(s string) string { return t.Paint(t.WarnColor, s) }
+
+// Bad paints s in the bad color.
+func (t *Theme) Bad(s string) string { return t.Paint(t.BadColor, s) }
+
+// Path paints s in the path color.
+func (t *Theme) Path(s string) string { return t.Paint(t.PathColor, s) }
 
 // RampColor is the escape sequence for a cell of a width-cell gradient bar, or
 // "" when the theme has no ramp. The first cell takes the good stop, the middle

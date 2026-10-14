@@ -65,3 +65,11 @@ func TestReadRejectsRelativeAndMissingDirectories(t *testing.T) {
 	assert.Empty(t, gitbranch.Read("relative/dir"))
 	assert.Empty(t, gitbranch.Read(filepath.Join(t.TempDir(), "does", "not", "exist")))
 }
+
+func TestReaderStripsControlCharacters(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	write(t, filepath.Join(dir, ".git", "HEAD"), "ref: refs/heads/a\x1b[31mb\n")
+	assert.Equal(t, "a[31mb", (&gitbranch.Reader{}).Branch(dir))
+}

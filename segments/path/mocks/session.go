@@ -17,12 +17,12 @@ func (_m *Session) EXPECT() *Session_Expecter {
 	return &Session_Expecter{mock: &_m.Mock}
 }
 
-// Cwd provides a mock function with no fields
-func (_m *Session) Cwd() string {
+// WorkingDir provides a mock function with no fields
+func (_m *Session) WorkingDir() string {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
-		panic("no return value specified for Cwd")
+		panic("no return value specified for WorkingDir")
 	}
 
 	var r0 string
@@ -35,29 +35,29 @@ func (_m *Session) Cwd() string {
 	return r0
 }
 
-// Session_Cwd_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Cwd'
-type Session_Cwd_Call struct {
+// Session_WorkingDir_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'WorkingDir'
+type Session_WorkingDir_Call struct {
 	*mock.Call
 }
 
-// Cwd is a helper method to define mock.On call
-func (_e *Session_Expecter) Cwd() *Session_Cwd_Call {
-	return &Session_Cwd_Call{Call: _e.mock.On("Cwd")}
+// WorkingDir is a helper method to define mock.On call
+func (_e *Session_Expecter) WorkingDir() *Session_WorkingDir_Call {
+	return &Session_WorkingDir_Call{Call: _e.mock.On("WorkingDir")}
 }
 
-func (_c *Session_Cwd_Call) Run(run func()) *Session_Cwd_Call {
+func (_c *Session_WorkingDir_Call) Run(run func()) *Session_WorkingDir_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run()
 	})
 	return _c
 }
 
-func (_c *Session_Cwd_Call) Return(_a0 string) *Session_Cwd_Call {
+func (_c *Session_WorkingDir_Call) Return(_a0 string) *Session_WorkingDir_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Session_Cwd_Call) RunAndReturn(run func() string) *Session_Cwd_Call {
+func (_c *Session_WorkingDir_Call) RunAndReturn(run func() string) *Session_WorkingDir_Call {
 	_c.Call.Return(run)
 	return _c
 }

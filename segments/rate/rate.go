@@ -2,9 +2,15 @@
 package rate
 
 import (
+	_ "embed"
 	"fmt"
 	"time"
 )
+
+// Defaults is the text of the segment's defaults.conf, for layering under the user's config.
+//
+//go:embed defaults.conf
+var Defaults string
 
 const (
 	fiveHour        = "rate5h"
@@ -14,18 +20,12 @@ const (
 	percentScale    = 100
 )
 
-// Reading is one window's usage percentage and the Unix time it resets.
-type Reading struct {
-	Used     int64
-	ResetsAt int64
-}
-
 //go:generate go run github.com/vektra/mockery/v2 --name=Limits
 
-// Limits holds the readings of both windows; false means there is none.
+// Limits holds the readings of both windows: the usage percentage and the Unix time the window resets, or false when there is none.
 type Limits interface {
-	FiveHour() (Reading, bool)
-	SevenDay() (Reading, bool)
+	FiveHourReading() (used, resetsAt int64, ok bool)
+	SevenDayReading() (used, resetsAt int64, ok bool)
 }
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Config
@@ -67,17 +67,17 @@ type Window struct {
 	name    string
 	window  string
 	seconds int64
-	reading func(Limits) (Reading, bool)
+	reading func(Limits) (used, resetsAt int64, ok bool)
 }
 
 // NewFiveHour builds the rate5h segment.
 func NewFiveHour(d Deps) *Window {
-	return &Window{d: d, name: fiveHour, window: "5 hour", seconds: fiveHourSeconds, reading: Limits.FiveHour}
+	return &Window{d: d, name: fiveHour, window: "5 hour", seconds: fiveHourSeconds, reading: Limits.FiveHourReading}
 }
 
 // NewSevenDay builds the rate7d segment.
 func NewSevenDay(d Deps) *Window {
-	return &Window{d: d, name: sevenDay, window: "7 day", seconds: sevenDaySeconds, reading: Limits.SevenDay}
+	return &Window{d: d, name: sevenDay, window: "7 day", seconds: sevenDaySeconds, reading: Limits.SevenDayReading}
 }
 
 // Name is the segment's name in the segments list.
@@ -98,13 +98,13 @@ func (w *Window) Keys() []string {
 
 // Render returns the segment's text, or "" to hide it.
 func (w *Window) Render() string {
-	reading, ok := w.reading(w.d.Limits())
+	used, resetsAt, ok := w.reading(w.d.Limits())
 	if !ok {
 		return ""
 	}
 	cfg := w.d.Config
-	target := elapsedPercent(w.d.Now.Unix(), reading.ResetsAt, w.seconds)
-	bar := w.d.Meter.Pace(int(reading.Used), target, cfg.Int("warn"), cfg.Int("bad"), cfg.Int("hard_cap"))
+	target := elapsedPercent(w.d.Now.Unix(), resetsAt, w.seconds)
+	bar := w.d.Meter.Pace(int(used), target, cfg.Int("warn"), cfg.Int("bad"), cfg.Int("hard_cap"))
 	return w.d.Paint.Text(cfg.String("label")+": ") + bar
 }
 

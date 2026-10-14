@@ -152,12 +152,12 @@ func (_c *Session_ModelID_Call) RunAndReturn(run func() string) *Session_ModelID
 	return _c
 }
 
-// TranscriptPath provides a mock function with no fields
-func (_m *Session) TranscriptPath() string {
+// TranscriptFile provides a mock function with no fields
+func (_m *Session) TranscriptFile() string {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
-		panic("no return value specified for TranscriptPath")
+		panic("no return value specified for TranscriptFile")
 	}
 
 	var r0 string
@@ -170,29 +170,29 @@ func (_m *Session) TranscriptPath() string {
 	return r0
 }
 
-// Session_TranscriptPath_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TranscriptPath'
-type Session_TranscriptPath_Call struct {
+// Session_TranscriptFile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TranscriptFile'
+type Session_TranscriptFile_Call struct {
 	*mock.Call
 }
 
-// TranscriptPath is a helper method to define mock.On call
-func (_e *Session_Expecter) TranscriptPath() *Session_TranscriptPath_Call {
-	return &Session_TranscriptPath_Call{Call: _e.mock.On("TranscriptPath")}
+// TranscriptFile is a helper method to define mock.On call
+func (_e *Session_Expecter) TranscriptFile() *Session_TranscriptFile_Call {
+	return &Session_TranscriptFile_Call{Call: _e.mock.On("TranscriptFile")}
 }
 
-func (_c *Session_TranscriptPath_Call) Run(run func()) *Session_TranscriptPath_Call {
+func (_c *Session_TranscriptFile_Call) Run(run func()) *Session_TranscriptFile_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run()
 	})
 	return _c
 }
 
-func (_c *Session_TranscriptPath_Call) Return(_a0 string) *Session_TranscriptPath_Call {
+func (_c *Session_TranscriptFile_Call) Return(_a0 string) *Session_TranscriptFile_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Session_TranscriptPath_Call) RunAndReturn(run func() string) *Session_TranscriptPath_Call {
+func (_c *Session_TranscriptFile_Call) RunAndReturn(run func() string) *Session_TranscriptFile_Call {
 	_c.Call.Return(run)
 	return _c
 }

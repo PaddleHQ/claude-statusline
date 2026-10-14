@@ -2,9 +2,15 @@
 package ctx
 
 import (
+	_ "embed"
 	"fmt"
 	"math"
 )
+
+// Defaults is the text of the segment's defaults.conf, for layering under the user's config.
+//
+//go:embed defaults.conf
+var Defaults string
 
 const name = "ctx"
 

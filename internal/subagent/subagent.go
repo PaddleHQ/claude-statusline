@@ -8,10 +8,13 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/PaddleHQ/claude-statusline/internal/bar"
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments"
+	"github.com/PaddleHQ/claude-statusline/segments/ctx"
+	"github.com/PaddleHQ/claude-statusline/segments/tokens"
 
 	"github.com/tidwall/gjson"
 )
@@ -64,7 +67,7 @@ func Build(input []byte, getenv func(string) string) string {
 	if c := root.Get("columns"); c.Type == gjson.Number && c.Num >= 0 && c.Num < maxPercent {
 		columns = int(c.Num)
 	}
-	r := &renderer{cfg: cfg, th: th, env: segments.NewEnv(&segments.Sources{Config: cfg, Theme: th, Columns: columns})}
+	r := &renderer{cfg: cfg, th: th, columns: columns}
 
 	var out bytes.Buffer
 	enc := json.NewEncoder(&out)
@@ -81,10 +84,15 @@ func Build(input []byte, getenv func(string) string) string {
 }
 
 type renderer struct {
-	cfg *config.Config
-	th  theme.Theme
-	env *segments.Env
+	cfg     *config.Config
+	th      theme.Theme
+	columns int
 }
+
+// reported is a context usage that is already known.
+type reported struct{ pct float64 }
+
+func (r *reported) UsedPercentage() (float64, bool) { return r.pct, true }
 
 func (r *renderer) content(task gjson.Result) string {
 	th := r.th
@@ -113,7 +121,7 @@ func (r *renderer) appendModel(parts []string, task gjson.Result) []string {
 		return parts
 	}
 	th := r.th
-	part := th.Paint(th.Text, shortModel(model.String()))
+	part := th.Paint(th.TextColor, shortModel(model.String()))
 	if effort := scalar(task.Get("effort")); effort != nil {
 		part += th.Paint(th.Muted, " ["+*effort+"]")
 	}
@@ -128,7 +136,7 @@ func (r *renderer) appendTokens(parts []string, task gjson.Result) []string {
 	if window, ok := number(task.Get("contextWindowSize")); ok && window > 0 {
 		parts = append(parts, r.ctx(count*percentScale/window))
 	}
-	return append(parts, segments.FormatTokens(int64(math.Min(count, maxPercent*maxPercent))))
+	return append(parts, tokens.FormatTokens(int64(math.Min(count, maxPercent*maxPercent))))
 }
 
 func (r *renderer) appendDescription(parts []string, task gjson.Result) []string {
@@ -143,7 +151,10 @@ func (r *renderer) appendDescription(parts []string, task gjson.Result) []string
 }
 
 func (r *renderer) ctx(raw float64) string {
-	return segments.ContextBar(r.env, math.Floor(math.Min(math.Max(raw, 0), maxPercent)))
+	cfg := r.cfg.Section("ctx")
+	meter := &bar.Meter{Theme: r.th, Width: bar.WidthOf(r.columns, cfg), FillPercent: true}
+	pct := math.Floor(math.Min(math.Max(raw, 0), maxPercent))
+	return ctx.New(ctx.Deps{Session: &reported{pct: pct}, Config: cfg, Paint: &r.th, Meter: meter}).Render()
 }
 
 // truthy mirrors jq: only null, false and a missing field count as absent.

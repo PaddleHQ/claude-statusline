@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/PaddleHQ/claude-statusline/internal/payload"
 )
 
 const (
@@ -14,6 +16,12 @@ const (
 	shortSHA   = 7
 	maxRead    = 4096
 )
+
+// Reader finds branches by reading .git files and returns them safe to print.
+type Reader struct{}
+
+// Branch returns the branch checked out in dir, as Read does, with control characters removed.
+func (g *Reader) Branch(dir string) string { return payload.Sanitize(Read(dir)) }
 
 // Read returns the branch checked out in dir or any parent, the first seven characters
 // of the commit when HEAD is detached, or "" when there is no readable repository.

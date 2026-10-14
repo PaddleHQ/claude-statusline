@@ -42,7 +42,7 @@ func draw(t *testing.T, c *drawCase) string {
 	p := payload.Parse([]byte(c.session))
 	incoming := ratecache.FromPayload(p.RateLimits)
 	limits := incoming.Visible(drawNow)
-	env := segments.NewEnv(&segments.Sources{
+	env := segments.NewEnv(segments.Env{
 		Payload:    p,
 		Config:     config.New(c.cfg, segments.Defaults()...),
 		Theme:      th,

@@ -31,7 +31,7 @@ const (
 // Keys lists every config key the status line reads, for checking against defaults.conf.
 func Keys() []string {
 	keys := append(render.Keys(), keyTheme, keyHookTTL, keyHookTimeout, keySnapEnabled, keySnapPath)
-	for _, seg := range segments.NewEnv(&segments.Sources{Config: config.New("")}).All() {
+	for _, seg := range segments.NewEnv(segments.Env{Config: config.New("")}).All() {
 		for _, k := range seg.Keys() {
 			keys = append(keys, seg.Name()+"."+k)
 		}
@@ -57,7 +57,7 @@ func Build(input []byte, getenv func(string) string) string {
 	p := payload.Parse(input)
 	at := now(getenv)
 
-	env := segments.NewEnv(&segments.Sources{
+	env := segments.NewEnv(segments.Env{
 		Payload: p,
 		Config:  cfg,
 		Theme:   th,

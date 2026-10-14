@@ -1,7 +1,15 @@
 // Package path provides the path segment: the working directory, shortened, with the git branch when there is one.
 package path
 
-import "strings"
+import (
+	_ "embed"
+	"strings"
+)
+
+// Defaults is the text of the segment's defaults.conf, for layering under the user's config.
+//
+//go:embed defaults.conf
+var Defaults string
 
 const name = "path"
 
@@ -9,7 +17,7 @@ const name = "path"
 
 // Session is what the segment needs to know about the session.
 type Session interface {
-	Cwd() string
+	WorkingDir() string
 }
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Config
@@ -70,7 +78,7 @@ func (p *Path) Keys() []string { return []string{"strip", "branch"} }
 
 // Render returns the segment's text, or "" to hide it.
 func (p *Path) Render() string {
-	dir := p.d.Session.Cwd()
+	dir := p.d.Session.WorkingDir()
 	if dir == "" {
 		return ""
 	}

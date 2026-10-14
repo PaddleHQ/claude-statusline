@@ -21,10 +21,10 @@ func TestLoadClassic(t *testing.T) {
 	want := theme.Theme{
 		Muted:       "\033[2m",
 		Good:        "\033[32m",
-		Warn:        "\033[33m",
-		Bad:         "\033[31m",
+		WarnColor:   "\033[33m",
+		BadColor:    "\033[31m",
 		Marker:      "\033[1m",
-		Path:        "\033[1m\033[38;5;33m",
+		PathColor:   "\033[1m\033[38;5;33m",
 		Reset:       "\033[0m",
 		Full:        "█",
 		Partials:    [7]string{"▏", "▎", "▍", "▌", "▋", "▊", "▉"},
@@ -46,7 +46,7 @@ func TestLoadGradient(t *testing.T) {
 	assert.Equal(t, "▰", got.Full)
 	assert.Equal(t, "▱", got.Empty)
 	assert.Equal(t, "/", got.MarkerGlyph)
-	assert.Equal(t, classic.Path, got.Path)
+	assert.Equal(t, classic.PathColor, got.PathColor)
 	assert.Equal(t, [7]string{}, got.Partials, "a gradient file has no partials")
 }
 
@@ -95,13 +95,13 @@ bar:
 	for name, value := range map[string]string{"absolute": abs, "relative to base": "sub/rel.yaml", "tilde": "~/.config/mine.yaml"} {
 		got, err := theme.Open(value, home, dir)
 		require.NoError(t, err, name)
-		assert.Equal(t, "\033[36m", got.Text, name)
+		assert.Equal(t, "\033[36m", got.TextColor, name)
 		assert.Equal(t, "\033[90m", got.Muted, name)
 		assert.Equal(t, "\033[38;2;0;255;0m", got.Good, name)
-		assert.Equal(t, "\033[38;5;208m", got.Warn, name)
-		assert.Equal(t, "\033[1m\033[31m", got.Bad, name)
+		assert.Equal(t, "\033[38;5;208m", got.WarnColor, name)
+		assert.Equal(t, "\033[1m\033[31m", got.BadColor, name)
 		assert.Equal(t, "\033[4m", got.Marker, name)
-		assert.Equal(t, "\033[3m\033[34m", got.Path, name)
+		assert.Equal(t, "\033[3m\033[34m", got.PathColor, name)
 		assert.Equal(t, "#", got.Full, name)
 		assert.Equal(t, "|", got.MarkerGlyph, name)
 	}
@@ -269,7 +269,7 @@ func TestWithoutColor(t *testing.T) {
 
 	d := theme.Load("gradient", "", "")
 	got := d.WithoutColor()
-	for _, color := range []string{got.Text, got.Muted, got.Good, got.Warn, got.Bad, got.Marker, got.Path, got.Reset, got.EmptyColor, got.MarkerColor} {
+	for _, color := range []string{got.TextColor, got.Muted, got.Good, got.WarnColor, got.BadColor, got.Marker, got.PathColor, got.Reset, got.EmptyColor, got.MarkerColor} {
 		assert.Empty(t, color, "WithoutColor() kept a color: %+v", got)
 	}
 	assert.Empty(t, got.Ramp)
@@ -292,7 +292,7 @@ func TestPaint(t *testing.T) {
 		want  string
 	}{
 		{"wraps with color and reset", d.Muted, "\033[2mx\033[0m"},
-		{"leaves text bare without color", d.Text, "x"},
+		{"leaves text bare without color", d.TextColor, "x"},
 	}
 	for _, tt := range tests {
 		assert.Equal(t, tt.want, d.Paint(tt.color, "x"), tt.name)
@@ -310,4 +310,16 @@ func TestEveryBuiltinLoads(t *testing.T) {
 		_, err := theme.Open(name, "", "")
 		assert.NoError(t, err, "built-in %q", name)
 	}
+}
+
+func TestRolePaintersWrapInTheRoleColor(t *testing.T) {
+	t.Parallel()
+
+	d := theme.Load("classic", "", "")
+	assert.Equal(t, d.Paint(d.TextColor, "x"), d.Text("x"))
+	assert.Equal(t, d.Paint(d.WarnColor, "x"), d.Warn("x"))
+	assert.Equal(t, d.Paint(d.BadColor, "x"), d.Bad("x"))
+	assert.Equal(t, d.Paint(d.PathColor, "x"), d.Path("x"))
+	plain := d.WithoutColor()
+	assert.Equal(t, "x", plain.Bad("x"))
 }

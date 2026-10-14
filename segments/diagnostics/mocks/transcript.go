@@ -17,12 +17,12 @@ func (_m *Transcript) EXPECT() *Transcript_Expecter {
 	return &Transcript_Expecter{mock: &_m.Mock}
 }
 
-// Boot provides a mock function with no fields
-func (_m *Transcript) Boot() int64 {
+// BootTokens provides a mock function with no fields
+func (_m *Transcript) BootTokens() int64 {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
-		panic("no return value specified for Boot")
+		panic("no return value specified for BootTokens")
 	}
 
 	var r0 int64
@@ -35,39 +35,39 @@ func (_m *Transcript) Boot() int64 {
 	return r0
 }
 
-// Transcript_Boot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Boot'
-type Transcript_Boot_Call struct {
+// Transcript_BootTokens_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BootTokens'
+type Transcript_BootTokens_Call struct {
 	*mock.Call
 }
 
-// Boot is a helper method to define mock.On call
-func (_e *Transcript_Expecter) Boot() *Transcript_Boot_Call {
-	return &Transcript_Boot_Call{Call: _e.mock.On("Boot")}
+// BootTokens is a helper method to define mock.On call
+func (_e *Transcript_Expecter) BootTokens() *Transcript_BootTokens_Call {
+	return &Transcript_BootTokens_Call{Call: _e.mock.On("BootTokens")}
 }
 
-func (_c *Transcript_Boot_Call) Run(run func()) *Transcript_Boot_Call {
+func (_c *Transcript_BootTokens_Call) Run(run func()) *Transcript_BootTokens_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run()
 	})
 	return _c
 }
 
-func (_c *Transcript_Boot_Call) Return(_a0 int64) *Transcript_Boot_Call {
+func (_c *Transcript_BootTokens_Call) Return(_a0 int64) *Transcript_BootTokens_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Transcript_Boot_Call) RunAndReturn(run func() int64) *Transcript_Boot_Call {
+func (_c *Transcript_BootTokens_Call) RunAndReturn(run func() int64) *Transcript_BootTokens_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// MemDropped provides a mock function with no fields
-func (_m *Transcript) MemDropped() bool {
+// MemoryDropped provides a mock function with no fields
+func (_m *Transcript) MemoryDropped() bool {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
-		panic("no return value specified for MemDropped")
+		panic("no return value specified for MemoryDropped")
 	}
 
 	var r0 bool
@@ -80,39 +80,94 @@ func (_m *Transcript) MemDropped() bool {
 	return r0
 }
 
-// Transcript_MemDropped_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MemDropped'
-type Transcript_MemDropped_Call struct {
+// Transcript_MemoryDropped_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MemoryDropped'
+type Transcript_MemoryDropped_Call struct {
 	*mock.Call
 }
 
-// MemDropped is a helper method to define mock.On call
-func (_e *Transcript_Expecter) MemDropped() *Transcript_MemDropped_Call {
-	return &Transcript_MemDropped_Call{Call: _e.mock.On("MemDropped")}
+// MemoryDropped is a helper method to define mock.On call
+func (_e *Transcript_Expecter) MemoryDropped() *Transcript_MemoryDropped_Call {
+	return &Transcript_MemoryDropped_Call{Call: _e.mock.On("MemoryDropped")}
 }
 
-func (_c *Transcript_MemDropped_Call) Run(run func()) *Transcript_MemDropped_Call {
+func (_c *Transcript_MemoryDropped_Call) Run(run func()) *Transcript_MemoryDropped_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run()
 	})
 	return _c
 }
 
-func (_c *Transcript_MemDropped_Call) Return(_a0 bool) *Transcript_MemDropped_Call {
+func (_c *Transcript_MemoryDropped_Call) Return(_a0 bool) *Transcript_MemoryDropped_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Transcript_MemDropped_Call) RunAndReturn(run func() bool) *Transcript_MemDropped_Call {
+func (_c *Transcript_MemoryDropped_Call) RunAndReturn(run func() bool) *Transcript_MemoryDropped_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// SkillsBare provides a mock function with no fields
-func (_m *Transcript) SkillsBare() int {
+// SkillCounts provides a mock function with no fields
+func (_m *Transcript) SkillCounts() (int, int) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
-		panic("no return value specified for SkillsBare")
+		panic("no return value specified for SkillCounts")
+	}
+
+	var r0 int
+	var r1 int
+	if rf, ok := ret.Get(0).(func() (int, int)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	if rf, ok := ret.Get(1).(func() int); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+
+	return r0, r1
+}
+
+// Transcript_SkillCounts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SkillCounts'
+type Transcript_SkillCounts_Call struct {
+	*mock.Call
+}
+
+// SkillCounts is a helper method to define mock.On call
+func (_e *Transcript_Expecter) SkillCounts() *Transcript_SkillCounts_Call {
+	return &Transcript_SkillCounts_Call{Call: _e.mock.On("SkillCounts")}
+}
+
+func (_c *Transcript_SkillCounts_Call) Run(run func()) *Transcript_SkillCounts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Transcript_SkillCounts_Call) Return(bare int, total int) *Transcript_SkillCounts_Call {
+	_c.Call.Return(bare, total)
+	return _c
+}
+
+func (_c *Transcript_SkillCounts_Call) RunAndReturn(run func() (int, int)) *Transcript_SkillCounts_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SkillListChars provides a mock function with no fields
+func (_m *Transcript) SkillListChars() int {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for SkillListChars")
 	}
 
 	var r0 int
@@ -125,209 +180,84 @@ func (_m *Transcript) SkillsBare() int {
 	return r0
 }
 
-// Transcript_SkillsBare_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SkillsBare'
-type Transcript_SkillsBare_Call struct {
+// Transcript_SkillListChars_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SkillListChars'
+type Transcript_SkillListChars_Call struct {
 	*mock.Call
 }
 
-// SkillsBare is a helper method to define mock.On call
-func (_e *Transcript_Expecter) SkillsBare() *Transcript_SkillsBare_Call {
-	return &Transcript_SkillsBare_Call{Call: _e.mock.On("SkillsBare")}
+// SkillListChars is a helper method to define mock.On call
+func (_e *Transcript_Expecter) SkillListChars() *Transcript_SkillListChars_Call {
+	return &Transcript_SkillListChars_Call{Call: _e.mock.On("SkillListChars")}
 }
 
-func (_c *Transcript_SkillsBare_Call) Run(run func()) *Transcript_SkillsBare_Call {
+func (_c *Transcript_SkillListChars_Call) Run(run func()) *Transcript_SkillListChars_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run()
 	})
 	return _c
 }
 
-func (_c *Transcript_SkillsBare_Call) Return(_a0 int) *Transcript_SkillsBare_Call {
+func (_c *Transcript_SkillListChars_Call) Return(_a0 int) *Transcript_SkillListChars_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Transcript_SkillsBare_Call) RunAndReturn(run func() int) *Transcript_SkillsBare_Call {
+func (_c *Transcript_SkillListChars_Call) RunAndReturn(run func() int) *Transcript_SkillListChars_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// SkillsChars provides a mock function with no fields
-func (_m *Transcript) SkillsChars() int {
+// SubagentSkillCounts provides a mock function with no fields
+func (_m *Transcript) SubagentSkillCounts() (int, int) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
-		panic("no return value specified for SkillsChars")
+		panic("no return value specified for SubagentSkillCounts")
 	}
 
 	var r0 int
+	var r1 int
+	if rf, ok := ret.Get(0).(func() (int, int)); ok {
+		return rf()
+	}
 	if rf, ok := ret.Get(0).(func() int); ok {
 		r0 = rf()
 	} else {
 		r0 = ret.Get(0).(int)
 	}
 
-	return r0
-}
-
-// Transcript_SkillsChars_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SkillsChars'
-type Transcript_SkillsChars_Call struct {
-	*mock.Call
-}
-
-// SkillsChars is a helper method to define mock.On call
-func (_e *Transcript_Expecter) SkillsChars() *Transcript_SkillsChars_Call {
-	return &Transcript_SkillsChars_Call{Call: _e.mock.On("SkillsChars")}
-}
-
-func (_c *Transcript_SkillsChars_Call) Run(run func()) *Transcript_SkillsChars_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *Transcript_SkillsChars_Call) Return(_a0 int) *Transcript_SkillsChars_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *Transcript_SkillsChars_Call) RunAndReturn(run func() int) *Transcript_SkillsChars_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// SkillsTotal provides a mock function with no fields
-func (_m *Transcript) SkillsTotal() int {
-	ret := _m.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for SkillsTotal")
-	}
-
-	var r0 int
-	if rf, ok := ret.Get(0).(func() int); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(1).(func() int); ok {
+		r1 = rf()
 	} else {
-		r0 = ret.Get(0).(int)
+		r1 = ret.Get(1).(int)
 	}
 
-	return r0
+	return r0, r1
 }
 
-// Transcript_SkillsTotal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SkillsTotal'
-type Transcript_SkillsTotal_Call struct {
+// Transcript_SubagentSkillCounts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SubagentSkillCounts'
+type Transcript_SubagentSkillCounts_Call struct {
 	*mock.Call
 }
 
-// SkillsTotal is a helper method to define mock.On call
-func (_e *Transcript_Expecter) SkillsTotal() *Transcript_SkillsTotal_Call {
-	return &Transcript_SkillsTotal_Call{Call: _e.mock.On("SkillsTotal")}
+// SubagentSkillCounts is a helper method to define mock.On call
+func (_e *Transcript_Expecter) SubagentSkillCounts() *Transcript_SubagentSkillCounts_Call {
+	return &Transcript_SubagentSkillCounts_Call{Call: _e.mock.On("SubagentSkillCounts")}
 }
 
-func (_c *Transcript_SkillsTotal_Call) Run(run func()) *Transcript_SkillsTotal_Call {
+func (_c *Transcript_SubagentSkillCounts_Call) Run(run func()) *Transcript_SubagentSkillCounts_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run()
 	})
 	return _c
 }
 
-func (_c *Transcript_SkillsTotal_Call) Return(_a0 int) *Transcript_SkillsTotal_Call {
-	_c.Call.Return(_a0)
+func (_c *Transcript_SubagentSkillCounts_Call) Return(bare int, total int) *Transcript_SubagentSkillCounts_Call {
+	_c.Call.Return(bare, total)
 	return _c
 }
 
-func (_c *Transcript_SkillsTotal_Call) RunAndReturn(run func() int) *Transcript_SkillsTotal_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// SubagentSkillsBare provides a mock function with no fields
-func (_m *Transcript) SubagentSkillsBare() int {
-	ret := _m.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for SubagentSkillsBare")
-	}
-
-	var r0 int
-	if rf, ok := ret.Get(0).(func() int); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-
-	return r0
-}
-
-// Transcript_SubagentSkillsBare_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SubagentSkillsBare'
-type Transcript_SubagentSkillsBare_Call struct {
-	*mock.Call
-}
-
-// SubagentSkillsBare is a helper method to define mock.On call
-func (_e *Transcript_Expecter) SubagentSkillsBare() *Transcript_SubagentSkillsBare_Call {
-	return &Transcript_SubagentSkillsBare_Call{Call: _e.mock.On("SubagentSkillsBare")}
-}
-
-func (_c *Transcript_SubagentSkillsBare_Call) Run(run func()) *Transcript_SubagentSkillsBare_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *Transcript_SubagentSkillsBare_Call) Return(_a0 int) *Transcript_SubagentSkillsBare_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *Transcript_SubagentSkillsBare_Call) RunAndReturn(run func() int) *Transcript_SubagentSkillsBare_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// SubagentSkillsTotal provides a mock function with no fields
-func (_m *Transcript) SubagentSkillsTotal() int {
-	ret := _m.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for SubagentSkillsTotal")
-	}
-
-	var r0 int
-	if rf, ok := ret.Get(0).(func() int); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-
-	return r0
-}
-
-// Transcript_SubagentSkillsTotal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SubagentSkillsTotal'
-type Transcript_SubagentSkillsTotal_Call struct {
-	*mock.Call
-}
-
-// SubagentSkillsTotal is a helper method to define mock.On call
-func (_e *Transcript_Expecter) SubagentSkillsTotal() *Transcript_SubagentSkillsTotal_Call {
-	return &Transcript_SubagentSkillsTotal_Call{Call: _e.mock.On("SubagentSkillsTotal")}
-}
-
-func (_c *Transcript_SubagentSkillsTotal_Call) Run(run func()) *Transcript_SubagentSkillsTotal_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *Transcript_SubagentSkillsTotal_Call) Return(_a0 int) *Transcript_SubagentSkillsTotal_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *Transcript_SubagentSkillsTotal_Call) RunAndReturn(run func() int) *Transcript_SubagentSkillsTotal_Call {
+func (_c *Transcript_SubagentSkillCounts_Call) RunAndReturn(run func() (int, int)) *Transcript_SubagentSkillCounts_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -22,7 +22,7 @@ import (
 )
 
 func newEnv(cfg, payloadJSON string) *segments.Env {
-	return segments.NewEnv(&segments.Sources{
+	return segments.NewEnv(segments.Env{
 		Payload: payload.Parse([]byte(payloadJSON)),
 		Config:  config.New(cfg, segments.Defaults()...),
 		Theme:   theme.Load("classic", "", ""),
@@ -80,27 +80,13 @@ func TestPathBranchIsSanitized(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git"), 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".git", "HEAD"), []byte("ref: refs/heads/a\x1b[31mb\n"), 0o600))
 
-	env := segments.NewEnv(&segments.Sources{
+	env := segments.NewEnv(segments.Env{
 		Payload: payload.Parse([]byte(`{"cwd":"` + dir + `"}`)),
 		Config:  config.New("", segments.Defaults()...),
 	})
 	seg, _, ok := env.Lookup("path")
 	require.True(t, ok)
 	assert.Equal(t, dir+" (a[31mb)", seg.Render())
-}
-
-func TestContextBarFillsThePercentageEvenOnAGradientTheme(t *testing.T) {
-	t.Parallel()
-
-	th := theme.Load("gradient", "", "")
-	env := segments.NewEnv(&segments.Sources{
-		Config:  config.New("ctx.width = 4", segments.Defaults()...),
-		Theme:   th,
-		Columns: 999,
-	})
-	got := segments.ContextBar(env, 95)
-	assert.Contains(t, got, "ctx: ")
-	assert.Contains(t, got, th.Bad+"95%")
 }
 
 func TestLazyDependencies(t *testing.T) {
@@ -130,7 +116,7 @@ func TestLazyDependencies(t *testing.T) {
 			t.Parallel()
 			var transcriptReads, rateSyncs int
 			cfg := config.New(tt.cfg, segments.Defaults()...)
-			env := segments.NewEnv(&segments.Sources{
+			env := segments.NewEnv(segments.Env{
 				Payload:    payload.Parse([]byte(tt.payload)),
 				Config:     cfg,
 				Theme:      theme.Load("classic", "", ""),

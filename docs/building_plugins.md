@@ -11,7 +11,7 @@ The package owns its code, the defaults for its config keys, its README and its 
 - **A plugin imports nothing from `internal/`.** It declares the small interfaces it needs, in its own package, and receives implementations through its constructor. `TestPluginsImportNothingFromInternal` in `segments/all_test.go` fails on any import of an `internal/` package in a plugin's non-test files.
 - **Expensive dependencies are passed as functions**, so they are only paid for when the segment draws: `func() Transcript` reads a transcript file, and `func() Limits` reads and writes the shared rate cache. Call them from `Render`, only when you need them, never from the constructor. `TestLazyDependencies` in `segments/all_test.go` pins this.
 - **A plugin's methods use only types from its own package, or builtin types.** The layout group is not its concern.
-- **[`segments/all.go`](../segments/all.go) is the composition root**, the one file under `segments/` that may import `internal/`. It embeds each plugin's `defaults.conf`, registers each segment's name, layout group and constructor, and adapts the program's internal types (the payload, the theme, the config section, the transcript, the rate cache, the bar drawing) to the interfaces the plugins declare, with small adapter types.
+- **[`segments/all.go`](../segments/all.go) is the composition root**, the one file under `segments/` that may import `internal/`. It registers each segment's name, layout group and constructor, and hands the program's internal types (the payload, the theme, the config section, the transcript, the rate cache, the bar drawing) to the plugins. There are no adapter types: Go interfaces are satisfied structurally, so an internal type gains the methods a plugin's interface asks for, and the plugin and the internal package still do not import each other.
 
 Plugins do not share helpers through a common package. Where two need the same behaviour it is injected: `ctx` and `rate` each declare a `Meter` that draws the bar, and `diagnostics` takes a `Tokens` function that `all.go` supplies from the `tokens` plugin.
 
@@ -29,14 +29,14 @@ type Session interface {
 	DisplayName() string
 	ModelID() string
 	EffortLevel() string
-	TranscriptPath() string
+	TranscriptFile() string
 }
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Transcript
 
 // Transcript is what the segment needs from the session transcript.
 type Transcript interface {
-	ActualModel() string
+	LatestModel() string
 }
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Config
@@ -111,7 +111,7 @@ func (m *Model) Render() string
 model.effort = true
 ```
 
-Every key a segment reads must be in its `defaults.conf` with a comment, and every key in the file must be read by its segment, which `Keys()` declares. `TestKeysMatchDefaults` in `internal/statusline` checks both directions across every plugin. Key names are `<segment>.<setting>`, lower case, one dot. Settings that are not about a segment (`segments`, `separator`, `theme`, `hooks.*`, `snapshot.*`) stay in `internal/config/defaults.conf`. To show a segment by default, add its name to the `segments` default there too. A plugin with no settings has no `defaults.conf`.
+Every key a segment reads must be in its `defaults.conf` with a comment, and every key in the file must be read by its segment, which `Keys()` declares. `TestKeysMatchDefaults` in `internal/statusline` checks both directions across every plugin. Key names are `<segment>.<setting>`, lower case, one dot. Settings that are not about a segment (`segments`, `separator`, `theme`, `hooks.*`, `snapshot.*`) stay in `internal/config/defaults.conf`. To show a segment by default, add its name to the `segments` default there too. A plugin with no settings has no `defaults.conf`. The plugin embeds its own file into an exported `Defaults` string (`//go:embed defaults.conf`), and `Defaults()` in `all.go` lists them.
 
 User config is layered over the union of all the defaults, so a user's `model.effort = false` wins, and an invalid value falls back to the default.
 
@@ -121,20 +121,20 @@ Every plugin has a short `README.md` (under about 30 lines): what it shows, in o
 
 ### 6. Register it in `all.go`
 
-In `segments/all.go`, embed the defaults, then add one entry to `registrations`: the name, the layout group, and a constructor that adapts the program's types to your interfaces:
+In `segments/all.go`, add your package's `Defaults` to `Defaults()`, then add one entry to `registrations`: the name, the layout group, and a constructor that passes the program's types to your interfaces:
 
 ```go
 {"model", layout.Identity, func(cfg *config.Section) Segment {
 	return model.New(model.Deps{
-		Session:    e.session(),
-		Transcript: func() model.Transcript { return &transcriptView{info: e.transcript()} },
+		Session:    &e.Payload,
+		Transcript: func() model.Transcript { return e.info() },
 		Config:     cfg,
-		Paint:      e.painter(),
+		Paint:      &e.Theme,
 	})
 }},
 ```
 
-`cfg` is the config scoped to the segment's name, and a `*config.Section` already has the `Bool`, `Int` and `String` methods the plugins ask for. The session, painter and transcript adapters are small types at the bottom of `all.go`; add a method to one when your interface needs a new question answered, or a new adapter type when none fits. The transcript and rate-limit functions are memoised by the environment, so however many segments ask, the work happens once, and not at all if none does.
+`cfg` is the config scoped to the segment's name, and a `*config.Section` already has the `Bool`, `Int` and `String` methods the plugins ask for. The session is `payload.Payload`, the painter is `theme.Theme`, the transcript is `transcript.Info` and the rate limits are `ratecache.Limits`; when your interface needs a new question answered, add a method to the internal type. Name the method so that it does not collide with a field of that type (`Payload.Cwd` is why the session asks for `WorkingDir`). The transcript and rate-limit functions are memoised by `NewEnv`, so however many segments ask, the work happens once, and not at all if none does.
 
 The layout group decides how the segment behaves when the line is too narrow for one row (see [Wrapping](customising.md#wrapping)):
 
@@ -157,7 +157,7 @@ Tests are in an external `_test` package and use the typed expecter API. Nothing
 sess := mocks.NewSession(t)
 sess.EXPECT().DisplayName().Return("Opus 4.7")
 sess.EXPECT().EffortLevel().Return("high")
-sess.EXPECT().TranscriptPath().Return("")
+sess.EXPECT().TranscriptFile().Return("")
 
 cfg := mocks.NewConfig(t)
 cfg.EXPECT().Bool("effort").Return(true)

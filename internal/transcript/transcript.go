@@ -53,6 +53,24 @@ type Info struct {
 	SubBare, SubTotal int
 }
 
+// LatestModel is the model of the latest assistant turn in the last 200 lines.
+func (i *Info) LatestModel() string { return i.ActualModel }
+
+// BootTokens is the prompt size of the first assistant turn.
+func (i *Info) BootTokens() int64 { return i.Boot }
+
+// SkillListChars is the length of the first skill listing.
+func (i *Info) SkillListChars() int { return i.SkillsChars }
+
+// SkillCounts is how many skills in the initial listing lost their description, and how many are listed.
+func (i *Info) SkillCounts() (bare, total int) { return i.SkillsBare, i.SkillsTotal }
+
+// SubagentSkillCounts is the same for the subagent with the most stripped skills.
+func (i *Info) SubagentSkillCounts() (bare, total int) { return i.SubBare, i.SubTotal }
+
+// MemoryDropped reports a SessionStart hook whose output was too large to inject.
+func (i *Info) MemoryDropped() bool { return i.MemDropped }
+
 // source is the part of a file the reader needs.
 type source interface {
 	io.Reader

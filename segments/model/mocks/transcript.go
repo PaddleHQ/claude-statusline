@@ -17,12 +17,12 @@ func (_m *Transcript) EXPECT() *Transcript_Expecter {
 	return &Transcript_Expecter{mock: &_m.Mock}
 }
 
-// ActualModel provides a mock function with no fields
-func (_m *Transcript) ActualModel() string {
+// LatestModel provides a mock function with no fields
+func (_m *Transcript) LatestModel() string {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
-		panic("no return value specified for ActualModel")
+		panic("no return value specified for LatestModel")
 	}
 
 	var r0 string
@@ -35,29 +35,29 @@ func (_m *Transcript) ActualModel() string {
 	return r0
 }
 
-// Transcript_ActualModel_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ActualModel'
-type Transcript_ActualModel_Call struct {
+// Transcript_LatestModel_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LatestModel'
+type Transcript_LatestModel_Call struct {
 	*mock.Call
 }
 
-// ActualModel is a helper method to define mock.On call
-func (_e *Transcript_Expecter) ActualModel() *Transcript_ActualModel_Call {
-	return &Transcript_ActualModel_Call{Call: _e.mock.On("ActualModel")}
+// LatestModel is a helper method to define mock.On call
+func (_e *Transcript_Expecter) LatestModel() *Transcript_LatestModel_Call {
+	return &Transcript_LatestModel_Call{Call: _e.mock.On("LatestModel")}
 }
 
-func (_c *Transcript_ActualModel_Call) Run(run func()) *Transcript_ActualModel_Call {
+func (_c *Transcript_LatestModel_Call) Run(run func()) *Transcript_LatestModel_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run()
 	})
 	return _c
 }
 
-func (_c *Transcript_ActualModel_Call) Return(_a0 string) *Transcript_ActualModel_Call {
+func (_c *Transcript_LatestModel_Call) Return(_a0 string) *Transcript_LatestModel_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Transcript_ActualModel_Call) RunAndReturn(run func() string) *Transcript_ActualModel_Call {
+func (_c *Transcript_LatestModel_Call) RunAndReturn(run func() string) *Transcript_LatestModel_Call {
 	_c.Call.Return(run)
 	return _c
 }

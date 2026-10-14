@@ -197,13 +197,13 @@ func (t *Theme) compileColors(c colorsSpec, b barSpec) error {
 		name     string
 		optional bool
 	}{
-		{&t.Text, c.Text, "colors.text", false},
+		{&t.TextColor, c.Text, "colors.text", false},
 		{&t.Muted, c.Muted, "colors.muted", false},
 		{&t.Good, c.Good, "colors.good", false},
-		{&t.Warn, c.Warn, "colors.warn", false},
-		{&t.Bad, c.Bad, "colors.bad", false},
+		{&t.WarnColor, c.Warn, "colors.warn", false},
+		{&t.BadColor, c.Bad, "colors.bad", false},
 		{&t.Marker, c.Marker, "colors.marker", false},
-		{&t.Path, c.Path, "colors.path", false},
+		{&t.PathColor, c.Path, "colors.path", false},
 		{&t.EmptyColor, b.EmptyColor, "bar.empty_color", true},
 		{&t.MarkerColor, b.MarkerColor, "bar.marker_color", true},
 	} {

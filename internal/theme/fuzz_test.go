@@ -54,8 +54,8 @@ func FuzzOpen(f *testing.F) {
 			return
 		}
 		for name, seq := range map[string]string{
-			"text": th.Text, "muted": th.Muted, "good": th.Good, "warn": th.Warn, "bad": th.Bad,
-			"marker": th.Marker, "path": th.Path, "reset": th.Reset, "empty_color": th.EmptyColor, "marker_color": th.MarkerColor,
+			"text": th.TextColor, "muted": th.Muted, "good": th.Good, "warn": th.WarnColor, "bad": th.BadColor,
+			"marker": th.Marker, "path": th.PathColor, "reset": th.Reset, "empty_color": th.EmptyColor, "marker_color": th.MarkerColor,
 		} {
 			assert.Regexp(t, onlySGR, seq, name)
 		}

@@ -328,3 +328,20 @@ func TestReadSubagentsFlagsTheFirstOfEqualWorst(t *testing.T) {
 	assert.Equal(t, 3, got.SubBare)
 	assert.Equal(t, 5, got.SubTotal, "agent-a comes first, so it wins the tie with agent-b")
 }
+
+func TestInfoAnswersTheSegmentsQuestions(t *testing.T) {
+	t.Parallel()
+
+	info := transcript.Info{
+		ActualModel: "claude-haiku-4-5", Boot: 9, SkillsChars: 100, SkillsBare: 1, SkillsTotal: 2,
+		MemDropped: true, SubBare: 3, SubTotal: 4,
+	}
+	assert.Equal(t, "claude-haiku-4-5", info.LatestModel())
+	assert.Equal(t, int64(9), info.BootTokens())
+	assert.Equal(t, 100, info.SkillListChars())
+	bare, total := info.SkillCounts()
+	assert.Equal(t, []int{1, 2}, []int{bare, total})
+	bare, total = info.SubagentSkillCounts()
+	assert.Equal(t, []int{3, 4}, []int{bare, total})
+	assert.True(t, info.MemoryDropped())
+}

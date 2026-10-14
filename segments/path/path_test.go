@@ -51,7 +51,7 @@ func build(t *testing.T, cwd, strip string, branch bool, branches map[string]str
 	t.Helper()
 
 	sess := mocks.NewSession(t)
-	sess.EXPECT().Cwd().Return(cwd).Maybe()
+	sess.EXPECT().WorkingDir().Return(cwd).Maybe()
 	cfg := mocks.NewConfig(t)
 	cfg.EXPECT().String("strip").Return(strip).Maybe()
 	cfg.EXPECT().Bool("branch").Return(branch).Maybe()

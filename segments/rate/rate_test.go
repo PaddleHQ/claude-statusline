@@ -45,7 +45,7 @@ func TestFiveHourDrawsItsReading(t *testing.T) {
 	t.Parallel()
 
 	f := newFixture(t, map[string]string{"label": "5h"})
-	f.limits.EXPECT().FiveHour().Return(rate.Reading{Used: 45, ResetsAt: now + 9000}, true)
+	f.limits.EXPECT().FiveHourReading().Return(45, now+9000, true)
 	f.meter.EXPECT().Pace(45, 50, 20, 40, 95).Return("BAR 45%")
 
 	assert.Equal(t, "<t>5h: </>BAR 45%", rate.NewFiveHour(f.deps).Render())
@@ -55,7 +55,7 @@ func TestSevenDayDrawsItsReading(t *testing.T) {
 	t.Parallel()
 
 	f := newFixture(t, map[string]string{"label": "7d"})
-	f.limits.EXPECT().SevenDay().Return(rate.Reading{Used: 40, ResetsAt: now + 302400}, true)
+	f.limits.EXPECT().SevenDayReading().Return(40, now+302400, true)
 	f.meter.EXPECT().Pace(40, 50, 20, 40, 95).Return("BAR 40%")
 
 	assert.Equal(t, "<t>7d: </>BAR 40%", rate.NewSevenDay(f.deps).Render())
@@ -80,7 +80,7 @@ func TestTargetIsTheElapsedShareOfTheWindowClamped(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			f := newFixture(t, map[string]string{"label": "5h"})
-			f.limits.EXPECT().FiveHour().Return(rate.Reading{Used: 10, ResetsAt: tt.resetsAt}, true)
+			f.limits.EXPECT().FiveHourReading().Return(10, tt.resetsAt, true)
 			f.meter.EXPECT().Pace(10, tt.want, 20, 40, 95).Return("BAR").Once()
 			rate.NewFiveHour(f.deps).Render()
 		})
@@ -91,7 +91,7 @@ func TestNoReadingHidesTheSegment(t *testing.T) {
 	t.Parallel()
 
 	f := newFixture(t, map[string]string{"label": "5h"})
-	f.limits.EXPECT().FiveHour().Return(rate.Reading{}, false)
+	f.limits.EXPECT().FiveHourReading().Return(0, 0, false)
 	assert.Empty(t, rate.NewFiveHour(f.deps).Render())
 }
 
@@ -132,7 +132,7 @@ func TestLabelIsDrawnAsText(t *testing.T) {
 	t.Parallel()
 
 	f := newFixture(t, map[string]string{"label": "`touch x`; $(y)"})
-	f.limits.EXPECT().SevenDay().Return(rate.Reading{Used: 40, ResetsAt: now + 302400}, true)
+	f.limits.EXPECT().SevenDayReading().Return(40, now+302400, true)
 	f.meter.EXPECT().Pace(40, 50, 20, 40, 95).Return("BAR 40%")
 
 	assert.Equal(t, "<t>`touch x`; $(y): </>BAR 40%", rate.NewSevenDay(f.deps).Render())
