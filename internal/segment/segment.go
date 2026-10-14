@@ -1,14 +1,16 @@
-// Package segment defines the status line's building blocks and renders them in order.
+// Package segment holds the segments not yet converted to plugins under segments/, and bridges them to the plugin interface.
 package segment
 
 import (
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/bar"
 	"github.com/PaddleHQ/claude-statusline/internal/config"
-	"github.com/PaddleHQ/claude-statusline/internal/hook"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
+	"github.com/PaddleHQ/claude-statusline/internal/plugin"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/internal/transcript"
@@ -29,32 +31,24 @@ type Context struct {
 	Payload payload.Payload
 	// Rates is the merged, still-valid rate-limit reading, not the raw payload.
 	Rates   ratecache.Limits
-	Config  *config.Config
+	Config  *config.Section
 	Theme   theme.Theme
 	Now     time.Time
 	Columns int
 	Home    string
-	// Hooks holds the output of the user's hook scripts, in filename order.
-	Hooks []hook.Result
 	// Transcript is what the session transcript revealed; zero when there is none.
 	Transcript transcript.Info
 }
 
-const (
-	keySegments  = "segments"
-	keySeparator = "separator"
-	nameCtx      = "ctx"
-	nameModel    = "model"
-)
+const nameCtx = "ctx"
 
 var registry = map[string]Segment{
-	"path":    &path{},
-	nameModel: &model{},
-	nameCtx:   &ctxBar{},
-	"tokens":  &tokens{},
-	"cache":   &cache{},
-	"rate5h":  &rate{name: "rate5h", seconds: fiveHourSeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.FiveHour }},
-	"rate7d":  &rate{name: "rate7d", seconds: sevenDaySeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.SevenDay }},
+	"path":   &path{},
+	nameCtx:  &ctxBar{},
+	"tokens": &tokens{},
+	"cache":  &cache{},
+	"rate5h": &rate{name: "rate5h", seconds: fiveHourSeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.FiveHour }},
+	"rate7d": &rate{name: "rate7d", seconds: sevenDaySeconds, reading: func(c *Context) *ratecache.Reading { return c.Rates.SevenDay }},
 }
 
 func init() {
@@ -70,23 +64,53 @@ func Lookup(name string) (Segment, bool) {
 	return s, ok
 }
 
-// Keys lists every config key read by Render and by the registered segments.
-func Keys() []string {
-	keys := []string{keySegments, keySeparator}
-	for _, s := range registry {
-		keys = append(keys, s.Keys()...)
+// Plugin exposes the segments in this package as one plugin. Their defaults are still in the global defaults.conf.
+func Plugin() *plugin.Plugin {
+	names := make([]string, 0, len(registry))
+	for name := range registry {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	entries := make([]plugin.Entry, 0, len(names))
+	for _, name := range names {
+		entries = append(entries, plugin.Entry{Name: name, New: func(p *plugin.Providers) plugin.Segment {
+			return &bridge{inner: registry[name], p: p}
+		}})
+	}
+	return &plugin.Plugin{Segments: entries}
+}
+
+type bridge struct {
+	inner Segment
+	p     *plugin.Providers
+}
+
+func (b *bridge) Name() string { return b.inner.Name() }
+
+func (b *bridge) Group() layout.Group { return b.inner.Group() }
+
+func (b *bridge) Help() string { return "" }
+
+func (b *bridge) Keys() []string {
+	keys := b.inner.Keys()
+	for i, k := range keys {
+		keys[i] = strings.TrimPrefix(k, b.inner.Name()+".")
 	}
 	return keys
 }
 
-// Render lays out the configured segments and the user's hooks, wrapping onto further rows when they do not fit.
-func (c *Context) Render() string {
-	opts := &layout.Options{
-		Columns:   c.Columns,
-		Separator: separator(c),
-		Anchor:    c.Theme.Paint(c.Theme.Muted, "↳"),
-	}
-	return opts.Render(items(c))
+func (b *bridge) Render(s *plugin.Session) string {
+	p := b.p.For("")
+	return b.inner.Render(&Context{
+		Payload:    s.Payload,
+		Rates:      p.RateLimits(),
+		Config:     p.Config,
+		Theme:      p.Theme,
+		Now:        p.Now(),
+		Columns:    p.Columns,
+		Home:       p.Home,
+		Transcript: p.Transcript(),
+	})
 }
 
 // barWidth reads the three widths configured for a bar and picks the one for the terminal.
@@ -96,5 +120,5 @@ func barWidth(ctx *Context, name string) int {
 }
 
 func separator(ctx *Context) string {
-	return " " + ctx.Theme.Paint(ctx.Theme.Muted, ctx.Config.String(keySeparator)) + " "
+	return " " + ctx.Theme.Paint(ctx.Theme.Muted, ctx.Config.String("separator")) + " "
 }

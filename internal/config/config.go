@@ -3,6 +3,7 @@ package config
 
 import (
 	_ "embed"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -19,25 +20,26 @@ var keyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)?$`)
 const maxDigits = 12
 
 // Config resolves each key from the user's file, falling back to the default.
-// A key absent from defaults.conf is a programming error that a test rejects,
+// A key absent from every defaults file is a programming error that a test rejects,
 // so its getters return the zero value.
 type Config struct {
 	defaults map[string]string
 	user     map[string]string
 }
 
-// New builds a Config from the text of a user's config file.
-func New(userText string) *Config {
-	return &Config{defaults: parse(defaultsText), user: parse(userText)}
+// New builds a Config from the text of a user's config file. The defaults are the embedded global ones
+// layered under the defaults files of the plugins, given as text.
+func New(userText string, pluginDefaults ...string) *Config {
+	return &Config{defaults: mergeDefaults(pluginDefaults), user: parse(userText)}
 }
 
 // Load reads the user's config file; a missing or unreadable file means defaults only.
-func Load(path string) *Config {
+func Load(path string, pluginDefaults ...string) *Config {
 	data, err := os.ReadFile(path) //nolint:gosec // G304: reading the config file the user named is the feature
 	if err != nil {
-		return New("")
+		return New("", pluginDefaults...)
 	}
-	return New(string(data))
+	return New(string(data), pluginDefaults...)
 }
 
 // Dir returns the Claude config directory, or "" when neither the environment nor HOME names one.
@@ -69,14 +71,20 @@ func Path(getenv func(string) string) string {
 	return filepath.Join(dir, "config")
 }
 
-// DefaultKeys lists every key in defaults.conf.
-func DefaultKeys() []string {
-	defaults := parse(defaultsText)
+// DefaultKeys lists every key in the global defaults.conf and in the given plugin defaults.
+func DefaultKeys(pluginDefaults ...string) []string {
+	defaults := mergeDefaults(pluginDefaults)
 	keys := make([]string, 0, len(defaults))
 	for k := range defaults {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+// Section returns the keys under name, so Section("model").Bool("effort") reads model.effort.
+// An empty name reads keys as they are.
+func (c *Config) Section(name string) *Section {
+	return &Section{cfg: c, prefix: name}
 }
 
 // String returns a non-empty value.
@@ -140,4 +148,12 @@ func parse(text string) map[string]string {
 		values[key] = strings.TrimSpace(value)
 	}
 	return values
+}
+
+func mergeDefaults(pluginDefaults []string) map[string]string {
+	merged := parse(defaultsText)
+	for _, text := range pluginDefaults {
+		maps.Copy(merged, parse(text))
+	}
+	return merged
 }

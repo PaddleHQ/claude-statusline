@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
-	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/segment"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/internal/transcript"
@@ -40,38 +39,7 @@ func TestDiagnostics(t *testing.T) {
 			t.Parallel()
 			s, ok := segment.Lookup(tt.seg)
 			require.True(t, ok)
-			assert.Equal(t, tt.want, s.Render(&segment.Context{Config: config.New(""), Theme: th, Transcript: tt.info}))
-		})
-	}
-}
-
-func TestModelOverride(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name   string
-		id     string
-		actual string
-		want   string
-	}{
-		{"same family", "claude-opus-4-7", "claude-opus-4-7-20260101", "Opus 4.7 [high]"},
-		{"different family", "claude-opus-4-7", "claude-haiku-4-5", "Haiku (skill)"},
-		{"every family has a label", "claude-opus-4-7", "claude-sonnet-5", "Sonnet (skill)"},
-		{"fable", "claude-opus-4-7", "fable-5", "Fable (skill)"},
-		{"mythos", "claude-opus-4-7", "mythos-1", "Mythos (skill)"},
-		{"unknown actual family is ignored", "claude-opus-4-7", "something-else", "Opus 4.7 [high]"},
-		{"no actual model", "claude-opus-4-7", "", "Opus 4.7 [high]"},
-		{"unknown session family differs from a known one", "custom-model", "claude-haiku-4-5", "Haiku (skill)"},
-		{"unknown on both sides", "custom-model", "other", "Opus 4.7 [high]"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			p := payload.Parse([]byte(`{"model":{"id":"` + tt.id + `","display_name":"Opus 4.7"},"effort":{"level":"high"}}`))
-			m, ok := segment.Lookup("model")
-			require.True(t, ok)
-			got := m.Render(&segment.Context{Payload: p, Config: config.New(""), Theme: plainClassic(), Transcript: transcript.Info{ActualModel: tt.actual}})
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want, s.Render(&segment.Context{Config: config.New("").Section(""), Theme: th, Transcript: tt.info}))
 		})
 	}
 }

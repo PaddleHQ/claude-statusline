@@ -13,7 +13,7 @@ flowchart TD
     M -->|"subagent"| SA["subagent.Build<br/>one row per running subagent"]
     M -->|"setup"| SU["setup.Run<br/>edit settings.json"]
     M -->|"--version"| V["print the version"]
-    B --> C["load config<br/>(defaults.conf under your config file)"]
+    B --> C["load config<br/>(the defaults under your config file)"]
     C --> SN["save the usage snapshot"]
     SN --> T["pick the theme<br/>(NO_COLOR removes colour)"]
     T --> P["parse the payload"]
@@ -45,7 +45,7 @@ Rate limits belong to your account, not to a session, and an idle session's payl
 
 ## Transcript diagnostics
 
-These segments are read from the session transcript (`transcript_path` in the payload). Only its first 40 lines and last 200 lines are read, each within a few megabytes, so a huge transcript costs nothing extra; a missing or unreadable transcript simply hides them. The `model` segment also uses it, and the rest are in the usage group (see [Wrapping](customising.md#wrapping)).
+These segments are read from the session transcript (`transcript_path` in the payload). Only its first 40 lines and last 200 lines are read, each within a few megabytes, so a huge transcript costs nothing extra, and it is not read at all unless a listed segment needs it; a missing or unreadable transcript simply hides them. The `model` segment also uses it, and the rest are in the usage group (see [Wrapping](customising.md#wrapping)).
 
 | Segment | Shows | When |
 |---|---|---|

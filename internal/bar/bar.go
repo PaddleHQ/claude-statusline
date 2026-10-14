@@ -41,6 +41,16 @@ func WidthFor(columns, wide, medium, narrow int) int {
 	return min(max(width, minWidth), maxWidth)
 }
 
+// Sizes reads whole-number settings; a config section satisfies it.
+type Sizes interface {
+	Int(key string) int
+}
+
+// WidthOf picks the bar width for a terminal from the width, width_medium and width_narrow settings.
+func WidthOf(columns int, s Sizes) int {
+	return WidthFor(columns, s.Int("width"), s.Int("width_medium"), s.Int("width_narrow"))
+}
+
 // ElapsedPercent is how much of a window, ending at resetsAt, has passed by now, clamped to 0..100.
 func ElapsedPercent(now, resetsAt, windowSeconds int64) int {
 	elapsed := min(max(now-(resetsAt-windowSeconds), 0), windowSeconds)

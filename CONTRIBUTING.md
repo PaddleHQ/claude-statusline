@@ -17,9 +17,12 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 |---|---|
 | `main.go` | Picks the command from the arguments (`--version`, `setup`, `subagent`, or the status line itself) and reads stdin. It never reports an error, because a blank status line is better than a broken one. |
 | `internal/statusline` | Builds the line: loads config, saves the snapshot, merges rate limits, reads the transcript, runs hooks and renders. Also lists every config key the code reads. |
-| `internal/segment` | The segments (`path`, `model`, `ctx`, `tokens`, `cache`, `rate5h`, `rate7d` and the transcript diagnostics) and the code that renders them in order and places custom segments among them. |
+| `segments/` | One folder per plugin, each providing the segments it names and owning their `defaults.conf` and tests. `segments/all.go` is the single list of plugins. See [Building plugins](docs/building_plugins.md). |
+| `internal/plugin` | What a plugin is: the `Segment` interface, the per-render `Session`, and the `Providers` (theme, config section, clock, and the lazily computed transcript and rate limits). |
+| `internal/render` | Renders the configured segments in order, and places custom segments among them. |
+| `internal/segment` | The segments not yet converted to plugins, bridged to the plugin interface. |
 | `internal/layout` | Joins rendered segments into one row, or wraps them into groups when the terminal is too narrow. |
-| `internal/config` | Layers your config file over `defaults.conf`, which is embedded in the binary. |
+| `internal/config` | Layers your config file over the defaults embedded in the binary: its own `defaults.conf` for the global keys, and each plugin's. |
 | `internal/payload` | Decodes the session JSON from Claude Code and strips control characters from its strings. |
 | `internal/transcript` | Reads the few facts the line takes from the session transcript. |
 | `internal/ratecache` | Shares rate-limit readings between sessions through a small cache file. |
@@ -117,7 +120,7 @@ echo '{"model":{"display_name":"Opus 4.7"}}' | HOME="$tmp" CLAUDE_CONFIG_DIR="$t
 
 ### Configuration keys
 
-Every key the code reads must appear in `internal/config/defaults.conf` with a one-line comment above it, and every key in that file must be read by something. `TestKeysMatchDefaults` in `internal/statusline` enforces both directions, so a new setting cannot ship undocumented and a dead one cannot linger. Add the key to the table in [`docs/customising.md`](docs/customising.md) too.
+Every key the code reads must appear, with a one-line comment above it, in `internal/config/defaults.conf` (the global keys) or in the `defaults.conf` of the plugin that reads it, and every key in those files must be read by something. `TestKeysMatchDefaults` in `internal/statusline` enforces both directions, so a new setting cannot ship undocumented and a dead one cannot linger. Add the key to the table in [`docs/customising.md`](docs/customising.md) too.
 
 ### Adding a built-in theme
 
@@ -125,13 +128,7 @@ Built-in themes are YAML files in the top-level `themes/` directory, embedded in
 
 ### Adding a segment
 
-1. Write a type that satisfies the `Segment` interface in `internal/segment`: a name, the layout group it belongs to when the line wraps, the config keys it reads, and a `Render` that returns an empty string when it has nothing to show. A segment that only reads the transcript is simpler as an entry in the `diagnostics` list in `diagnostics.go`.
-2. Register it in the `registry` map in `internal/segment/segment.go`.
-3. Add its keys to `defaults.conf`, and add its name to the default `segments` list if it should show by default.
-4. Cover it with a unit test and at least one render test case, including the case where its data is missing.
-5. Document it in `docs/customising.md`, in the table of keys and the section that fits.
-
-A segment should be hidden, not wrong, when its data is missing.
+A segment is a plugin: a package under `segments/` that owns its code, its `defaults.conf` and its tests, plus one line in `segments/all.go`. [Building plugins](docs/building_plugins.md) is the step-by-step guide. A segment should be hidden, not wrong, when its data is missing.
 
 ### Custom segment output
 

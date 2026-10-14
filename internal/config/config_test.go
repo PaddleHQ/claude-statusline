@@ -19,7 +19,6 @@ func TestDefaultsParse(t *testing.T) {
 	assert.Equal(t, "path model ctx tokens cache boot skills skills_stripped agent_skills mem rate5h rate7d", c.String("segments"))
 	assert.Equal(t, "·", c.String("separator"))
 	assert.Equal(t, "classic", c.String("theme"))
-	assert.True(t, c.Bool("model.effort"))
 }
 
 func TestDefaultKeys(t *testing.T) {
@@ -27,7 +26,7 @@ func TestDefaultKeys(t *testing.T) {
 
 	keys := config.DefaultKeys()
 	slices.Sort(keys)
-	want := []string{"cache.warn", "ctx.bad", "ctx.warn", "ctx.width", "ctx.width_medium", "ctx.width_narrow", "hooks.timeout", "hooks.ttl", "model.effort", "path.branch", "path.strip", "rate5h.bad", "rate5h.hard_cap", "rate5h.label", "rate5h.warn", "rate5h.width", "rate5h.width_medium", "rate5h.width_narrow", "rate7d.bad", "rate7d.hard_cap", "rate7d.label", "rate7d.warn", "rate7d.width", "rate7d.width_medium", "rate7d.width_narrow", "segments", "separator", "snapshot.enabled", "snapshot.path", "theme"}
+	want := []string{"cache.warn", "ctx.bad", "ctx.warn", "ctx.width", "ctx.width_medium", "ctx.width_narrow", "hooks.timeout", "hooks.ttl", "path.branch", "path.strip", "rate5h.bad", "rate5h.hard_cap", "rate5h.label", "rate5h.warn", "rate5h.width", "rate5h.width_medium", "rate5h.width_narrow", "rate7d.bad", "rate7d.hard_cap", "rate7d.label", "rate7d.warn", "rate7d.width", "rate7d.width_medium", "rate7d.width_narrow", "segments", "separator", "snapshot.enabled", "snapshot.path", "theme"}
 	assert.Equal(t, want, keys)
 }
 
@@ -175,4 +174,42 @@ func TestPath(t *testing.T) {
 			assert.Equal(t, tt.want, config.Path(func(k string) string { return tt.env[k] }))
 		})
 	}
+}
+
+func TestPluginDefaults(t *testing.T) {
+	t.Parallel()
+
+	const plugin = "# a plugin key\nfoo.size = 3\nfoo.on = true\n"
+
+	t.Run("layer under the user's config and over nothing else", func(t *testing.T) {
+		t.Parallel()
+		c := config.New("foo.size = 9", plugin)
+		assert.Equal(t, 9, c.Int("foo.size"))
+		assert.True(t, c.Bool("foo.on"))
+		assert.Equal(t, "·", c.String("separator"), "global defaults stay")
+	})
+
+	t.Run("are listed with the global keys", func(t *testing.T) {
+		t.Parallel()
+		keys := config.DefaultKeys(plugin)
+		assert.Contains(t, keys, "foo.size")
+		assert.Contains(t, keys, "separator")
+	})
+
+	t.Run("are used by Load", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, 3, config.Load(filepath.Join(t.TempDir(), "missing"), plugin).Int("foo.size"))
+	})
+}
+
+func TestSection(t *testing.T) {
+	t.Parallel()
+
+	c := config.New("foo.size = 9\nfoo.on = false", "foo.size = 3\nfoo.on = true\nfoo.label = x\n")
+	foo := c.Section("foo")
+	assert.Equal(t, 9, foo.Int("size"))
+	assert.False(t, foo.Bool("on"))
+	assert.Equal(t, "x", foo.String("label"))
+	assert.Equal(t, "·", c.Section("").String("separator"), "an empty name reads keys as they are")
+	assert.Zero(t, c.Section("bar").Int("size"), "another section does not see foo's keys")
 }

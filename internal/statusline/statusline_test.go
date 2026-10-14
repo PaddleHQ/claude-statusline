@@ -10,6 +10,7 @@ import (
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/statusline"
+	"github.com/PaddleHQ/claude-statusline/segments"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,13 +24,13 @@ func TestKeysMatchDefaults(t *testing.T) {
 	t.Parallel()
 
 	used := slices.Compact(slices.Sorted(slices.Values(statusline.Keys())))
-	defined := slices.Sorted(slices.Values(config.DefaultKeys()))
+	defined := slices.Sorted(slices.Values(config.DefaultKeys(segments.Defaults()...)))
 
 	for _, k := range used {
-		assert.Contains(t, defined, k, "key %q is read by the code but missing from defaults.conf", k)
+		assert.Contains(t, defined, k, "key %q is read by the code but missing from the defaults", k)
 	}
 	for _, k := range defined {
-		assert.Contains(t, used, k, "key %q is in defaults.conf but nothing reads it", k)
+		assert.Contains(t, used, k, "key %q is in the defaults but nothing reads it", k)
 	}
 }
 

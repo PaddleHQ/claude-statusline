@@ -43,7 +43,7 @@ func TestRateRender(t *testing.T) {
 			t.Parallel()
 			s, ok := segment.Lookup(tt.seg)
 			require.True(t, ok)
-			ctx := &segment.Context{Rates: tt.rates, Config: config.New(tt.cfg), Theme: plain, Now: now, Columns: tt.columns}
+			ctx := &segment.Context{Rates: tt.rates, Config: config.New(tt.cfg).Section(""), Theme: plain, Now: now, Columns: tt.columns}
 			assert.Equal(t, tt.want, s.Render(ctx))
 		})
 	}

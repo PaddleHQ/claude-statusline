@@ -6,7 +6,7 @@ For what the tool is and how to install it, see the [README](../README.md). For 
 
 Configuration is optional. Your settings live in `~/.claude/claude-statusline/config`, or under `$CLAUDE_CONFIG_DIR` if you set it. Each line is `key = value`. Blank lines and full-line `#` comments are ignored, whitespace around keys and values is trimmed, and the last occurrence of a key wins. Keys are lower case, with at most one dot (`model.effort`); anything else is ignored. The file is parsed, never executed, so values are always plain text. A missing or invalid value falls back to its default.
 
-[`internal/config/defaults.conf`](../internal/config/defaults.conf) documents every key with a comment and its default value. The current keys are:
+[`internal/config/defaults.conf`](../internal/config/defaults.conf) documents the global keys with a comment and their default values, and each segment's own `defaults.conf` under [`segments/`](../segments) does the same for the keys that start with its name. The current keys are:
 
 | Key | Default | Meaning |
 |---|---|---|

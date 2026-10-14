@@ -1,24 +1,25 @@
-package segment
+package render
 
 import (
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/hook"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
+	"github.com/PaddleHQ/claude-statusline/internal/plugin"
 )
 
 // items renders the configured segments in order, then places the hooks among them.
 //
 // A hook named in the segments list renders there, and replaces a built-in of the same name.
 // Every other hook goes to its slot: after the context segment, after the usage group, or at the end.
-func items(ctx *Context) []layout.Item {
-	names := strings.Fields(ctx.Config.String(keySegments))
-	byName, unplaced := partitionHooks(ctx.Hooks, names)
+func (l *Line) items() []layout.Item {
+	names := strings.Fields(l.Providers.Config.String(keySegments))
+	byName, unplaced := partitionHooks(l.Hooks, names)
 
 	var out []layout.Item
 	ctxAt, modelAt := -1, -1
 	for _, name := range names {
-		builtin, isBuiltin := Lookup(name)
+		builtin, isBuiltin := l.lookup(name)
 		if hooks := byName[name]; len(hooks) > 0 {
 			out = appendNamedHooks(out, hooks, builtin, isBuiltin)
 			continue
@@ -26,7 +27,7 @@ func items(ctx *Context) []layout.Item {
 		if !isBuiltin {
 			continue
 		}
-		text := builtin.Render(ctx)
+		text := builtin.Render(l.Session)
 		if text == "" {
 			continue
 		}
@@ -38,7 +39,7 @@ func items(ctx *Context) []layout.Item {
 			modelAt = len(out) - 1
 		}
 	}
-	return place(out, unplaced, ctxAt, modelAt, separator(ctx))
+	return place(out, unplaced, ctxAt, modelAt, l.separator())
 }
 
 // partitionHooks splits the hooks into those named in the segments list, keyed by name, and the rest.
@@ -58,7 +59,7 @@ func partitionHooks(hooks []hook.Result, names []string) (byName map[string][]ho
 	return byName, unplaced
 }
 
-func appendNamedHooks(out []layout.Item, hooks []hook.Result, builtin Segment, isBuiltin bool) []layout.Item {
+func appendNamedHooks(out []layout.Item, hooks []hook.Result, builtin plugin.Segment, isBuiltin bool) []layout.Item {
 	for _, h := range hooks {
 		if h.Text == "" {
 			continue
