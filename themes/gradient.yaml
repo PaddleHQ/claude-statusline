@@ -1,0 +1,24 @@
+# gradient: whole-cell bars whose color runs from good through warn to bad by
+# position along the bar. The pace color moves to the percentage after it.
+# A complete theme file: same fields as classic.yaml, plus the gradient ones.
+
+# Color roles, as in classic.yaml.
+colors:
+  text: ""
+  muted: dim
+  good: green
+  warn: yellow
+  bad: red
+  marker: bold
+  path: bold 33
+
+bar:
+  style: gradient
+  full: "▰"
+  empty: "▱"
+  marker: "/"
+  # Good, warn and bad stops, as #rrggbb.
+  ramp: ["#94e2ad", "#f9e2af", "#f38ba8"]
+  # Unfilled cells and the pace marker.
+  empty_color: "#4a4a4a"
+  marker_color: bold
