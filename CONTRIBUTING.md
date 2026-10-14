@@ -6,13 +6,17 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 
 - Go, at the version in `go.mod`.
 - [golangci-lint](https://golangci-lint.run/) v2, for the linters and formatters in `.golangci.yml` (the build uses v2.14.0).
+- [shellcheck](https://www.shellcheck.net/), for the shell scripts under `hooks/`.
+- [GoReleaser](https://goreleaser.com/) and [syft](https://github.com/anchore/syft), only if you want to build a snapshot release locally.
+
+`jq` is not needed: the shell scripts parse what they need with `awk` and `grep`, so the plugin works on a machine without it.
 
 ## Repository layout
 
 | Path | What it is |
 |---|---|
 | `main.go` | A few lines of wiring: it holds the build stamps and hands them, the arguments and the standard streams to `internal/cli`. It has no test, so that its wiring does not count against coverage. |
-| `internal/cli` | Picks the command from the arguments (`--version`, or the status line itself) and reads stdin. It never reports an error, because a blank status line is better than a broken one. |
+| `internal/cli` | Picks the command from the arguments (`--version`, `setup`, or the status line itself) and reads stdin. It never reports an error, because a blank status line is better than a broken one. |
 | `internal/statusline` | Builds the line: loads config and renders. Also lists every config key the code reads. |
 | `segments/` | One folder per plugin, each providing the segments it names and owning their `defaults.conf`, README, tests and generated mocks. A plugin declares the interfaces it needs and imports nothing from `internal/`. `segments/all.go` is the composition root: the single list of plugins, and the environment that hands them the internal types, which satisfy the plugins' interfaces directly. |
 | `internal/render` | Renders the configured segments in order. |
@@ -22,8 +26,11 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `internal/bar` | Draws a usage bar with an optional pace marker. |
 | `internal/theme` | Loads themes from YAML, compiles colour specs, and provides the colour-free variant used for `NO_COLOR`. It reads the built-in themes from `themes/`. |
 | `themes` | The built-in themes: one YAML file each, embedded in the binary by a tiny package that only exports them. |
+| `internal/setup` | Adds `statusLine` and `subagentStatusLine` to `settings.json` once, backing the file up first. |
+| `hooks/` | The plugin's `SessionStart` hook: `hooks.json` and `bootstrap.sh`, which installs the latest release, and `bootstrap_test.sh`, its shell tests. |
 | `features/` | The Gherkin feature files: readable examples of the whole line. `features_test.go` runs them. |
 | `internal/featuretest` | The step definitions behind the feature files. |
+| `.claude-plugin/` | The plugin and marketplace manifests. |
 
 ## Verifying a change
 
@@ -39,8 +46,13 @@ go vet ./...
 go test -race ./...
 # coverage at or above requiredCoverage in build-config.yaml: see Coverage below
 golangci-lint run
+shellcheck -s sh hooks/bootstrap.sh hooks/bootstrap_test.sh
+sh hooks/bootstrap_test.sh
 actionlint                    # the workflow files
 editorconfig-checker          # whitespace and indentation against .editorconfig
+goreleaser check
+goreleaser release --snapshot --clean --skip=publish   # needs syft on your PATH
+claude plugin validate .                               # needs Claude Code installed
 ```
 
 The workflow files in `.github/workflows/` are the source of truth if this list and CI ever disagree. `golangci-lint run --fix` applies the formatters for you.
@@ -59,7 +71,7 @@ There are three layers. Put a test in the lowest one that can show the behaviour
 
 - `model` leaving out the effort level when `model.effort` is `false`.
 
-**2. Provider unit tests**, in `internal/*` (and `segments/all_test.go` for the composition root). They cover the shared machinery that the plugins sit on: config layering and validation, theme loading, fallback and colour specs, layout and wrapping and the bars. They use real files in a temporary directory, never your `HOME`. For example:
+**2. Provider unit tests**, in `internal/*` (and `segments/all_test.go` for the composition root). They cover the shared machinery that the plugins sit on: config layering and validation, theme loading, fallback and colour specs, layout and wrapping, setup and the bars. They use real files in a temporary directory, never your `HOME`. For example:
 
 - a theme file with an unknown colour name falls back to `classic` (`internal/theme`).
 
@@ -244,6 +256,21 @@ A segment is a plugin: a package under `segments/` that owns its code, its `defa
 
 Comments explain why, not what; code that reads clearly needs none. Code, identifiers and comments use US English. Documentation, commit messages and pull request text use British English.
 
-## Pull requests
+## Pull requests and releases
 
-Every pull request needs exactly one of these labels, checked by the `Check SemVer label` workflow: `release:major`, `release:minor`, `release:patch` or `norelease`. Use `norelease` for changes that need no release, such as documentation or tests.
+Every pull request needs exactly one of these labels, checked by the `Check SemVer label` workflow:
+
+| Label | Effect on merge |
+|---|---|
+| `release:major` | Tags the next major version and publishes it. |
+| `release:minor` | Tags the next minor version and publishes it. |
+| `release:patch` | Tags the next patch version and publishes it. |
+| `norelease` | Merges without a release, for changes such as documentation or tests. |
+
+On a pull request, a `release:*` label makes the release workflow do a dry run. On merge, the workflow tags the version and publishes archives for macOS and Linux on arm64 and amd64, with a checksum file, an SBOM per archive and a build provenance attestation.
+
+### How the plugin picks up a release
+
+Merging a `release:*` pull request publishes the release, and plugin users pick it up within a day: there is no second step. The hook resolves the latest release from the redirect at `https://github.com/PaddleHQ/claude-statusline/releases/latest`, so it does not use the API or its rate limit. It verifies the archive against the release's `checksums.txt` and, when `gh` is installed and logged in, runs `gh attestation verify`.
+
+For tests only, `CLAUDE_STATUSLINE_LATEST_URL` replaces the latest-release URL (a `file://` URL whose content is the tag, for example `v1.2.3`), and `CLAUDE_STATUSLINE_DOWNLOAD_BASE` replaces the download base URL.
