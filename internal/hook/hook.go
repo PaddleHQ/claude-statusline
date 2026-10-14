@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -40,6 +41,9 @@ const (
 	outputBytes  = 64 * 1024
 	keepSessions = 7 * 24 * time.Hour
 	sessionNone  = "shared"
+
+	// maxTTLSeconds keeps a ttl directive from overflowing a time.Duration.
+	maxTTLSeconds = math.MaxInt64 / int64(time.Second)
 
 	execAttempts   = 3
 	execRetryDelay = 20 * time.Millisecond
@@ -159,7 +163,7 @@ func (h *Hook) applyTTL(line string) bool {
 		return false
 	}
 	if n, ok := config.ParseNumber(m[1]); ok {
-		h.TTL = time.Duration(n) * time.Second
+		h.TTL = time.Duration(min(int64(n), maxTTLSeconds)) * time.Second
 	}
 	return true
 }
@@ -393,6 +397,10 @@ func sanitize(s string) string {
 		}
 		r, size := utf8.DecodeRuneInString(s[i:])
 		i += size
+		if r == utf8.RuneError && size == 1 {
+			b.WriteRune(utf8.RuneError)
+			continue
+		}
 		if r < 0x20 || (r >= 0x7f && r <= 0x9f) {
 			continue
 		}

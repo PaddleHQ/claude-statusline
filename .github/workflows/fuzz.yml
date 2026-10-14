@@ -1,0 +1,80 @@
+name: Weekly fuzz
+
+on:
+  schedule:
+    - cron: '37 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      fuzztime:
+        description: 'Time to fuzz each target (for example 3m or 30m)'
+        default: '3m'
+        required: false
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Fuzz ${{ matrix.target }} (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {package: ./internal/payload, target: FuzzParse}
+          - {package: ./internal/config, target: FuzzParse}
+          - {package: ./internal/config, target: FuzzParseNumber}
+          - {package: ./internal/theme, target: FuzzParseColor}
+          - {package: ./internal/theme, target: FuzzOpen}
+          - {package: ./internal/hook, target: FuzzSanitize}
+          - {package: ./internal/hook, target: FuzzHeader}
+          - {package: ./internal/transcript, target: FuzzRead}
+          - {package: ./internal/ratecache, target: FuzzLoad}
+          - {package: ./internal/layout, target: FuzzWidth}
+          - {package: ./segments/tokens, target: FuzzFormatTokens}
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          use-policy-store: true
+          api-key: ${{ secrets.STEPSECURITY_POLICY_STORE_API_KEY }}
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Fuzz
+        env:
+          FUZZTIME: ${{ inputs.fuzztime || '3m' }}
+          PACKAGE: ${{ matrix.package }}
+          TARGET: ${{ matrix.target }}
+        run: go test -run='^$' -fuzz="^${TARGET}\$" -fuzztime="${FUZZTIME}" "${PACKAGE}"
+
+      - name: Collect new crashing inputs
+        if: failure()
+        run: |
+          mkdir -p crashers
+          git ls-files --others --exclude-standard -- '*/testdata/fuzz/*' | while read -r file; do
+            cp --parents "$file" crashers/
+          done
+          find crashers -type f
+
+      - name: Upload new crashing inputs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: crashers-${{ matrix.target }}-${{ strategy.job-index }}
+          path: crashers
+          if-no-files-found: ignore
+          retention-days: 30

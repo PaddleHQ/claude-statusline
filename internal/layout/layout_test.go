@@ -220,3 +220,15 @@ func TestRenderTheDefaultLineAtTerminalWidths(t *testing.T) {
 		})
 	}
 }
+
+func FuzzWidth(f *testing.F) {
+	for _, s := range []string{"", "hello", "\x1b[32mgreen\x1b[0m", "\x1b[1;38;5;33mpath\x1b[m", "café ↑", "\x1b[", "\xff\xfe"} {
+		f.Add(s)
+	}
+
+	f.Fuzz(func(t *testing.T, s string) {
+		w := layout.Width(s)
+		assert.GreaterOrEqual(t, w, 0)
+		assert.LessOrEqual(t, w, len(s))
+	})
+}

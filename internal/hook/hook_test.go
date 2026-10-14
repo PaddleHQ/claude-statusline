@@ -494,3 +494,21 @@ func TestSafeSession(t *testing.T) {
 		assert.Equal(t, "shared", hook.SafeSession(bad), "%q", bad)
 	}
 }
+
+func TestSanitizeDoesNotAssembleControlCharacters(t *testing.T) {
+	t.Parallel()
+
+	got := hook.Sanitize("\xc2\b\x96")
+	assert.Equal(t, "��", got, "invalid bytes must not rejoin into a C1 control once the bytes between them are dropped")
+	assert.Equal(t, got, hook.Sanitize(got))
+}
+
+func TestHeaderTTLDoesNotOverflow(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	script(t, dir, "10-big.sh", "#!/bin/sh\n# statusline-ttl: 9227000000\n", 0o700)
+	hooks := hook.Discover(dir)
+	require.Len(t, hooks, 1)
+	assert.Positive(t, int64(hooks[0].TTL))
+}

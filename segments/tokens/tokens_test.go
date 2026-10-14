@@ -1,6 +1,8 @@
 package tokens_test
 
 import (
+	"math"
+	"regexp"
 	"testing"
 
 	"github.com/PaddleHQ/claude-statusline/segments/tokens"
@@ -88,4 +90,18 @@ func TestNameKeysAndHelp(t *testing.T) {
 	assert.Equal(t, "tokens", seg.Name())
 	assert.Empty(t, seg.Keys())
 	assert.NotEmpty(t, seg.Help())
+}
+
+func FuzzFormatTokens(f *testing.F) {
+	for _, n := range []int64{0, 1, 999, 1000, 1049, 1500, 999999, 1000000, 12345678, math.MaxInt64} {
+		f.Add(n)
+	}
+
+	shape := regexp.MustCompile(`^\d+$|^\d+\.\d[kM]$`)
+	f.Fuzz(func(t *testing.T, n int64) {
+		if n < 0 {
+			return
+		}
+		assert.Regexp(t, shape, tokens.FormatTokens(n))
+	})
 }
