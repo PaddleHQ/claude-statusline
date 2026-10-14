@@ -105,6 +105,72 @@ func TestBuild(t *testing.T) {
 	}
 }
 
+func writeHook(t *testing.T, dir, name, body string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(dir, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+body+"\n"), 0o700))
+}
+
+func TestBuildHooks(t *testing.T) {
+	t.Parallel()
+
+	const input = `{"model":{"display_name":"Opus"},"session_id":"sess1"}`
+
+	t.Run("runs the hooks in the default directory with the session JSON", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		writeHook(t, filepath.Join(dir, "statusline.d"), "10-echo.sh", `grep -o sess1`)
+		got := statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir, "NO_COLOR": "1"}))
+		assert.Equal(t, "Opus · sess1", got)
+		assert.FileExists(t, filepath.Join(dir, "claude-statusline", "cache", "hooks", "sess1", "10-echo.sh"))
+	})
+
+	t.Run("STATUSLINE_HOOK_DIR overrides the directory", func(t *testing.T) {
+		t.Parallel()
+		hooks := t.TempDir()
+		writeHook(t, hooks, "10-x.sh", `printf custom`)
+		got := statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": t.TempDir(), "STATUSLINE_HOOK_DIR": hooks, "NO_COLOR": "1"}))
+		assert.Equal(t, "Opus · custom", got)
+	})
+
+	t.Run("STATUSLINE_HOOK_TTL overrides the config", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		writeHook(t, filepath.Join(dir, "statusline.d"), "10-x.sh", `printf fresh`)
+		cache := filepath.Join(dir, "claude-statusline", "cache", "hooks", "sess1")
+		require.NoError(t, os.MkdirAll(cache, 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(cache, "10-x.sh"), []byte("1759999000\nstale\n"), 0o600))
+		base := map[string]string{"CLAUDE_CONFIG_DIR": dir, "NO_COLOR": "1", "STATUSLINE_NOW": "1760000000"}
+
+		assert.Equal(t, "Opus · fresh", statusline.Build([]byte(input), env(base)), "1000 seconds old is past the default 60")
+		require.NoError(t, os.WriteFile(filepath.Join(cache, "10-x.sh"), []byte("1759999000\nstale\n"), 0o600))
+		base["STATUSLINE_HOOK_TTL"] = "5000"
+		assert.Equal(t, "Opus · stale", statusline.Build([]byte(input), env(base)))
+	})
+
+	t.Run("STATUSLINE_HOOK_TIMEOUT overrides the config", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		writeHook(t, filepath.Join(dir, "statusline.d"), "10-slow.sh", `sleep 5; printf late`)
+		start := time.Now()
+		got := statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir, "NO_COLOR": "1", "STATUSLINE_HOOK_TIMEOUT": "1"}))
+		assert.Equal(t, "Opus", got)
+		assert.Less(t, time.Since(start), 3*time.Second)
+	})
+
+	t.Run("hooks.timeout from the config applies", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		writeHook(t, filepath.Join(dir, "statusline.d"), "10-slow.sh", `sleep 5; printf late`)
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "claude-statusline"), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "claude-statusline", "config"), []byte("hooks.timeout = 1\n"), 0o600))
+		start := time.Now()
+		got := statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir, "NO_COLOR": "1"}))
+		assert.Equal(t, "Opus", got)
+		assert.Less(t, time.Since(start), 3*time.Second)
+	})
+}
+
 func TestBuildSnapshot(t *testing.T) {
 	t.Parallel()
 

@@ -1,0 +1,2 @@
+go test fuzz v1
+string("#statusline-ttl:9227000000A")

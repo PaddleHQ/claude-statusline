@@ -1,13 +1,16 @@
-// Package render lays out the configured segments into the printed line.
+// Package render lays out the configured segments and the user's hooks into the printed line.
 package render
 
 import (
+	"github.com/PaddleHQ/claude-statusline/internal/hook"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
 )
 
 const (
 	keySegments  = "segments"
 	keySeparator = "separator"
+	nameCtx      = "ctx"
+	nameModel    = "model"
 )
 
 // Keys lists the config keys the renderer itself reads.
@@ -30,9 +33,11 @@ type Line struct {
 	Separator string
 	// Anchor is drawn at the start of an indented row.
 	Anchor string
+	// Hooks holds the output of the user's hook scripts, in filename order.
+	Hooks []hook.Result
 }
 
-// Render lays out the configured segments, wrapping onto further rows when they do not fit.
+// Render lays out the configured segments and the hooks, wrapping onto further rows when they do not fit.
 func (l *Line) Render() string {
 	opts := &layout.Options{Columns: l.Columns, Separator: l.Separator, Anchor: l.Anchor}
 	return opts.Render(l.items())

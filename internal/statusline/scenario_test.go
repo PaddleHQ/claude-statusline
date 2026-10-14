@@ -18,14 +18,15 @@ const tmpMarker = "@TMP@"
 // scenario is one run of the command in a private home directory. The text of every field may name that directory
 // as @TMP@, and the expected output writes an escape byte as \e.
 type scenario struct {
-	name      string
-	session   string
-	config    string
-	env       map[string]string
-	files     map[string]string
-	cache     string
-	want      string
-	wantCache string
+	name        string
+	session     string
+	config      string
+	env         map[string]string
+	files       map[string]string
+	executables map[string]string
+	cache       string
+	want        string
+	wantCache   string
 }
 
 // home creates the scenario's directory with its config, files and seeded cache, and returns it with the environment.
@@ -34,10 +35,11 @@ func (s *scenario) home(t *testing.T) (dir string, getenv func(string) string) {
 
 	dir = t.TempDir()
 	vars := map[string]string{
-		"HOME":              dir,
-		"CLAUDE_CONFIG_DIR": dir,
-		"STATUSLINE_NOW":    "1760000000",
-		"COLUMNS":           "999",
+		"HOME":                    dir,
+		"CLAUDE_CONFIG_DIR":       dir,
+		"STATUSLINE_HOOK_TIMEOUT": "30",
+		"STATUSLINE_NOW":          "1760000000",
+		"COLUMNS":                 "999",
 	}
 	maps.Copy(vars, s.env)
 	write := func(rel, text string, perm os.FileMode) {
@@ -53,6 +55,9 @@ func (s *scenario) home(t *testing.T) (dir string, getenv func(string) string) {
 	}
 	for rel, text := range s.files {
 		write(rel, text, 0o600)
+	}
+	for rel, text := range s.executables {
+		write(rel, text, 0o700)
 	}
 	return dir, func(k string) string { return vars[k] }
 }
