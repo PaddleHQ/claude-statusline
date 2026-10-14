@@ -106,37 +106,63 @@ func (p *Params) Render(th theme.Theme) string {
 }
 
 func (p *Params) gradientCells(th theme.Theme, filled, targetCell int) string {
-	var b strings.Builder
+	var r runs
 	cells := (filled + eighths/2) / eighths
 	for cell := range p.Width {
 		switch {
 		case cell == targetCell:
-			b.WriteString(th.Paint(th.MarkerColor, th.MarkerGlyph))
+			r.add(th.MarkerColor, th.MarkerGlyph)
 		case cell < cells:
-			b.WriteString(th.Paint(th.RampColor(cell, p.Width), th.Full))
+			r.add(th.RampColor(cell, p.Width), th.Full)
 		default:
-			b.WriteString(th.Paint(th.EmptyColor, th.Empty))
+			r.add(th.EmptyColor, th.Empty)
 		}
 	}
-	return b.String()
+	return r.paint(th)
 }
 
 func (p *Params) solidCells(th theme.Theme, filled, targetCell int) string {
 	fullCells, remainder := filled/eighths, filled%eighths
 	fill := p.Fill(th)
 
-	var b strings.Builder
+	var r runs
 	for cell := range p.Width {
 		switch {
 		case cell == targetCell:
-			b.WriteString(th.Paint(th.Marker, th.MarkerGlyph))
+			r.add(th.Marker, th.MarkerGlyph)
 		case cell < fullCells:
-			b.WriteString(th.Paint(fill, th.Full))
+			r.add(fill, th.Full)
 		case cell == fullCells && remainder > 0:
-			b.WriteString(th.Paint(fill, th.Partials[remainder-1]))
+			r.add(fill, th.Partials[remainder-1])
 		default:
-			b.WriteString(th.Paint(th.Muted, th.Empty))
+			r.add(th.Muted, th.Empty)
 		}
+	}
+	return r.paint(th)
+}
+
+type run struct {
+	color string
+	text  strings.Builder
+}
+
+// runs groups consecutive cells that share a color so each group is painted once.
+type runs []*run
+
+func (r *runs) add(color, glyph string) {
+	if n := len(*r); n > 0 && (*r)[n-1].color == color {
+		(*r)[n-1].text.WriteString(glyph)
+		return
+	}
+	next := &run{color: color}
+	next.text.WriteString(glyph)
+	*r = append(*r, next)
+}
+
+func (r runs) paint(th theme.Theme) string {
+	var b strings.Builder
+	for _, g := range r {
+		b.WriteString(th.Paint(g.color, g.text.String()))
 	}
 	return b.String()
 }

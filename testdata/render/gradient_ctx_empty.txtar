@@ -5,4 +5,4 @@ The gradient theme at 0% context use draws an entirely empty bar
 theme = gradient
 segments = ctx
 -- output --
-ctx: \e[38;2;74;74;74m▱\e[0m\e[38;2;74;74;74m▱\e[0m\e[38;2;74;74;74m▱\e[0m\e[38;2;74;74;74m▱\e[0m\e[38;2;74;74;74m▱\e[0m\e[38;2;74;74;74m▱\e[0m\e[38;2;74;74;74m▱\e[0m\e[38;2;74;74;74m▱\e[0m\e[38;2;74;74;74m▱\e[0m\e[38;2;74;74;74m▱\e[0m \e[32m0%\e[0m
+ctx: \e[38;2;74;74;74m▱▱▱▱▱▱▱▱▱▱\e[0m \e[32m0%\e[0m

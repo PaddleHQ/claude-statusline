@@ -5,4 +5,4 @@ Injection attempts in width and label settings are shown as text and never execu
 rate5h.width = 5; touch @TMP@/pwned
 rate7d.label = `touch @TMP@/pwned`
 -- output --
-Opus 4.7 [high] \e[2m·\e[0m 5h: \e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[2m░\e[0m\e[1m┃\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m 45% \e[2m·\e[0m `touch @TMP@/pwned`: \e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[1m┃\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m 40%
+Opus 4.7 [high] \e[2m·\e[0m 5h: \e[32m█████████\e[0m\e[2m░\e[0m\e[1m┃\e[0m\e[2m░░░░░░░░░\e[0m 45% \e[2m·\e[0m `touch @TMP@/pwned`: \e[32m████████\e[0m\e[2m░░\e[0m\e[1m┃\e[0m\e[2m░░░░░░░░░\e[0m 40%

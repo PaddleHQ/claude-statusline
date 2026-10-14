@@ -2,4 +2,4 @@ Control characters and escape sequences in names, descriptions, models and effor
 -- input.json --
 {"tasks":[{"id":"t1","name":"bad\u001b[31mname","type":"local_agent","description":"line one\nline two \u001b]8;;http://evil\u0007link\u009b31m end\u0000","model":"claude-sonnet-4-5\u001b[0m","effort":"hi\u001bgh","contextWindowSize":200000,"tokenCount":50000}]}
 -- output --
-"t1"	\e[1mbad[31mname\e[0m \e[2m·\e[0m sonnet-4-5[0m\e[2m [high]\e[0m \e[2m·\e[0m ctx: \e[32m█\e[0m\e[32m█\e[0m\e[32m▌\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m \e[32m25%\e[0m \e[2m·\e[0m 50.0k \e[2m·\e[0m \e[2mline oneline two ]8;;http://evillink31m end\e[0m
+"t1"	\e[1mbad[31mname\e[0m \e[2m·\e[0m sonnet-4-5[0m\e[2m [high]\e[0m \e[2m·\e[0m ctx: \e[32m██▌\e[0m\e[2m░░░░░░░\e[0m \e[32m25%\e[0m \e[2m·\e[0m 50.0k \e[2m·\e[0m \e[2mline oneline two ]8;;http://evillink31m end\e[0m

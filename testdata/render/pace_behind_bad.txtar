@@ -2,4 +2,4 @@ Usage of 5% with half the window elapsed, with the bar drawn in red and the pace
 -- input.json --
 {"model":{"display_name":"Opus 4.7"},"rate_limits":{"five_hour":{"used_percentage":5,"resets_at":1760009000}},"session_id":"abc123"}
 -- output --
-Opus 4.7 \e[2m·\e[0m 5h: \e[31m█\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[1m┃\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m 5%
+Opus 4.7 \e[2m·\e[0m 5h: \e[31m█\e[0m\e[2m░░░░░░░░░\e[0m\e[1m┃\e[0m\e[2m░░░░░░░░░\e[0m 5%

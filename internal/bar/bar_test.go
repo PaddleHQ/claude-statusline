@@ -117,11 +117,11 @@ func TestRenderNoTarget(t *testing.T) {
 		usage int
 		want  string
 	}{
-		{"below warn is good", 49, "<g>F</><g>F</><d>E</><d>E</>"},
-		{"at warn is amber", 50, "<w>F</><w>F</><d>E</><d>E</>"},
-		{"just below bad is amber", 89, "<w>F</><w>F</><w>F</><w>4</>"},
-		{"at bad is red", 90, "<b>F</><b>F</><b>F</><b>5</>"},
-		{"empty has no marker", 0, "<d>E</><d>E</><d>E</><d>E</>"},
+		{"below warn is good", 49, "<g>FF</><d>EE</>"},
+		{"at warn is amber", 50, "<w>FF</><d>EE</>"},
+		{"just below bad is amber", 89, "<w>FFF4</>"},
+		{"at bad is red", 90, "<b>FFF5</>"},
+		{"empty has no marker", 0, "<d>EEEE</>"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -152,9 +152,9 @@ func TestRenderGradient(t *testing.T) {
 		th   theme.Theme
 		want string
 	}{
-		{"whole cells rounded to nearest", bar.Params{Usage: 40, Width: 4, Warn: 50, Bad: 90, NoTarget: true}, th, c(0) + "F</>" + c(66) + "F</><e>E</><e>E</>"},
-		{"half a cell rounds up", bar.Params{Usage: 38, Width: 4, Warn: 50, Bad: 90, NoTarget: true}, th, c(0) + "F</>" + c(66) + "F</><e>E</><e>E</>"},
-		{"below half a cell rounds down", bar.Params{Usage: 35, Width: 4, Warn: 50, Bad: 90, NoTarget: true}, th, c(0) + "F</><e>E</><e>E</><e>E</>"},
+		{"whole cells rounded to nearest", bar.Params{Usage: 40, Width: 4, Warn: 50, Bad: 90, NoTarget: true}, th, c(0) + "F</>" + c(66) + "F</><e>EE</>"},
+		{"half a cell rounds up", bar.Params{Usage: 38, Width: 4, Warn: 50, Bad: 90, NoTarget: true}, th, c(0) + "F</>" + c(66) + "F</><e>EE</>"},
+		{"below half a cell rounds down", bar.Params{Usage: 35, Width: 4, Warn: 50, Bad: 90, NoTarget: true}, th, c(0) + "F</><e>EEE</>"},
 		{"marker replaces its cell", bar.Params{Usage: 100, Target: 50, Width: 3, Warn: 20, Bad: 40, HardCap: 95}, th, c(0) + "F</><m>M</>" + c(200) + "F</>"},
 		{"no ramp color without color", bar.Params{Usage: 50, Target: 0, Width: 2, Warn: 20, Bad: 40, HardCap: 95}, th.WithoutColor(), "ME"},
 	}
@@ -176,4 +176,39 @@ func TestPercentColor(t *testing.T) {
 	assert.Equal(t, "<w>", p.PercentColor(grad))
 	fill := &bar.Params{Usage: 10, Width: 2, Warn: 50, Bad: 90, NoTarget: true}
 	assert.Equal(t, "<g>", fill.Fill(markers))
+}
+
+func TestRenderMergesRuns(t *testing.T) {
+	t.Parallel()
+
+	grad := theme.Theme{
+		Reset: "</>", Full: "F", Empty: "E", MarkerGlyph: "M",
+		Gradient: true, Ramp: [][3]int{{0, 0, 0}, {100, 100, 100}, {200, 200, 200}},
+		EmptyColor: "<e>", MarkerColor: "<m>",
+	}
+	ramp := grad.RampColor
+	tests := []struct {
+		name string
+		p    bar.Params
+		th   theme.Theme
+		want string
+	}{
+		{"solid with a marker in the middle", bar.Params{Usage: 40, Target: 50, Width: 6, Warn: 20, Bad: 40, HardCap: 95}, markers, "<g>FF3</><m>M</><d>EE</>"},
+		{"all empty", bar.Params{Usage: 0, Target: 0, Width: 4, Warn: 50, Bad: 90, NoTarget: true}, markers, "<d>EEEE</>"},
+		{"all full", bar.Params{Usage: 100, Width: 4, Warn: 150, Bad: 200, NoTarget: true}, markers, "<g>FFFF</>"},
+		{
+			"gradient keeps ramp cells apart and merges the empty tail",
+			bar.Params{Usage: 50, Width: 4, Warn: 50, Bad: 90, NoTarget: true},
+			grad,
+			ramp(0, 4) + "F</>" + ramp(1, 4) + "F</><e>EE</>",
+		},
+		{"no color has no escapes", bar.Params{Usage: 50, Target: 75, Width: 4, Warn: 20, Bad: 40, HardCap: 95}, markers.WithoutColor(), "FFEM"},
+		{"no color gradient has no escapes", bar.Params{Usage: 50, Width: 4, Warn: 50, Bad: 90, NoTarget: true}, grad.WithoutColor(), "FFEE"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, tt.p.Render(tt.th))
+		})
+	}
 }

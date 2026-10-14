@@ -31,12 +31,12 @@ func TestCtxRender(t *testing.T) {
 		cfg  string
 		want string
 	}{
-		{"good below warn", `{"context_window":{"used_percentage":49}}`, "ctx.width = 4", "ctx: <g>F</><g>F</><d>E</><d>E</> 49%"},
-		{"warn at the threshold", `{"context_window":{"used_percentage":50}}`, "ctx.width = 4", "ctx: <w>F</><w>F</><d>E</><d>E</> 50%"},
-		{"bad at the threshold", `{"context_window":{"used_percentage":90}}`, "ctx.width = 4", "ctx: <b>F</><b>F</><b>F</><b>5</> 90%"},
-		{"custom thresholds", `{"context_window":{"used_percentage":20}}`, "ctx.width = 4\nctx.warn = 10\nctx.bad = 20", "ctx: <b>6</><d>E</><d>E</><d>E</> 20%"},
-		{"percentage rounds to even", `{"context_window":{"used_percentage":42.5}}`, "ctx.width = 4", "ctx: <g>F</><g>5</><d>E</><d>E</> 42%"},
-		{"zero is shown", `{"context_window":{"used_percentage":0}}`, "ctx.width = 4", "ctx: <d>E</><d>E</><d>E</><d>E</> 0%"},
+		{"good below warn", `{"context_window":{"used_percentage":49}}`, "ctx.width = 4", "ctx: <g>FF</><d>EE</> 49%"},
+		{"warn at the threshold", `{"context_window":{"used_percentage":50}}`, "ctx.width = 4", "ctx: <w>FF</><d>EE</> 50%"},
+		{"bad at the threshold", `{"context_window":{"used_percentage":90}}`, "ctx.width = 4", "ctx: <b>FFF5</> 90%"},
+		{"custom thresholds", `{"context_window":{"used_percentage":20}}`, "ctx.width = 4\nctx.warn = 10\nctx.bad = 20", "ctx: <b>6</><d>EEE</> 20%"},
+		{"percentage rounds to even", `{"context_window":{"used_percentage":42.5}}`, "ctx.width = 4", "ctx: <g>F5</><d>EE</> 42%"},
+		{"zero is shown", `{"context_window":{"used_percentage":0}}`, "ctx.width = 4", "ctx: <d>EEEE</> 0%"},
 		{"absent hides the segment", `{"context_window":{}}`, "", ""},
 	}
 	for _, tt := range tests {

@@ -7,4 +7,4 @@ segments = rate5h
 -- tree --
 bad.yaml=colours:\n  text: ""\n  muted: dim\n  good: green\n  warn: yellow\n  bad: red\n  marker: bold\n  path: bold 33\nbar:\n  style: gradient\n  full: "▰"\n  partials: ["▏", "▎", "▍", "▌", "▋", "▊", "▉"]\n  empty: "▱"\n  marker: "/"\n  ramp: ["#94e2ad", "#f9e2af", "#f38ba8"]
 -- output --
-5h: \e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[32m█\e[0m\e[1m┃\e[0m\e[32m█\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m 60%
+5h: \e[32m██████████\e[0m\e[1m┃\e[0m\e[32m█\e[0m\e[2m░░░░░░░░\e[0m 60%

@@ -2,4 +2,4 @@ A narrow 80 column panel uses the narrow context bar
 -- input.json --
 {"columns":80,"tasks":[{"id":"t1","name":"reviewer","description":"Narrow panel","model":"claude-sonnet-4-5","contextWindowSize":200000,"tokenCount":150000}]}
 -- output --
-"t1"	\e[1mreviewer\e[0m \e[2m·\e[0m sonnet-4-5 \e[2m·\e[0m ctx: \e[33m█\e[0m\e[33m█\e[0m\e[33m█\e[0m\e[33m█\e[0m\e[33m▌\e[0m\e[2m░\e[0m \e[33m75%\e[0m \e[2m·\e[0m 150.0k \e[2m·\e[0m \e[2mNarrow panel\e[0m
+"t1"	\e[1mreviewer\e[0m \e[2m·\e[0m sonnet-4-5 \e[2m·\e[0m ctx: \e[33m████▌\e[0m\e[2m░\e[0m \e[33m75%\e[0m \e[2m·\e[0m 150.0k \e[2m·\e[0m \e[2mNarrow panel\e[0m

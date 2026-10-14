@@ -4,4 +4,4 @@ Context use of 90% is drawn in red
 -- config --
 segments = ctx
 -- output --
-ctx: \e[31m█\e[0m\e[31m█\e[0m\e[31m█\e[0m\e[31m█\e[0m\e[31m█\e[0m\e[31m█\e[0m\e[31m█\e[0m\e[31m█\e[0m\e[31m█\e[0m\e[2m░\e[0m 90%
+ctx: \e[31m█████████\e[0m\e[2m░\e[0m 90%

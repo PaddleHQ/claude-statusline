@@ -4,4 +4,4 @@ Context use of 50% is drawn in yellow
 -- config --
 segments = ctx
 -- output --
-ctx: \e[33m█\e[0m\e[33m█\e[0m\e[33m█\e[0m\e[33m█\e[0m\e[33m█\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m 50%
+ctx: \e[33m█████\e[0m\e[2m░░░░░\e[0m 50%

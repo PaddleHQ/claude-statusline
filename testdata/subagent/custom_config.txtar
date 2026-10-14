@@ -7,4 +7,4 @@ ctx.warn = 20
 ctx.bad = 25
 separator = |
 -- output --
-"t1"	\e[1mreviewer\e[0m \e[2m|\e[0m sonnet-4-5 \e[2m|\e[0m ctx: \e[31m█\e[0m\e[31m▌\e[0m\e[2m░\e[0m\e[2m░\e[0m\e[2m░\e[0m \e[31m30%\e[0m \e[2m|\e[0m 60.0k \e[2m|\e[0m \e[2mCustom thresholds\e[0m
+"t1"	\e[1mreviewer\e[0m \e[2m|\e[0m sonnet-4-5 \e[2m|\e[0m ctx: \e[31m█▌\e[0m\e[2m░░░\e[0m \e[31m30%\e[0m \e[2m|\e[0m 60.0k \e[2m|\e[0m \e[2mCustom thresholds\e[0m
