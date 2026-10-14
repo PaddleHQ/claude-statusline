@@ -17,16 +17,18 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 |---|---|
 | `main.go` | A few lines of wiring: it holds the build stamps and hands them, the arguments and the standard streams to `internal/cli`. It has no test, so that its wiring does not count against coverage. |
 | `internal/cli` | Picks the command from the arguments (`--version`, `setup`, or the status line itself) and reads stdin. It never reports an error, because a blank status line is better than a broken one. |
-| `internal/statusline` | Builds the line: loads config and renders. Also lists every config key the code reads. |
+| `internal/statusline` | Builds the line: loads config, saves the snapshot, merges rate limits and renders. Also lists every config key the code reads. |
 | `segments/` | One folder per plugin, each providing the segments it names and owning their `defaults.conf`, README, tests and generated mocks. A plugin declares the interfaces it needs and imports nothing from `internal/`. `segments/all.go` is the composition root: the single list of plugins, and the environment that hands them the internal types, which satisfy the plugins' interfaces directly. |
 | `internal/render` | Renders the configured segments in order. |
 | `internal/layout` | Joins rendered segments into one row, or wraps them into groups when the terminal is too narrow. |
 | `internal/config` | Layers your config file over the defaults embedded in the binary: its own `defaults.conf` for the global keys, and each plugin's. |
 | `internal/payload` | Decodes the session JSON from Claude Code and strips control characters from its strings. |
+| `internal/ratecache` | Shares rate-limit readings between sessions through a small cache file. |
 | `internal/gitbranch` | Finds the branch by reading `.git` files, without running `git`. |
 | `internal/bar` | Draws a usage bar with an optional pace marker. |
 | `internal/theme` | Loads themes from YAML, compiles colour specs, and provides the colour-free variant used for `NO_COLOR`. It reads the built-in themes from `themes/`. |
 | `themes` | The built-in themes: one YAML file each, embedded in the binary by a tiny package that only exports them. |
+| `internal/snapshot` | Saves the latest payload for other tools. |
 | `internal/setup` | Adds `statusLine` and `subagentStatusLine` to `settings.json` once, backing the file up first. |
 | `hooks/` | The plugin's `SessionStart` hook: `hooks.json` and `bootstrap.sh`, which installs the latest release, and `bootstrap_test.sh`, its shell tests. |
 | `features/` | The Gherkin feature files: readable examples of the whole line. `features_test.go` runs them. |
@@ -73,13 +75,15 @@ There are three layers. Put a test in the lowest one that can show the behaviour
 - `tokens` abbreviating 999 as `999`, 1000 as `1.0k` and 1500000 as `1.5M`.
 - `cache` turning red below `cache.warn`, and hiding when the counts add up to zero.
 
-**2. Provider unit tests**, in `internal/*` (and `segments/render_test.go` for the composition root). They cover the shared machinery that the plugins sit on: config layering and validation, theme loading, fallback and colour specs, layout and wrapping, setup and the bars. They use real files in a temporary directory, never your `HOME`. For example:
+**2. Provider unit tests**, in `internal/*` (and `segments/render_test.go` for the composition root). They cover the shared machinery that the plugins sit on: config layering and validation, theme loading, fallback and colour specs, the rate-limit cache's freshness rules, layout and wrapping, setup, the snapshot and the bars. They use real files in a temporary directory, never your `HOME`. For example:
 
 - a theme file with an unknown colour name falls back to `classic` (`internal/theme`).
+- a reading ten points below the cached one in the same window is stale, and eleven is a reset (`internal/ratecache`).
 
-**3. Gherkin features**, in `features/`. They show the overall shape of the line in examples a reader can follow: unknown segments dropped, config values shown as text, bad input printing nothing, and one example for each plugin so that every feature file still documents its segment. For example:
+**3. Gherkin features**, in `features/`. They show the overall shape of the line in examples a reader can follow: the default line, segments dropped or reordered, wrapping at a few widths, each theme applied once, `NO_COLOR`, and one example for each plugin so that every feature file still documents its segment. For example:
 
-- an unknown name in the segments list being dropped, and a config value that looks like a command being shown as text.
+- the default line with a full payload.
+- the line wrapping at 80 and 40 columns, with a continuation arrow.
 
 Ask of a new test: is it about one plugin's output (layer 1), about how the program's parts combine or what a shared part does with its input (layer 2), or would a reader learn from seeing the whole line (layer 3)? A feature scenario that pins a colour threshold, a boundary value or an error fallback belongs in a unit test instead. The relevant unit tests also have to exist before a scenario is deleted, so that no behaviour is pinned only by a scenario that was removed.
 
@@ -97,7 +101,7 @@ go tool cover -func cover.filtered.out | tail -n 1
 
 ### Fuzzing
 
-The status line runs on every render and reads input it does not control: the session JSON, and your config and theme files. Each of those parsers has a native Go fuzz target (`FuzzParse` and so on, in the `fuzz_test.go` of its package, or beside the unit tests for `layout.Width` and `tokens.FormatTokens`). A target checks properties rather than only that nothing panics: payload strings hold no control characters and a colour spec compiles to colour sequences only.
+The status line runs on every render and reads input it does not control: the session JSON, the rate-limit cache, and your config and theme files. Each of those parsers has a native Go fuzz target (`FuzzParse` and so on, in the `fuzz_test.go` of its package, or beside the unit tests for `layout.Width` and `tokens.FormatTokens`). A target checks properties rather than only that nothing panics: payload strings hold no control characters, a colour spec compiles to colour sequences only, and so on.
 
 `go test ./...` runs every target on its seed inputs, so they are ordinary tests in CI. To let the fuzzer search for new inputs, run one target at a time:
 
@@ -119,7 +123,7 @@ CI runs the same command and fails if it changes anything, so a stale mock canno
 
 ### Feature tests
 
-The feature tests are [Gherkin](https://cucumber.io/docs/gherkin/) files under `features/`, run by [godog](https://github.com/cucumber/godog). Each file covers one topic (`config.feature`, `model_and_effort.feature`, and so on), and each scenario shows one example, named after what it shows. They keep to the composition and the readable examples; see the layers above for what belongs in a unit test instead. This one is in `features/path_and_branch.feature`:
+The feature tests are [Gherkin](https://cucumber.io/docs/gherkin/) files under `features/`, run by [godog](https://github.com/cucumber/godog). Each file covers one topic (`wrapping.feature`, `rate_bars.feature`, and so on), and each scenario shows one example, named after what it shows. They keep to the composition and the readable examples; see the layers above for what belongs in a unit test instead. This one is in `features/path_and_branch.feature`:
 
 ```gherkin
 Scenario: The branch is found by walking up from a nested working directory to the repository's .git
@@ -159,21 +163,23 @@ A step that takes text ends in a colon and is followed by a `"""` block. The tex
 | `Given the environment variable "NAME" is "value"` | Sets one environment variable for the run. |
 | `Given the file "path":` | Creates a file at `path` under the temporary home directory, with the block as its content and a final newline. Directories are created as needed. |
 | `Given the directory "path"` | Creates an empty directory. |
+| `Given the rate-limit cache:` | Seeds the shared rate-limit cache file before the run. |
 | `When the status line renders` | Runs the status line. |
 | `When the status line renders at <n> columns` | The same, with the terminal `<n>` columns wide. |
 | `Then the output is:` | The output with its colours and styles, written as rows of text with a style line under each; see [Expected output](#expected-output). |
 | `Then the text is:` | The output with every colour and style removed. Use it when the scenario has no colour at all. |
 | `Then the raw output is:` | The exact bytes, with each escape byte written as `\e`. Use it only when the bytes are the point. |
+| `Then the rate-limit cache is:` | The cache file's content after the run, compared ignoring surrounding whitespace. |
 
 In every block, `@TMP@` stands for the scenario's temporary directory, which is also `HOME` and `CLAUDE_CONFIG_DIR`, so tests never touch your real Claude Code state. In a `Given the session:` block, write the JSON indented, with the keys in the order the payload has them. An empty output is an empty block. A line break is only the separator between lines, so the block has no trailing newline unless you add an empty last line.
 
 #### Expected output
 
-`Then the output is:` shows each row of output as a line of text, with a line under it that gives one style character for each column of the text above. This one is two copies of the model segment with the default separator, which is dim:
+`Then the output is:` shows each row of output as a line of text, with a line under it that gives one style character for each column of the text above. This one is the five hour bar at 75% used, drawn in yellow with the bold pace marker and the dim unused part:
 
 ```text
-Opus 4.7 [high] · Opus 4.7 [high]
-                d
+5h: ██████████┃████░░░░░ 75%
+    yyyyyyyyyyByyyddddd
 ```
 
 The style character says which styles were in effect when that column was printed. A space means no styling. These letters are built in:
@@ -211,7 +217,7 @@ Some more rules:
 
 There is no update flag. When the output differs, the failure prints the expected rows, the actual rows in this same format ready to paste, and a line by line diff, so you can read what changed and copy the new block once you have checked that it is right.
 
-Pick the step by what the scenario is about. Most scenarios use `Then the output is:`. A scenario with no colour, such as an empty output, uses `Then the text is:`. `Then the raw output is:` is for the few scenarios where the exact bytes are the point, for example one that checks how escape sequences or control characters in input are passed on or removed.
+Pick the step by what the scenario is about. Most scenarios use `Then the output is:`. A scenario with no colour, such as one that sets `NO_COLOR` or an empty output, uses `Then the text is:`. `Then the raw output is:` is for the few scenarios where the exact bytes are the point, for example one that checks how escape sequences or control characters in input are passed on or removed.
 
 Every scenario starts with the fixed time (`STATUSLINE_NOW`) and a 200 column terminal, set by the `Background` of the feature files that render the status line. A scenario's own steps override them. Whatever the command prints, the run also fails if the output holds a control character other than newline and escape, or if a config value was executed.
 
@@ -226,9 +232,9 @@ There are no domain-specific steps. Where a scenario would repeat itself for sev
 Run one scenario by its name (spaces become underscores), a whole feature by its tag, or everything:
 
 ```sh
-go test ./features -run 'TestFeatures/An_unknown_name'   # one scenario, matched by a prefix of its name
-go test ./features -feature.tags=@config              # every scenario in features/config.feature
-go test ./features -feature.tags=@config,@input_handling   # a comma means or, && means and, ~ means not
+go test ./features -run 'TestFeatures/Usage_of_75'   # one scenario, matched by a prefix of its name
+go test ./features -feature.tags=@wrapping              # every scenario in features/wrapping.feature
+go test ./features -feature.tags=@rate_bars,@wrapping   # a comma means or, && means and, ~ means not
 go test ./...                                   # everything
 ```
 
@@ -249,7 +255,7 @@ Every key the code reads must appear, with a one-line comment above it, in `inte
 
 ### Adding a built-in theme
 
-Built-in themes are YAML files in the top-level `themes/` directory, embedded in the binary by `themes/themes.go`; the file name without `.yaml` is the name users put in `theme`. Write one in the format of the existing ones, with comments, since the files double as examples. Every theme is a complete, standalone file, so start by copying `themes/classic.yaml` or `themes/gradient.yaml`. Parsing is strict (unknown keys are an error), so a typo fails the tests rather than shipping. Add a test in `internal/theme` for what is new. Keep the loader's fallback to `classic` silent: a status line never prints an error.
+Built-in themes are YAML files in the top-level `themes/` directory, embedded in the binary by `themes/themes.go`; the file name without `.yaml` is the name users put in `theme`. Write one in the format of the existing ones, with comments, since the files double as examples. Every theme is a complete, standalone file, so start by copying `themes/classic.yaml` or `themes/gradient.yaml`. Parsing is strict (unknown keys are an error), so a typo fails the tests rather than shipping. Add a test in `internal/theme` for what is new, and one scenario that selects the theme in its config (`features/gradient_theme.feature` is the model), so each built-in theme is applied once. Keep the loader's fallback to `classic` silent: a status line never prints an error.
 
 ### Adding a segment
 

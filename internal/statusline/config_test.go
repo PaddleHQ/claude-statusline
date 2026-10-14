@@ -63,6 +63,12 @@ theme = nonexistent`,
 separator = $(touch @TMP@/pwned)`,
 			want: `Opus 4.7 [high] \e[2m$(touch @TMP@/pwned)\e[0m Opus 4.7 [high]`,
 		},
+		{
+			name:    `Injection attempts in width and label settings are shown as text and never executed`,
+			session: `{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"rate_limits":{"five_hour":{"used_percentage":45,"resets_at":1760009000},"seven_day":{"used_percentage":40,"resets_at":1760302400}},"session_id":"abc123"}`,
+			config:  "rate5h.width = 5; touch @TMP@/pwned\nrate7d.label = `touch @TMP@/pwned`",
+			want:    "Opus 4.7 [high] \\e[2m·\\e[0m 5h: \\e[32m█████████\\e[0m\\e[2m░\\e[0m\\e[1m┃\\e[0m\\e[2m░░░░░░░░░\\e[0m 45% \\e[2m·\\e[0m `touch @TMP@/pwned`: \\e[32m████████\\e[0m\\e[2m░░\\e[0m\\e[1m┃\\e[0m\\e[2m░░░░░░░░░\\e[0m 40%",
+		},
 	}
 	runAll(t, tests)
 }

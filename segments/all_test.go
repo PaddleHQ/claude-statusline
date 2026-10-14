@@ -11,6 +11,8 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
+	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
+	"github.com/PaddleHQ/claude-statusline/internal/render"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments"
 
@@ -19,13 +21,13 @@ import (
 )
 
 func newEnv(cfg, payloadJSON string) *segments.Env {
-	return &segments.Env{
+	return segments.NewEnv(segments.Env{
 		Payload: payload.Parse([]byte(payloadJSON)),
 		Config:  config.New(cfg, segments.Defaults()...),
 		Theme:   theme.Load("classic", "", ""),
 		Columns: 999,
 		Home:    "/home/me",
-	}
+	})
 }
 
 func TestEveryRegisteredNameIsUniqueAndFindable(t *testing.T) {
@@ -40,7 +42,7 @@ func TestEveryRegisteredNameIsUniqueAndFindable(t *testing.T) {
 		require.True(t, ok, seg.Name())
 		assert.Equal(t, seg.Name(), found.Name())
 	}
-	assert.Len(t, seen, 5)
+	assert.Len(t, seen, 7)
 	_, _, ok := env.Lookup("bogus")
 	assert.False(t, ok)
 }
@@ -54,6 +56,8 @@ func TestLayoutGroups(t *testing.T) {
 		"ctx":    layout.Identity,
 		"tokens": layout.Usage,
 		"cache":  layout.Usage,
+		"rate5h": layout.Rates,
+		"rate7d": layout.Rates,
 	}
 	env := newEnv("", `{}`)
 	for name, group := range want {
@@ -70,13 +74,56 @@ func TestPathBranchIsSanitized(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git"), 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".git", "HEAD"), []byte("ref: refs/heads/a\x1b[31mb\n"), 0o600))
 
-	env := &segments.Env{
+	env := segments.NewEnv(segments.Env{
 		Payload: payload.Parse([]byte(`{"cwd":"` + dir + `"}`)),
 		Config:  config.New("", segments.Defaults()...),
-	}
+	})
 	seg, _, ok := env.Lookup("path")
 	require.True(t, ok)
 	assert.Equal(t, dir+" (a[31mb)", seg.Render())
+}
+
+func TestLazyDependencies(t *testing.T) {
+	t.Parallel()
+
+	const bare = `{"model":{"display_name":"Opus"}}`
+	tests := []struct {
+		name      string
+		cfg       string
+		wantRates int
+	}{
+		{"segments that need no rate cache never trigger it", "segments = path model ctx tokens cache", 0},
+		{"a rate bar syncs the cache", "segments = rate5h rate7d", 1},
+		{"unlisted segments are never asked", "segments = path", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var rateSyncs int
+			cfg := config.New(tt.cfg, segments.Defaults()...)
+			env := segments.NewEnv(segments.Env{
+				Payload:    payload.Parse([]byte(bare)),
+				Config:     cfg,
+				Theme:      theme.Load("classic", "", ""),
+				RateLimits: func() ratecache.Limits { rateSyncs++; return ratecache.Limits{} },
+			})
+			env.All()
+			require.Zero(t, rateSyncs, "building the segments asks for nothing")
+			line := &render.Line{
+				Names: strings.Fields(cfg.String("segments")),
+				Lookup: func(name string) (render.Segment, layout.Group, bool) {
+					seg, group, ok := env.Lookup(name)
+					if !ok {
+						return nil, 0, false
+					}
+					return seg, group, true
+				},
+				Separator: env.Separator(),
+			}
+			line.Render()
+			assert.Equal(t, tt.wantRates, rateSyncs, "rate cache syncs")
+		})
+	}
 }
 
 func pluginDirs(t *testing.T) []string {
