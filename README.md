@@ -27,6 +27,13 @@ theme = gradient
 segments = path model ctx tokens cache rate5h rate7d
 ```
 
+With `theme = gradient`, the bars are shaded from green to red along their length:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/gradient-dark.svg">
+  <img alt="The status line with the gradient theme: the context and rate-limit bars are drawn as segmented cells shaded from green towards red, with a slash marking the pace point" src="docs/images/gradient-light.svg">
+</picture>
+
 `theme` picks the colours and bar glyphs, and `segments` chooses what to show and in what order. Every key, custom segments, wrapping and themes are in [Customising](docs/customising.md).
 
 ## More
