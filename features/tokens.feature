@@ -9,7 +9,12 @@ Feature: Token counts
   Scenario: Token counts in the thousands are shown with a k suffix
     Given the session:
       """json
-      {"context_window":{"total_input_tokens":1500,"total_output_tokens":999999}}
+      {
+        "context_window": {
+          "total_input_tokens": 1500,
+          "total_output_tokens": 999999
+        }
+      }
       """
     And the config:
       """
@@ -17,7 +22,7 @@ Feature: Token counts
       """
     And the environment variable "NO_COLOR" is "1"
     When the status line renders
-    Then the output is:
+    Then the text is:
       """
       ↓ 1.5k · ↑ 999.9k
       """

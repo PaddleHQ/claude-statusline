@@ -109,6 +109,12 @@ func (s *Suite) initialize(sc *godog.ScenarioContext) {
 	sc.Step(`^the output is:$`, func(ctx context.Context, doc *godog.DocString) error {
 		return worldOf(ctx).checkOutput(doc.Content)
 	})
+	sc.Step(`^the text is:$`, func(ctx context.Context, doc *godog.DocString) error {
+		return worldOf(ctx).checkText(doc.Content)
+	})
+	sc.Step(`^the raw output is:$`, func(ctx context.Context, doc *godog.DocString) error {
+		return worldOf(ctx).checkRawOutput(doc.Content)
+	})
 	sc.Step(`^the rate-limit cache is:$`, func(ctx context.Context, doc *godog.DocString) error {
 		return worldOf(ctx).checkCache(doc.Content)
 	})

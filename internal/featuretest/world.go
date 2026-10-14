@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/PaddleHQ/claude-statusline/internal/featuretest/style"
+
 	"github.com/cucumber/godog"
 	"github.com/stretchr/testify/assert"
 )
@@ -41,6 +43,7 @@ type world struct {
 	env     map[string]string
 	session string
 	out     string
+	styled  string
 	screen  string
 	ran     bool
 }
@@ -141,6 +144,7 @@ func (w *world) renderStatusLine(ctx context.Context) {
 	w.ran = true
 	w.screen = out.String()
 	w.out = escapeESC(w.screen)
+	w.styled = w.screen
 	t := godog.T(ctx)
 	assert.NotRegexp(t, controlChars, w.screen, "output contains a control character other than newline and escape")
 	assert.NoFileExists(t, filepath.Join(w.tmp, "pwned"), "a config value was executed")
@@ -150,7 +154,7 @@ func (w *world) renderSubagentRows(ctx context.Context) error {
 	var out bytes.Buffer
 	w.suite.Execute([]string{"subagent"}, strings.NewReader(w.session), &out, w.getenv)
 
-	var rows, contents []string
+	var rows, styledRows, contents []string
 	for line := range strings.SplitSeq(strings.TrimSuffix(out.String(), "\n"), "\n") {
 		if line == "" {
 			continue
@@ -164,11 +168,13 @@ func (w *world) renderSubagentRows(ctx context.Context) error {
 		}
 		contents = append(contents, row.Content)
 		rows = append(rows, string(row.ID)+`\t`+escapeESC(row.Content))
+		styledRows = append(styledRows, string(row.ID)+`\t`+row.Content)
 	}
 
 	w.ran = true
 	w.screen = strings.Join(contents, "\n")
 	w.out = strings.Join(rows, "\n")
+	w.styled = strings.Join(styledRows, "\n")
 	t := godog.T(ctx)
 	assert.NotRegexp(t, controlChars, w.screen, "content contains a control character other than newline and escape")
 	assert.NoFileExists(t, filepath.Join(w.tmp, "usage-latest.json"), "the subagent command must not write the usage snapshot")
@@ -182,14 +188,65 @@ func (w *world) renderHelp(ctx context.Context) {
 	w.ran = true
 	w.screen = out.String()
 	w.out = strings.TrimSuffix(w.screen, "\n")
+	w.styled = w.out
 	assert.NotContains(godog.T(ctx), w.screen, "\033", "help is plain text")
 }
 
-func (w *world) checkOutput(want string) error {
+func (w *world) checkRawOutput(want string) error {
 	if !w.ran {
 		return errNoOutput
 	}
 	return compare("output", w.expand(want), w.out)
+}
+
+func (w *world) decodeOutput() (style.Block, error) {
+	if !w.ran {
+		return nil, errNoOutput
+	}
+	got, err := style.Decode(strings.ReplaceAll(w.styled, w.tmp, tmpMarker))
+	if err != nil {
+		return nil, fmt.Errorf("decode the output %q: %w", w.out, err)
+	}
+	return got, nil
+}
+
+func (w *world) checkOutput(want string) error {
+	got, err := w.decodeOutput()
+	if err != nil {
+		return err
+	}
+	expected, err := style.Parse(want)
+	if err != nil {
+		return fmt.Errorf("read the expected output: %w", err)
+	}
+	if expected.Equal(got) {
+		return nil
+	}
+	wantText, err := expected.Format()
+	if err != nil {
+		return fmt.Errorf("write the expected output: %w", err)
+	}
+	gotText, err := got.Format()
+	if err != nil {
+		return fmt.Errorf("write the actual output: %w", err)
+	}
+	return fmt.Errorf("%w\nthe actual output in the same format:\n%s", compare("output", wantText, gotText), gotText)
+}
+
+func (w *world) checkText(want string) error {
+	got, err := w.decodeOutput()
+	if err != nil {
+		return err
+	}
+	return compare("text", trimRows(want), trimRows(got.Text()))
+}
+
+func trimRows(text string) string {
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimRight(line, " ")
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (w *world) checkCache(want string) error {

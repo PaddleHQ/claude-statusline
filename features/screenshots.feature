@@ -11,7 +11,40 @@ Feature: Documentation screenshots
   Scenario: The status line at 200 columns with every default segment, for the README
     Given the session:
       """json
-      {"session_id":"demo","model":{"id":"claude-opus-4-7","display_name":"Opus 4.7"},"effort":{"level":"high"},"workspace":{"current_dir":"@TMP@/code/app"},"context_window":{"used_percentage":42.4,"total_input_tokens":1500,"total_output_tokens":23400,"current_usage":{"input_tokens":2000,"cache_creation_input_tokens":1000,"cache_read_input_tokens":17000}},"rate_limits":{"five_hour":{"used_percentage":45.4,"resets_at":1760009000},"seven_day":{"used_percentage":62,"resets_at":1760302400}},"transcript_path":"@TMP@/transcript.jsonl"}
+      {
+        "session_id": "demo",
+        "model": {
+          "id": "claude-opus-4-7",
+          "display_name": "Opus 4.7"
+        },
+        "effort": {
+          "level": "high"
+        },
+        "workspace": {
+          "current_dir": "@TMP@/code/app"
+        },
+        "context_window": {
+          "used_percentage": 42.4,
+          "total_input_tokens": 1500,
+          "total_output_tokens": 23400,
+          "current_usage": {
+            "input_tokens": 2000,
+            "cache_creation_input_tokens": 1000,
+            "cache_read_input_tokens": 17000
+          }
+        },
+        "rate_limits": {
+          "five_hour": {
+            "used_percentage": 45.4,
+            "resets_at": 1760009000
+          },
+          "seven_day": {
+            "used_percentage": 62,
+            "resets_at": 1760302400
+          }
+        },
+        "transcript_path": "@TMP@/transcript.jsonl"
+      }
       """
     And the file "code/app/.git/HEAD":
       """
@@ -30,7 +63,40 @@ Feature: Documentation screenshots
   Scenario: The status line in the gradient theme, for the themes section of the customising guide
     Given the session:
       """json
-      {"session_id":"demo","model":{"id":"claude-opus-4-7","display_name":"Opus 4.7"},"effort":{"level":"high"},"workspace":{"current_dir":"@TMP@/code/app"},"context_window":{"used_percentage":42.4,"total_input_tokens":1500,"total_output_tokens":23400,"current_usage":{"input_tokens":2000,"cache_creation_input_tokens":1000,"cache_read_input_tokens":17000}},"rate_limits":{"five_hour":{"used_percentage":45.4,"resets_at":1760009000},"seven_day":{"used_percentage":62,"resets_at":1760302400}},"transcript_path":"@TMP@/transcript.jsonl"}
+      {
+        "session_id": "demo",
+        "model": {
+          "id": "claude-opus-4-7",
+          "display_name": "Opus 4.7"
+        },
+        "effort": {
+          "level": "high"
+        },
+        "workspace": {
+          "current_dir": "@TMP@/code/app"
+        },
+        "context_window": {
+          "used_percentage": 42.4,
+          "total_input_tokens": 1500,
+          "total_output_tokens": 23400,
+          "current_usage": {
+            "input_tokens": 2000,
+            "cache_creation_input_tokens": 1000,
+            "cache_read_input_tokens": 17000
+          }
+        },
+        "rate_limits": {
+          "five_hour": {
+            "used_percentage": 45.4,
+            "resets_at": 1760009000
+          },
+          "seven_day": {
+            "used_percentage": 62,
+            "resets_at": 1760302400
+          }
+        },
+        "transcript_path": "@TMP@/transcript.jsonl"
+      }
       """
     And the config:
       """
@@ -54,7 +120,15 @@ Feature: Documentation screenshots
   Scenario: The gradient theme's rate-limit bar with NO_COLOR, showing it still reads without colour
     Given the session:
       """json
-      {"session_id":"demo","rate_limits":{"five_hour":{"used_percentage":75,"resets_at":1760009000}}}
+      {
+        "session_id": "demo",
+        "rate_limits": {
+          "five_hour": {
+            "used_percentage": 75,
+            "resets_at": 1760009000
+          }
+        }
+      }
       """
     And the config:
       """
@@ -69,7 +143,40 @@ Feature: Documentation screenshots
   Scenario: The status line at 80 columns, wrapped into rows, for the customising guide
     Given the session:
       """json
-      {"session_id":"demo","model":{"id":"claude-opus-4-7","display_name":"Opus 4.7"},"effort":{"level":"high"},"workspace":{"current_dir":"@TMP@/code/app"},"context_window":{"used_percentage":42.4,"total_input_tokens":1500,"total_output_tokens":23400,"current_usage":{"input_tokens":2000,"cache_creation_input_tokens":1000,"cache_read_input_tokens":17000}},"rate_limits":{"five_hour":{"used_percentage":45.4,"resets_at":1760009000},"seven_day":{"used_percentage":62,"resets_at":1760302400}},"transcript_path":"@TMP@/transcript.jsonl"}
+      {
+        "session_id": "demo",
+        "model": {
+          "id": "claude-opus-4-7",
+          "display_name": "Opus 4.7"
+        },
+        "effort": {
+          "level": "high"
+        },
+        "workspace": {
+          "current_dir": "@TMP@/code/app"
+        },
+        "context_window": {
+          "used_percentage": 42.4,
+          "total_input_tokens": 1500,
+          "total_output_tokens": 23400,
+          "current_usage": {
+            "input_tokens": 2000,
+            "cache_creation_input_tokens": 1000,
+            "cache_read_input_tokens": 17000
+          }
+        },
+        "rate_limits": {
+          "five_hour": {
+            "used_percentage": 45.4,
+            "resets_at": 1760009000
+          },
+          "seven_day": {
+            "used_percentage": 62,
+            "resets_at": 1760302400
+          }
+        },
+        "transcript_path": "@TMP@/transcript.jsonl"
+      }
       """
     And the file "code/app/.git/HEAD":
       """
@@ -88,7 +195,39 @@ Feature: Documentation screenshots
   Scenario: The status line with a custom segment script that prints a red backup warning, for the customising guide
     Given the session:
       """json
-      {"session_id":"demo","model":{"id":"claude-opus-4-7","display_name":"Opus 4.7"},"effort":{"level":"high"},"workspace":{"current_dir":"@TMP@/code/app"},"context_window":{"used_percentage":42.4,"total_input_tokens":1500,"total_output_tokens":23400,"current_usage":{"input_tokens":2000,"cache_creation_input_tokens":1000,"cache_read_input_tokens":17000}},"rate_limits":{"five_hour":{"used_percentage":45.4,"resets_at":1760009000},"seven_day":{"used_percentage":62,"resets_at":1760302400}}}
+      {
+        "session_id": "demo",
+        "model": {
+          "id": "claude-opus-4-7",
+          "display_name": "Opus 4.7"
+        },
+        "effort": {
+          "level": "high"
+        },
+        "workspace": {
+          "current_dir": "@TMP@/code/app"
+        },
+        "context_window": {
+          "used_percentage": 42.4,
+          "total_input_tokens": 1500,
+          "total_output_tokens": 23400,
+          "current_usage": {
+            "input_tokens": 2000,
+            "cache_creation_input_tokens": 1000,
+            "cache_read_input_tokens": 17000
+          }
+        },
+        "rate_limits": {
+          "five_hour": {
+            "used_percentage": 45.4,
+            "resets_at": 1760009000
+          },
+          "seven_day": {
+            "used_percentage": 62,
+            "resets_at": 1760302400
+          }
+        }
+      }
       """
     And the config:
       """
@@ -111,7 +250,31 @@ Feature: Documentation screenshots
   Scenario: The agent panel rows the subagent command prints, for the customising guide
     Given the session:
       """json
-      {"columns":200,"tasks":[{"id":"a","name":"reviewer","type":"local_agent","description":"Review the payment retry change","model":"claude-sonnet-4-5-20250929","effort":"high","contextWindowSize":200000,"tokenCount":84500},{"id":"b","name":"tester","type":"local_agent","description":"Run the suite","model":"claude-opus-4-7","effort":"xhigh","contextWindowSize":200000,"tokenCount":185000}]}
+      {
+        "columns": 200,
+        "tasks": [
+          {
+            "id": "a",
+            "name": "reviewer",
+            "type": "local_agent",
+            "description": "Review the payment retry change",
+            "model": "claude-sonnet-4-5-20250929",
+            "effort": "high",
+            "contextWindowSize": 200000,
+            "tokenCount": 84500
+          },
+          {
+            "id": "b",
+            "name": "tester",
+            "type": "local_agent",
+            "description": "Run the suite",
+            "model": "claude-opus-4-7",
+            "effort": "xhigh",
+            "contextWindowSize": 200000,
+            "tokenCount": 185000
+          }
+        ]
+      }
       """
     When the subagent rows render
     Then the output is saved as the screenshot "subagent"

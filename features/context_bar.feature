@@ -10,7 +10,11 @@ Feature: Context bar
   Scenario: Context use of 90% is drawn in red
     Given the session:
       """json
-      {"context_window":{"used_percentage":90}}
+      {
+        "context_window": {
+          "used_percentage": 90
+        }
+      }
       """
     And the config:
       """
@@ -19,5 +23,6 @@ Feature: Context bar
     When the status line renders
     Then the output is:
       """
-      ctx: \e[31m█████████\e[0m\e[2m░\e[0m 90%
+      ctx: █████████░ 90%
+           rrrrrrrrrd
       """

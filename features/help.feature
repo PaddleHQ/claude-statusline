@@ -4,7 +4,7 @@ Feature: Help
 
   Scenario: With no config file and no hooks, the defaults are described and the config file is reported as not created
     When help runs
-    Then the output is:
+    Then the text is:
       """
       Your status line, as currently configured.
 
@@ -38,7 +38,7 @@ Feature: Help
       printf nothing
       """
     When help runs
-    Then the output is:
+    Then the text is:
       """
       Your status line, as currently configured.
 

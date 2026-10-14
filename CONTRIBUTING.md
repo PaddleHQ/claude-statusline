@@ -138,7 +138,9 @@ The feature tests are [Gherkin](https://cucumber.io/docs/gherkin/) files under `
 Scenario: The branch is found by walking up from a nested working directory to the repository's .git
   Given the session:
     """json
-    {"cwd":"@TMP@/repo/pkg/sub"}
+    {
+      "cwd": "@TMP@/repo/pkg/sub"
+    }
     """
   And the config:
     """
@@ -151,7 +153,7 @@ Scenario: The branch is found by walking up from a nested working directory to t
     """
   And the directory "repo/pkg/sub"
   When the status line renders
-  Then the output is:
+  Then the text is:
     """
     ~/repo/pkg/sub (main)
     """
@@ -176,11 +178,59 @@ A step that takes text ends in a colon and is followed by a `"""` block. The tex
 | `When the status line renders at <n> columns` | The same, with the terminal `<n>` columns wide. |
 | `When the subagent rows render` | Runs the `subagent` command. |
 | `When help runs` | Runs the `help` command. |
-| `Then the output is:` | The exact output. |
+| `Then the output is:` | The output with its colours and styles, written as rows of text with a style line under each; see [Expected output](#expected-output). |
+| `Then the text is:` | The output with every colour and style removed. Use it when the scenario has no colour at all. |
+| `Then the raw output is:` | The exact bytes, with each escape byte written as `\e`. Use it only when the bytes are the point. |
 | `Then the rate-limit cache is:` | The cache file's content after the run, compared ignoring surrounding whitespace. |
 | `Then the output is saved as the screenshot "name"` | Used only by `@screenshot` scenarios; see [Documentation images](#documentation-images). |
 
-In every block, `@TMP@` stands for the scenario's temporary directory, which is also `HOME` and `CLAUDE_CONFIG_DIR`, so tests never touch your real Claude Code state. In `Then the output is:`, an escape byte is written as `\e`, and the rows of `the subagent rows render` are the task id, `\t` for the tab, then the row content. An empty output is an empty block. A line break is only the separator between lines, so the block has no trailing newline unless you add an empty last line.
+In every block, `@TMP@` stands for the scenario's temporary directory, which is also `HOME` and `CLAUDE_CONFIG_DIR`, so tests never touch your real Claude Code state. For `the subagent rows render`, every row of the output is the task id, `\t` for the tab, then the row content, and `\t` counts as two columns. In a `Given the session:` block, write the JSON indented, with the keys in the order the payload has them. An empty output is an empty block. A line break is only the separator between lines, so the block has no trailing newline unless you add an empty last line.
+
+#### Expected output
+
+`Then the output is:` shows each row of output as a line of text, with a line under it that gives one style character for each column of the text above. This one is the five hour bar at 75% used, drawn in yellow with the bold pace marker and the dim unused part:
+
+```text
+5h: ██████████┃████░░░░░ 75%
+    yyyyyyyyyyByyyddddd
+```
+
+The style character says which styles were in effect when that column was printed. A space means no styling. These letters are built in:
+
+| Character | Style | Character | Style |
+|---|---|---|---|
+| `d` | dim | `B` | bold |
+| `r` | red | `g` | green |
+| `y` | yellow | `b` | blue |
+| `m` | magenta | `c` | cyan |
+| `w` | white | `k` | bright black |
+
+Everything else needs a legend: true colours, 256 colour palette entries, backgrounds, the other bright colours, black and anything combined, such as bold yellow. The legend follows the rows after one empty line, and has a line for each style in the form `<character> = <style>`. The character is a digit or a letter that is not built in, and a built-in character cannot be redefined. The style is one or more of `bold`, `dim`, a colour (`red`, `bright-red` and so on, `#rrggbb`, or `256:n` for a palette entry) and the same prefixed with `bg:` for a background, separated by spaces:
+
+```text
+ctx: ▰▰▰▰▰▰▱▱▱▱ 62%
+     1234567777 yyy
+
+1 = #94e2ad
+2 = #aae2ad
+3 = #c0e2ad
+4 = #d7e2ae
+5 = #ede2ae
+6 = #f9d9af
+7 = #4a4a4a
+```
+
+Some more rules:
+
+- Every row has a style line, even a row with no styling, which has an empty one. A blank line in the place where a text row would start is what begins the legend, so a text row itself cannot be empty in an output that has styles. If nothing in the output has a style, use `Then the text is:` instead.
+- A wide character, one that takes two columns such as an East Asian character or an emoji, is written with its style character and then `_` under it, or with two spaces if it has no style. Characters that take no column, such as a zero-width joiner, share the column of the character before them. The status line itself counts every character as one column; the widths only keep the style line aligned in your editor.
+- Trailing spaces are not significant, so a short style line means the columns after it have no styling. The comparison also ignores unstyled spaces at the end of a row. A styled space at the end of a row is kept: write it in the text line, or leave the text line short and the style line long.
+- The comparison is of the style in effect for each column, not of the bytes, so a redundant reset or a repeated code does not matter. The output may only use colour and style sequences the harness understands (reset, bold, dim, the 16 colours, 256 colour and true colour, for the foreground and the background). Any other escape sequence, or any style code it does not know, fails the scenario with a message that names it, and a scenario like that belongs on `Then the raw output is:`.
+- The scenario's temporary directory is written `@TMP@`, as in a `Given` block, in the output as well. It is five columns wide.
+
+There is no update flag. When the output differs, the failure prints the expected rows, the actual rows in this same format ready to paste, and a line by line diff, so you can read what changed and copy the new block once you have checked that it is right.
+
+Pick the step by what the scenario is about. Most scenarios use `Then the output is:`. A scenario with no colour, such as one that sets `NO_COLOR`, the `help` output or an empty output, uses `Then the text is:`. `Then the raw output is:` is for the few scenarios where the exact bytes are the point, for example one that checks how escape sequences or control characters in input are passed on or removed.
 
 Every scenario starts with the fixed time (`STATUSLINE_NOW`) and a 200 column terminal, set by the `Background` of the feature files that render the status line, and a 30 second hook timeout, which the harness sets for all of them. A scenario's own steps override them. Whatever the command prints, the run also fails if the output holds a control character other than newline and escape, or if a config value was executed.
 
@@ -190,7 +240,7 @@ There are no domain-specific steps. Where a scenario would repeat itself for sev
 
 1. Check that it is an example or a composition (layer 3 above). The edges of one plugin or of a shared part go in a unit test, with the plugin's mocks or the package's own helpers.
 2. Pick the feature file for the behaviour, or add a new `features/<topic>.feature` with a `Feature:` title, a line or two of description and a `@<topic>` tag. Copy the closest scenario, and give it a name that says what it shows. Keep to one behaviour per scenario, and add a new scenario rather than another `Then` to an old one.
-3. Run it, and write the expected output by hand. There is no update flag: when the output differs, the failure prints the expected and actual text line by line (`-` is expected, `+` is actual), so you can see what differs. Check that the actual text is what the line should show before you copy it.
+3. Run it, and write the expected output by hand. There is no update flag: when the output differs, the failure prints the actual output in the style row format, and a diff of the expected and actual blocks (`-` is expected, `+` is actual). Check that the actual output is what the line should show before you copy it.
 
 Run one scenario by its name (spaces become underscores), a whole feature by its tag, or everything:
 

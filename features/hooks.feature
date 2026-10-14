@@ -10,7 +10,36 @@ Feature: Custom segment hooks
   Scenario: Custom hooks in the ctx, usage and end slots at 100 columns
     Given the session:
       """json
-      {"session_id":"abc123","model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"cwd":"/srv/app","context_window":{"used_percentage":42,"total_input_tokens":1500,"total_output_tokens":23400,"current_usage":{"input_tokens":1000,"cache_creation_input_tokens":500,"cache_read_input_tokens":8500}},"rate_limits":{"five_hour":{"used_percentage":45,"resets_at":1760009000},"seven_day":{"used_percentage":40,"resets_at":1760302400}}}
+      {
+        "session_id": "abc123",
+        "model": {
+          "display_name": "Opus 4.7"
+        },
+        "effort": {
+          "level": "high"
+        },
+        "cwd": "/srv/app",
+        "context_window": {
+          "used_percentage": 42,
+          "total_input_tokens": 1500,
+          "total_output_tokens": 23400,
+          "current_usage": {
+            "input_tokens": 1000,
+            "cache_creation_input_tokens": 500,
+            "cache_read_input_tokens": 8500
+          }
+        },
+        "rate_limits": {
+          "five_hour": {
+            "used_percentage": 45,
+            "resets_at": 1760009000
+          },
+          "seven_day": {
+            "used_percentage": 40,
+            "resets_at": 1760302400
+          }
+        }
+      }
       """
     And the executable file "statusline.d/10-ctxhook.sh":
       """
@@ -32,15 +61,49 @@ Feature: Custom segment hooks
     When the status line renders at 100 columns
     Then the output is:
       """
-      \e[1m\e[38;5;33m/srv/app\e[0m \e[2m·\e[0m Opus 4.7 [high] \e[2m·\e[0m ctx: \e[32m██▌\e[0m\e[2m░░░\e[0m 42% \e[2m·\e[0m ctx-hook
-      ↓ 1.5k \e[2m·\e[0m ↑ 23.4k \e[2m·\e[0m ⧉ 85% 5h: \e[32m████▌\e[0m\e[1m┃\e[0m\e[2m░░░░\e[0m 45% \e[2m·\e[0m 7d: \e[32m████\e[0m\e[2m░\e[0m\e[1m┃\e[0m\e[2m░░░░\e[0m 40%
-      \e[32musage-hook\e[0m \e[2m·\e[0m end-hook
+      /srv/app · Opus 4.7 [high] · ctx: ██▌░░░ 42% · ctx-hook
+      11111111 d                 d      gggddd     d
+      ↓ 1.5k · ↑ 23.4k · ⧉ 85% 5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%
+             d         d           gggggBdddd     d     ggggdBdddd
+      usage-hook · end-hook
+      gggggggggg d
+
+      1 = bold 256:33
       """
 
   Scenario: Custom hooks in the ctx, usage and end slots at 200 columns
     Given the session:
       """json
-      {"session_id":"abc123","model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"cwd":"/srv/app","context_window":{"used_percentage":42,"total_input_tokens":1500,"total_output_tokens":23400,"current_usage":{"input_tokens":1000,"cache_creation_input_tokens":500,"cache_read_input_tokens":8500}},"rate_limits":{"five_hour":{"used_percentage":45,"resets_at":1760009000},"seven_day":{"used_percentage":40,"resets_at":1760302400}}}
+      {
+        "session_id": "abc123",
+        "model": {
+          "display_name": "Opus 4.7"
+        },
+        "effort": {
+          "level": "high"
+        },
+        "cwd": "/srv/app",
+        "context_window": {
+          "used_percentage": 42,
+          "total_input_tokens": 1500,
+          "total_output_tokens": 23400,
+          "current_usage": {
+            "input_tokens": 1000,
+            "cache_creation_input_tokens": 500,
+            "cache_read_input_tokens": 8500
+          }
+        },
+        "rate_limits": {
+          "five_hour": {
+            "used_percentage": 45,
+            "resets_at": 1760009000
+          },
+          "seven_day": {
+            "used_percentage": 40,
+            "resets_at": 1760302400
+          }
+        }
+      }
       """
     And the executable file "statusline.d/10-ctxhook.sh":
       """
@@ -62,13 +125,25 @@ Feature: Custom segment hooks
     When the status line renders at 200 columns
     Then the output is:
       """
-      \e[1m\e[38;5;33m/srv/app\e[0m \e[2m·\e[0m Opus 4.7 [high] \e[2m·\e[0m ctx: \e[32m████▎\e[0m\e[2m░░░░░\e[0m 42% \e[2m·\e[0m ctx-hook \e[2m·\e[0m ↓ 1.5k \e[2m·\e[0m ↑ 23.4k \e[2m·\e[0m ⧉ 85% \e[2m·\e[0m \e[32musage-hook\e[0m \e[2m·\e[0m 5h: \e[32m█████████\e[0m\e[2m░\e[0m\e[1m┃\e[0m\e[2m░░░░░░░░░\e[0m 45% \e[2m·\e[0m 7d: \e[32m████████\e[0m\e[2m░░\e[0m\e[1m┃\e[0m\e[2m░░░░░░░░░\e[0m 40% \e[2m·\e[0m end-hook
+      /srv/app · Opus 4.7 [high] · ctx: ████▎░░░░░ 42% · ctx-hook · ↓ 1.5k · ↑ 23.4k · ⧉ 85% · usage-hook · 5h: █████████░┃░░░░░░░░░ 45% · 7d: ████████░░┃░░░░░░░░░ 40% · end-hook
+      11111111 d                 d      gggggddddd     d          d        d         d       d gggggggggg d     gggggggggdBddddddddd     d     ggggggggddBddddddddd     d
+
+      1 = bold 256:33
       """
 
   Scenario: A hook named like a built-in segment in the segments list replaces it
     Given the session:
       """json
-      {"session_id":"abc123","model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"cwd":"/srv/app"}
+      {
+        "session_id": "abc123",
+        "model": {
+          "display_name": "Opus 4.7"
+        },
+        "effort": {
+          "level": "high"
+        },
+        "cwd": "/srv/app"
+      }
       """
     And the config:
       """
@@ -82,5 +157,8 @@ Feature: Custom segment hooks
     When the status line renders
     Then the output is:
       """
-      \e[1m\e[38;5;33m/srv/app\e[0m \e[2m·\e[0m my-model
+      /srv/app · my-model
+      11111111 d
+
+      1 = bold 256:33
       """

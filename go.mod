@@ -4,6 +4,7 @@ go 1.27
 
 require (
 	github.com/cucumber/godog v0.16.0
+	github.com/mattn/go-runewidth v0.0.31
 	github.com/stretchr/testify v1.12.1
 	github.com/tidwall/gjson v1.20.0
 	github.com/tidwall/pretty v1.2.0
@@ -12,6 +13,7 @@ require (
 
 require (
 	github.com/chigopher/pathlib v0.19.1 // indirect
+	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/cucumber/gherkin/go/v42 v42.0.0 // indirect
 	github.com/cucumber/messages/go/v34 v34.2.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect

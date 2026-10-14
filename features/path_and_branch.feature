@@ -10,7 +10,9 @@ Feature: Path and git branch
   Scenario: The branch is found by walking up from a nested working directory to the repository's .git
     Given the session:
       """json
-      {"cwd":"@TMP@/repo/pkg/sub"}
+      {
+        "cwd": "@TMP@/repo/pkg/sub"
+      }
       """
     And the config:
       """
@@ -23,7 +25,7 @@ Feature: Path and git branch
       """
     And the directory "repo/pkg/sub"
     When the status line renders
-    Then the output is:
+    Then the text is:
       """
       ~/repo/pkg/sub (main)
       """

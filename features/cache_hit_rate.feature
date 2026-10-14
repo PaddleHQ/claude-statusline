@@ -9,7 +9,15 @@ Feature: Cache hit rate
   Scenario: A hit rate below cache.warn is shown in red
     Given the session:
       """json
-      {"context_window":{"current_usage":{"input_tokens":50,"cache_creation_input_tokens":50,"cache_read_input_tokens":4}}}
+      {
+        "context_window": {
+          "current_usage": {
+            "input_tokens": 50,
+            "cache_creation_input_tokens": 50,
+            "cache_read_input_tokens": 4
+          }
+        }
+      }
       """
     And the config:
       """
@@ -18,5 +26,6 @@ Feature: Cache hit rate
     When the status line renders
     Then the output is:
       """
-      \e[31m⧉ 3%\e[0m
+      ⧉ 3%
+      rrrr
       """

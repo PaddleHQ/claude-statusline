@@ -10,7 +10,15 @@ Feature: Shared rate-limit cache
   Scenario: Rate limits missing from the payload are filled in from the shared cache file
     Given the session:
       """json
-      {"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"session_id":"abc123"}
+      {
+        "model": {
+          "display_name": "Opus 4.7"
+        },
+        "effort": {
+          "level": "high"
+        },
+        "session_id": "abc123"
+      }
       """
     And the rate-limit cache:
       """
@@ -19,7 +27,8 @@ Feature: Shared rate-limit cache
     When the status line renders
     Then the output is:
       """
-      Opus 4.7 [high] \e[2m·\e[0m 5h: \e[32m█████████\e[0m\e[2m░\e[0m\e[1m┃\e[0m\e[2m░░░░░░░░░\e[0m 45% \e[2m·\e[0m 7d: \e[32m████████\e[0m\e[2m░░\e[0m\e[1m┃\e[0m\e[2m░░░░░░░░░\e[0m 40%
+      Opus 4.7 [high] · 5h: █████████░┃░░░░░░░░░ 45% · 7d: ████████░░┃░░░░░░░░░ 40%
+                      d     gggggggggdBddddddddd     d     ggggggggddBddddddddd
       """
     And the rate-limit cache is:
       """

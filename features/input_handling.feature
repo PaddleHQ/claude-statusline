@@ -12,6 +12,6 @@ Feature: Input handling
       {"model":
       """
     When the status line renders
-    Then the output is:
+    Then the text is:
       """
       """

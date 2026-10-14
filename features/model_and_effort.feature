@@ -9,14 +9,21 @@ Feature: Model and effort
   Scenario: model.effort = false hides the effort level after the model name
     Given the session:
       """json
-      {"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"session_id":"abc123"}
+      {
+        "model": {
+          "display_name": "Opus 4.7"
+        },
+        "effort": {
+          "level": "high"
+        }
+      }
       """
     And the config:
       """
       model.effort = false
       """
     When the status line renders
-    Then the output is:
+    Then the text is:
       """
       Opus 4.7
       """

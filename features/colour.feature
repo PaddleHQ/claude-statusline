@@ -9,7 +9,37 @@ Feature: Colour and NO_COLOR
   Scenario: NO_COLOR with every segment, a git branch and a stripped path prefix
     Given the session:
       """json
-      {"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"workspace":{"current_dir":"@TMP@/code/app"},"context_window":{"used_percentage":95,"total_input_tokens":1500,"total_output_tokens":23400,"current_usage":{"input_tokens":2000,"cache_creation_input_tokens":1000,"cache_read_input_tokens":10}},"rate_limits":{"five_hour":{"used_percentage":45.4,"resets_at":1760009000},"seven_day":{"used_percentage":40,"resets_at":1760302400}}}
+      {
+        "model": {
+          "display_name": "Opus 4.7"
+        },
+        "effort": {
+          "level": "high"
+        },
+        "workspace": {
+          "current_dir": "@TMP@/code/app"
+        },
+        "context_window": {
+          "used_percentage": 95,
+          "total_input_tokens": 1500,
+          "total_output_tokens": 23400,
+          "current_usage": {
+            "input_tokens": 2000,
+            "cache_creation_input_tokens": 1000,
+            "cache_read_input_tokens": 10
+          }
+        },
+        "rate_limits": {
+          "five_hour": {
+            "used_percentage": 45.4,
+            "resets_at": 1760009000
+          },
+          "seven_day": {
+            "used_percentage": 40,
+            "resets_at": 1760302400
+          }
+        }
+      }
       """
     And the config:
       """
@@ -21,7 +51,7 @@ Feature: Colour and NO_COLOR
       ref: refs/heads/main
       """
     When the status line renders
-    Then the output is:
+    Then the text is:
       """
       app (main) · Opus 4.7 [high] · ctx: █████████▌ 95% · ↓ 1.5k · ↑ 23.4k · ⧉ 0% · 5h: █████████░┃░░░░░░░░░ 45% · 7d: ████████░░┃░░░░░░░░░ 40%
       """

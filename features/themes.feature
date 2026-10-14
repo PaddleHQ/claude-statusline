@@ -10,7 +10,14 @@ Feature: Themes
   Scenario: A theme path starting with ~ is resolved against the home directory
     Given the session:
       """json
-      {"rate_limits":{"five_hour":{"used_percentage":60,"resets_at":1760009000}},"session_id":"abc123"}
+      {
+        "rate_limits": {
+          "five_hour": {
+            "used_percentage": 60,
+            "resets_at": 1760009000
+          }
+        }
+      }
       """
     And the config:
       """
@@ -37,13 +44,21 @@ Feature: Themes
     When the status line renders
     Then the output is:
       """
-      5h: \e[36m##########\e[0m|\e[36m#\e[0m\e[90m........\e[0m 60%
+      5h: ##########|#........ 60%
+          cccccccccc ckkkkkkkk
       """
 
   Scenario: An unknown theme name falls back to the built-in theme
     Given the session:
       """json
-      {"rate_limits":{"five_hour":{"used_percentage":60,"resets_at":1760009000}},"session_id":"abc123"}
+      {
+        "rate_limits": {
+          "five_hour": {
+            "used_percentage": 60,
+            "resets_at": 1760009000
+          }
+        }
+      }
       """
     And the config:
       """
@@ -53,5 +68,6 @@ Feature: Themes
     When the status line renders
     Then the output is:
       """
-      5h: \e[32m██████████\e[0m\e[1m┃\e[0m\e[32m█\e[0m\e[2m░░░░░░░░\e[0m 60%
+      5h: ██████████┃█░░░░░░░░ 60%
+          ggggggggggBgdddddddd
       """
