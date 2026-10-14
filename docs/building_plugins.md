@@ -166,7 +166,7 @@ func render(json, cfg string, th theme.Theme, info transcript.Info) string {
 }
 ```
 
-Cover the case where the data is missing, as well as the ones where it is there. Add at least one render test case under `testdata/render/` (see "Render tests" in Contributing), and regenerate the documentation images if a fixture changes.
+Cover the case where the data is missing, as well as the ones where it is there. Add at least one scenario under `features/` (see "Feature tests" in Contributing), and regenerate the documentation images if a `@screenshot` scenario changes.
 
 ### 6. List it
 

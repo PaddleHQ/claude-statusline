@@ -1,8 +1,0 @@
-Wrapping at 30 columns when the payload has neither rate limits nor token counts
--- input.json --
-{"session_id":"abc123","model":{"display_name":"Opus 4.7"},"cwd":"/srv/app","context_window":{"used_percentage":42}}
--- env --
-COLUMNS=30
--- output --
-\e[1m\e[38;5;33m/srv/app\e[0m \e[2m·\e[0m Opus 4.7
-ctx: \e[32m██▌\e[0m\e[2m░░░\e[0m 42%

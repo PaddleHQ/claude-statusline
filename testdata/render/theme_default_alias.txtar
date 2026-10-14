@@ -1,8 +1,0 @@
-theme = default is accepted and draws the built-in look
--- input.json --
-{"rate_limits":{"five_hour":{"used_percentage":60,"resets_at":1760009000}},"session_id":"abc123"}
--- config --
-theme = default
-segments = rate5h
--- output --
-5h: \e[32m██████████\e[0m\e[1m┃\e[0m\e[32m█\e[0m\e[2m░░░░░░░░\e[0m 60%

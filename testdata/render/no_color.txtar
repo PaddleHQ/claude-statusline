@@ -1,9 +1,0 @@
-NO_COLOR=1 removes every colour from the output
--- input.json --
-{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"session_id":"abc123"}
--- config --
-segments = model model
--- env --
-NO_COLOR=1
--- output --
-Opus 4.7 [high] · Opus 4.7 [high]

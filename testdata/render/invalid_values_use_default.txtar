@@ -1,9 +1,0 @@
-Invalid or empty config values fall back to the defaults
--- input.json --
-{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"session_id":"abc123"}
--- config --
-model.effort = maybe
-separator =
-segments = model model
--- output --
-Opus 4.7 [high] \e[2m·\e[0m Opus 4.7 [high]

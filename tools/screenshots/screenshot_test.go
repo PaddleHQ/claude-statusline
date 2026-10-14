@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	fixturesDir = "../../testdata/screenshots"
+	fixturesDir = "../../features"
 	imagesDir   = "../../docs/images"
 	regenerate  = "run `go run ./tools/screenshots` from the repository root and commit the result"
 )

@@ -1,5 +1,0 @@
-A rate-limit window whose reset time has passed is hidden
--- input.json --
-{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"rate_limits":{"five_hour":{"used_percentage":45,"resets_at":1759999900},"seven_day":{"used_percentage":40,"resets_at":1760302400}},"session_id":"abc123"}
--- output --
-Opus 4.7 [high] \e[2m·\e[0m 7d: \e[32m████████\e[0m\e[2m░░\e[0m\e[1m┃\e[0m\e[2m░░░░░░░░░\e[0m 40%

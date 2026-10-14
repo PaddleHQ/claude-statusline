@@ -1,9 +1,0 @@
-A path outside the home directory is shown in full
--- input.json --
-{"cwd":"/srv/outside/app"}
--- config --
-segments = path
--- env --
-NO_COLOR=1
--- output --
-/srv/outside/app

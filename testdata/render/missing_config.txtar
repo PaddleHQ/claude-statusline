@@ -1,5 +1,0 @@
-The defaults apply when there is no config file
--- input.json --
-{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"session_id":"abc123"}
--- output --
-Opus 4.7 [high]

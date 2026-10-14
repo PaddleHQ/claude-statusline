@@ -1,9 +1,0 @@
-A directory that merely starts with the home directory's name is not abbreviated to ~
--- input.json --
-{"cwd":"@TMP@-other/app"}
--- config --
-segments = path
--- env --
-NO_COLOR=1
--- output --
-@TMP@-other/app

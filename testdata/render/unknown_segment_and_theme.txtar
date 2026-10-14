@@ -1,8 +1,0 @@
-Unknown, malformed and path-like segment names are dropped, and an unknown theme falls back to the default
--- input.json --
-{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"session_id":"abc123"}
--- config --
-segments = model bogus Bad-Name ../x model
-theme = nonexistent
--- output --
-Opus 4.7 [high] \e[2m·\e[0m Opus 4.7 [high]

@@ -1,9 +1,0 @@
-The gradient theme's rate-limit bar with NO_COLOR, showing it still reads without colour
--- input.json --
-{"session_id":"demo","rate_limits":{"five_hour":{"used_percentage":75,"resets_at":1760009000}}}
--- config --
-theme = gradient
-segments = rate5h
--- env --
-NO_COLOR=1
-COLUMNS=200

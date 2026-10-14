@@ -1,13 +1,26 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
-	"github.com/PaddleHQ/claude-statusline/internal/rendertest"
+	"github.com/PaddleHQ/claude-statusline/internal/featuretest"
+	"github.com/PaddleHQ/claude-statusline/internal/statusline"
+	"github.com/PaddleHQ/claude-statusline/internal/subagent"
 )
+
+const (
+	screenshotTag = "@screenshot"
+	subagentName  = "subagent"
+)
+
+// ErrDuplicateScreenshot is returned when two scenarios save a screenshot under the same name.
+var ErrDuplicateScreenshot = errors.New("duplicate screenshot name")
 
 // Image is one generated file: its name within the images directory and its content.
 type Image struct {
@@ -15,37 +28,52 @@ type Image struct {
 	SVG  []byte
 }
 
-// Generate renders every fixture file under fixtures into a dark and a light image, ordered by file name.
-func Generate(fixtures string) ([]Image, error) {
-	cases, err := rendertest.Load(fixtures)
-	if err != nil {
-		return nil, fmt.Errorf("load fixtures: %w", err)
+// Generate runs the @screenshot scenarios under features and draws what each saves as a dark and a light
+// image, ordered by file name.
+func Generate(features string) ([]Image, error) {
+	screens := map[string]string{}
+	var duplicate error
+	suite := featuretest.Suite{
+		Execute: execute,
+		Paths:   []string{features},
+		Tags:    screenshotTag,
+		Screenshot: func(name, screen string) {
+			if _, ok := screens[name]; ok {
+				duplicate = fmt.Errorf("%w: %s", ErrDuplicateScreenshot, name)
+			}
+			screens[name] = screen
+		},
 	}
+	if err := suite.Run(nil); err != nil {
+		return nil, fmt.Errorf("run %s scenarios: %w", screenshotTag, err)
+	}
+	if duplicate != nil {
+		return nil, duplicate
+	}
+
 	var images []Image
-	for _, c := range cases {
-		f := Open(c)
-		text, err := f.Render()
-		if err != nil {
-			return nil, fmt.Errorf("render %s: %w", f.Name(), err)
-		}
+	for name, text := range screens {
 		screen := Parse(text)
 		for _, th := range []*Theme{Dark, Light} {
-			images = append(images, Image{Name: f.Name() + "-" + th.Name + ".svg", SVG: screen.SVG(th)})
+			images = append(images, Image{Name: name + "-" + th.Name + ".svg", SVG: screen.SVG(th)})
 		}
 	}
-	slices.SortFunc(images, func(a, b Image) int { return compareNames(a.Name, b.Name) })
+	slices.SortFunc(images, func(a, b Image) int { return strings.Compare(a.Name, b.Name) })
 	return images, nil
 }
 
-func compareNames(a, b string) int {
-	switch {
-	case a < b:
-		return -1
-	case a > b:
-		return 1
-	default:
-		return 0
+// execute is the part of the claude-statusline command the screenshot scenarios use: the status line, and with
+// the subagent argument the agent panel rows.
+func execute(args []string, stdin io.Reader, stdout io.Writer, getenv func(string) string) {
+	input, err := io.ReadAll(stdin)
+	if err != nil {
+		return
 	}
+	if len(args) > 0 && args[0] == subagentName {
+		_, _ = io.WriteString(stdout, subagent.Build(input, getenv))
+		return
+	}
+	_, _ = io.WriteString(stdout, statusline.Build(input, getenv))
 }
 
 // Write saves the images into dir, creating it if needed.

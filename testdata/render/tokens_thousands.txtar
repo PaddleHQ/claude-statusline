@@ -1,9 +1,0 @@
-Token counts in the thousands are shown with a k suffix
--- input.json --
-{"context_window":{"total_input_tokens":1500,"total_output_tokens":999999}}
--- config --
-segments = tokens
--- env --
-NO_COLOR=1
--- output --
-↓ 1.5k · ↑ 999.9k

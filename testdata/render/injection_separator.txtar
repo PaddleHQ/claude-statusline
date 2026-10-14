@@ -1,8 +1,0 @@
-A command substitution in the separator setting is shown as text and never executed
--- input.json --
-{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"session_id":"abc123"}
--- config --
-segments = model model
-separator = $(touch @TMP@/pwned)
--- output --
-Opus 4.7 [high] \e[2m$(touch @TMP@/pwned)\e[0m Opus 4.7 [high]

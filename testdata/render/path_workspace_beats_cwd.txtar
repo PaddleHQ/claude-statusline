@@ -1,9 +1,0 @@
-The workspace directory takes precedence over the working directory
--- input.json --
-{"cwd":"@TMP@/old","workspace":{"current_dir":"@TMP@/new"}}
--- config --
-segments = path
--- env --
-NO_COLOR=1
--- output --
-~/new

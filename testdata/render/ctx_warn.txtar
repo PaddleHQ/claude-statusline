@@ -1,7 +1,0 @@
-Context use of 50% is drawn in yellow
--- input.json --
-{"context_window":{"used_percentage":50}}
--- config --
-segments = ctx
--- output --
-ctx: \e[33m█████\e[0m\e[2m░░░░░\e[0m 50%

@@ -1,8 +1,0 @@
-The gradient theme at 0% context use draws an entirely empty bar
--- input.json --
-{"context_window":{"used_percentage":0}}
--- config --
-theme = gradient
-segments = ctx
--- output --
-ctx: \e[38;2;74;74;74m▱▱▱▱▱▱▱▱▱▱\e[0m \e[32m0%\e[0m

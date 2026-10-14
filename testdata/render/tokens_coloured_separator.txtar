@@ -1,7 +1,0 @@
-The tokens segment with colour on, with a dimmed separator between the input and output counts
--- input.json --
-{"context_window":{"total_input_tokens":1500,"total_output_tokens":250}}
--- config --
-segments = tokens
--- output --
-↓ 1.5k \e[2m·\e[0m ↑ 250

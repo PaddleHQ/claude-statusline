@@ -1,5 +1,0 @@
-A numeric task id is echoed back as a number
--- input.json --
-{"tasks":[{"id":42,"name":"n","description":"numeric id echoed as is"}]}
--- output --
-42	\e[1mn\e[0m \e[2m·\e[0m \e[2mnumeric id echoed as is\e[0m

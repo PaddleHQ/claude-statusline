@@ -1,5 +1,5 @@
 // Command screenshots turns the status line's terminal output into SVG images for the documentation.
-// It regenerates the images under docs/images from the fixtures in testdata/screenshots.
+// It regenerates the images under docs/images from the @screenshot scenarios in features/screenshots.feature.
 // Run it from the repository root: go run ./tools/screenshots.
 package main
 
@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	fixtures  = "testdata/screenshots"
+	fixtures  = "features"
 	outputDir = "docs/images"
 )
 

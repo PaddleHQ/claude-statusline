@@ -1,9 +1,0 @@
-A path under the home directory starts with ~
--- input.json --
-{"cwd":"@TMP@/work/app"}
--- config --
-segments = path
--- env --
-NO_COLOR=1
--- output --
-~/work/app

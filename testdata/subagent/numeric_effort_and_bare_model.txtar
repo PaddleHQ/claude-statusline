@@ -1,5 +1,0 @@
-A numeric effort is shown as a number and a model without a claude- prefix is shown as it is
--- input.json --
-{"tasks":[{"id":"t1","name":"x","model":"custom-model-1","effort":31999,"contextWindowSize":100000,"tokenCount":33333,"description":"numeric effort"}]}
--- output --
-"t1"	\e[1mx\e[0m \e[2m·\e[0m custom-model-1\e[2m [31999]\e[0m \e[2m·\e[0m ctx: \e[32m███▎\e[0m\e[2m░░░░░░\e[0m \e[32m33%\e[0m \e[2m·\e[0m 33.3k \e[2m·\e[0m \e[2mnumeric effort\e[0m

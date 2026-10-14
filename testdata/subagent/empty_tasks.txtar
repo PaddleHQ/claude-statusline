@@ -1,4 +1,0 @@
-An empty task list prints no rows
--- input.json --
-{"tasks":[]}
--- output --

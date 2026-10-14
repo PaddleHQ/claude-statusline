@@ -1,7 +1,0 @@
-A cache hit rate of 5% is shown without colour
--- input.json --
-{"context_window":{"current_usage":{"input_tokens":95,"cache_creation_input_tokens":0,"cache_read_input_tokens":5}}}
--- config --
-segments = cache
--- output --
-⧉ 5%

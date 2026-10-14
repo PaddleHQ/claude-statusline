@@ -1,8 +1,0 @@
-The gradient theme draws the context bar with gradient blocks and a coloured ramp
--- input.json --
-{"context_window":{"used_percentage":62}}
--- config --
-theme = gradient
-segments = ctx
--- output --
-ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;170;226;173m▰\e[0m\e[38;2;192;226;173m▰\e[0m\e[38;2;215;226;174m▰\e[0m\e[38;2;237;226;174m▰\e[0m\e[38;2;249;217;175m▰\e[0m\e[38;2;74;74;74m▱▱▱▱\e[0m \e[33m62%\e[0m
