@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for helping with claude-statusline. This page covers what you need to change the code and get the change merged. For what the tool does, start with the [README](README.md).
+Thank you for helping with claude-statusline. This page covers what you need to change the code and get the change merged. For what the tool does, start with the [README](README.md); [How it works](docs/how_it_works.md) explains how a render runs, and [Customising](docs/customising.md) documents every setting.
 
 ## Prerequisites
 
@@ -16,9 +16,9 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | Path | What it is |
 |---|---|
 | `main.go` | A few lines of wiring: it holds the build stamps and hands them, the arguments and the standard streams to `internal/cli`. It has no test, so that its wiring does not count against coverage. |
-| `internal/cli` | Picks the command from the arguments (`--version`, `setup`, `subagent`, or the status line itself) and reads stdin. It never reports an error, because a blank status line is better than a broken one. |
-| `internal/statusline` | Builds the line: loads config, saves the snapshot, merges rate limits, reads the transcript, runs hooks and renders. Also lists every config key the code reads. |
-| `segments/` | One folder per plugin, each providing the segments it names and owning their `defaults.conf`, README, tests and generated mocks. A plugin declares the interfaces it needs and imports nothing from `internal/`. `segments/all.go` is the composition root: the single list of plugins, and the environment that hands them the internal types, which satisfy the plugins' interfaces directly. |
+| `internal/cli` | Picks the command from the arguments (`--version`, `setup`, `subagent`, `help`, or the status line itself) and reads stdin. It never reports an error, because a blank status line is better than a broken one. |
+| `internal/statusline` | Builds the line (and the text of `help`): loads config, saves the snapshot, merges rate limits, reads the transcript, runs hooks and renders. Also lists every config key the code reads. |
+| `segments/` | One folder per plugin, each providing the segments it names and owning their `defaults.conf`, README, tests and generated mocks. A plugin declares the interfaces it needs and imports nothing from `internal/`. `segments/all.go` is the composition root: the single list of plugins, and the environment that hands them the internal types, which satisfy the plugins' interfaces directly. See [Building plugins](docs/building_plugins.md). |
 | `internal/render` | Renders the configured segments in order, and places custom segments among them. |
 | `internal/layout` | Joins rendered segments into one row, or wraps them into groups when the terminal is too narrow. |
 | `internal/config` | Layers your config file over the defaults embedded in the binary: its own `defaults.conf` for the global keys, and each plugin's. |
@@ -34,8 +34,11 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `internal/subagent` | Renders the rows of Claude Code's agent panel. |
 | `internal/setup` | Adds `statusLine` and `subagentStatusLine` to `settings.json` once, backing the file up first. |
 | `hooks/` | The plugin's `SessionStart` hook: `hooks.json` and `bootstrap.sh`, which installs the latest release, and `bootstrap_test.sh`, its shell tests. |
-| `features/` | The Gherkin feature files: readable examples of the whole line. `features_test.go` runs them. |
-| `internal/featuretest` | The step definitions behind the feature files. |
+| `features/` | The Gherkin feature files: readable examples of the whole line, and the scenarios the documentation images are made from. `features_test.go` runs them. |
+| `internal/featuretest` | The step definitions behind the feature files, shared by the tests and the image generator. |
+| `tools/screenshots` | The command that regenerates the documentation images: it runs the `@screenshot` scenarios and draws what they print as SVG. It is one `main` package with its own tests. |
+| `docs/` | The user documentation, and the generated images in `docs/images/`. |
+| `commands/` | The plugin's slash commands: `help.md` is `/statusline:help`, which runs `claude-statusline help` and has Claude relay its output. |
 | `.claude-plugin/` | The plugin and marketplace manifests. |
 
 ## Verifying a change
@@ -73,19 +76,19 @@ Tests use [testify](https://github.com/stretchr/testify): `require` when the res
 
 There are three layers. Put a test in the lowest one that can show the behaviour, and prefer table-driven tests (`t.Run` over a slice of cases) in the two unit layers.
 
-**1. Plugin unit tests**, in `segments/<plugin>/*_test.go`, with [mockery](#mocks) mocks. They cover every edge of what one plugin draws: how it formats, where its thresholds and colours change, what it does when data is missing, and how each config variant changes it. A plugin test never builds a payload or a theme; the mocks stand in for them. For example:
+**1. Plugin unit tests**, in `segments/<plugin>/*_test.go`, with [mockery](#mocks) mocks. They cover every edge of what one plugin draws: how it formats, where its thresholds and colours change, what it does when data is missing, how each config variant changes it, and its help text. A plugin test never builds a payload or a theme; the mocks stand in for them. For example:
 
 - `tokens` abbreviating 999 as `999`, 1000 as `1.0k` and 1500000 as `1.5M`.
 - `cache` turning red below `cache.warn`, and hiding when the counts add up to zero.
 - `model` showing `Haiku (skill)` when the transcript says a different family ran.
 
-**2. Provider unit tests**, in `internal/*` (and `segments/render_test.go` for the composition root). They cover the shared machinery that the plugins sit on: config layering and validation, theme loading, fallback and colour specs, the rate-limit cache's freshness rules, the transcript's bounded reads, the hook contract (output, time to live, timeout, placement), layout and wrapping, setup, the snapshot and the bars. They use real files in a temporary directory, never your `HOME`. For example:
+**2. Provider unit tests**, in `internal/*` (and `segments/render_test.go` for the composition root). They cover the shared machinery that the plugins sit on: config layering and validation, theme loading, fallback and colour specs, the rate-limit cache's freshness rules, the transcript's bounded reads, the hook contract (output, time to live, timeout, placement), layout and wrapping, setup, the snapshot, the bars and the help command. They use real files in a temporary directory, never your `HOME`. For example:
 
 - a theme file with an unknown colour name falls back to `classic` (`internal/theme`).
 - a reading ten points below the cached one in the same window is stale, and eleven is a reset (`internal/ratecache`).
 - a hook with a `statusline-ttl: 300` header is not run again for 299 seconds (`internal/hook`).
 
-**3. Gherkin features**, in `features/`. They show the overall shape of the line in examples a reader can follow: the default line, segments dropped or reordered, wrapping at a few widths, a hook placed in a slot and a hook replacing a built-in, each theme applied once, `NO_COLOR`, a couple of subagent rows, and one example for each plugin so that every feature file still documents its segment. For example:
+**3. Gherkin features**, in `features/`. They show the overall shape of the line in examples a reader can follow: the default line, segments dropped or reordered, wrapping at a few widths, a hook placed in a slot and a hook replacing a built-in, each theme applied once, `NO_COLOR`, the help output, a couple of subagent rows, and one example for each plugin so that every feature file still documents its segment. The `@screenshot` scenarios are here too, because the documentation images are made from them. For example:
 
 - the default line with a full payload.
 - the line wrapping at 80 and 40 columns, with a continuation arrow.
@@ -125,7 +128,7 @@ Plugin tests use mocks generated by [mockery](https://vektra.github.io/mockery/)
 go generate ./...
 ```
 
-CI runs the same command and fails if it changes anything, so a stale mock cannot be merged. Do not edit the files in `mocks/`. Tests use the typed expecter API, for example `m.EXPECT().DisplayName().Return("Opus 4.7")`.
+CI runs the same command and fails if it changes anything, so a stale mock cannot be merged. Do not edit the files in `mocks/`. Tests use the typed expecter API, for example `m.EXPECT().DisplayName().Return("Opus 4.7")`; [Building plugins](docs/building_plugins.md) has a worked example.
 
 ### Feature tests
 
@@ -164,7 +167,7 @@ A step that takes text ends in a colon and is followed by a `"""` block. The tex
 
 | Step | What it does |
 |---|---|
-| `Given the session:` | The session JSON that Claude Code sends on standard input. It may be empty or invalid. |
+| `Given the session:` | The session JSON that Claude Code sends on standard input. It may be empty or invalid. Omit it for `help`. |
 | `Given the config:` | Writes the user's config file. |
 | `Given the environment variable "NAME" is "value"` | Sets one environment variable for the run. |
 | `Given the file "path":` | Creates a file at `path` under the temporary home directory, with the block as its content and a final newline. Directories are created as needed. Custom segment scripts live in `statusline.d/`, and a transcript is any file the session names. |
@@ -174,10 +177,12 @@ A step that takes text ends in a colon and is followed by a `"""` block. The tex
 | `When the status line renders` | Runs the status line. |
 | `When the status line renders at <n> columns` | The same, with the terminal `<n>` columns wide. |
 | `When the subagent rows render` | Runs the `subagent` command. |
+| `When help runs` | Runs the `help` command. |
 | `Then the output is:` | The output with its colours and styles, written as rows of text with a style line under each; see [Expected output](#expected-output). |
 | `Then the text is:` | The output with every colour and style removed. Use it when the scenario has no colour at all. |
 | `Then the raw output is:` | The exact bytes, with each escape byte written as `\e`. Use it only when the bytes are the point. |
 | `Then the rate-limit cache is:` | The cache file's content after the run, compared ignoring surrounding whitespace. |
+| `Then the output is saved as the screenshot "name"` | Used only by `@screenshot` scenarios; see [Documentation images](#documentation-images). |
 
 In every block, `@TMP@` stands for the scenario's temporary directory, which is also `HOME` and `CLAUDE_CONFIG_DIR`, so tests never touch your real Claude Code state. For `the subagent rows render`, every row of the output is the task id, `\t` for the tab, then the row content, and `\t` counts as two columns. In a `Given the session:` block, write the JSON indented, with the keys in the order the payload has them. An empty output is an empty block. A line break is only the separator between lines, so the block has no trailing newline unless you add an empty last line.
 
@@ -225,7 +230,7 @@ Some more rules:
 
 There is no update flag. When the output differs, the failure prints the expected rows, the actual rows in this same format ready to paste, and a line by line diff, so you can read what changed and copy the new block once you have checked that it is right.
 
-Pick the step by what the scenario is about. Most scenarios use `Then the output is:`. A scenario with no colour, such as one that sets `NO_COLOR` or an empty output, uses `Then the text is:`. `Then the raw output is:` is for the few scenarios where the exact bytes are the point, for example one that checks how escape sequences or control characters in input are passed on or removed.
+Pick the step by what the scenario is about. Most scenarios use `Then the output is:`. A scenario with no colour, such as one that sets `NO_COLOR`, the `help` output or an empty output, uses `Then the text is:`. `Then the raw output is:` is for the few scenarios where the exact bytes are the point, for example one that checks how escape sequences or control characters in input are passed on or removed.
 
 Every scenario starts with the fixed time (`STATUSLINE_NOW`) and a 200 column terminal, set by the `Background` of the feature files that render the status line, and a 30 second hook timeout, which the harness sets for all of them. A scenario's own steps override them. Whatever the command prints, the run also fails if the output holds a control character other than newline and escape, or if a config value was executed.
 
@@ -259,19 +264,44 @@ echo '{"model":{"display_name":"Opus 4.7"}}' | HOME="$tmp" CLAUDE_CONFIG_DIR="$t
 
 ### Configuration keys
 
-Every key the code reads must appear, with a one-line comment above it, in `internal/config/defaults.conf` (the global keys) or in the `defaults.conf` of the plugin that reads it, and every key in those files must be read by something. `TestKeysMatchDefaults` in `internal/statusline` enforces both directions, so a new setting cannot ship undocumented and a dead one cannot linger.
+Every key the code reads must appear, with a one-line comment above it, in `internal/config/defaults.conf` (the global keys) or in the `defaults.conf` of the plugin that reads it, and every key in those files must be read by something. `TestKeysMatchDefaults` in `internal/statusline` enforces both directions, so a new setting cannot ship undocumented and a dead one cannot linger. Add the key to the table in [`docs/customising.md`](docs/customising.md) too.
 
 ### Adding a built-in theme
 
-Built-in themes are YAML files in the top-level `themes/` directory, embedded in the binary by `themes/themes.go`; the file name without `.yaml` is the name users put in `theme`. Write one in the format of the existing ones, with comments, since the files double as examples. Every theme is a complete, standalone file, so start by copying `themes/classic.yaml` or `themes/gradient.yaml`. Parsing is strict (unknown keys are an error), so a typo fails the tests rather than shipping. Add a test in `internal/theme` for what is new, and one scenario that selects the theme in its config (`features/gradient_theme.feature` is the model), so each built-in theme is applied once. Keep the loader's fallback to `classic` silent: a status line never prints an error.
+Built-in themes are YAML files in the top-level `themes/` directory, embedded in the binary by `themes/themes.go`; the file name without `.yaml` is the name users put in `theme`. Write one in the format the Themes section of [`docs/customising.md`](docs/customising.md) describes, with comments, since the files double as examples. Every theme is a complete, standalone file, so start by copying `themes/classic.yaml` or `themes/gradient.yaml`. Parsing is strict (unknown keys are an error), so a typo fails the tests rather than shipping. Add a test in `internal/theme` for what is new, and one scenario that selects the theme in its config (`features/gradient_theme.feature` is the model), so each built-in theme is applied once. Mention the theme in the Themes section of `docs/customising.md`. Keep the loader's fallback to `classic` silent: a status line never prints an error.
 
 ### Adding a segment
 
-A segment is a plugin: a package under `segments/` that owns its code, its `defaults.conf` and its tests, plus an entry in `segments/all.go`. A segment should be hidden, not wrong, when its data is missing.
+A segment is a plugin: a package under `segments/` that owns its code, its `defaults.conf` and its tests, plus one line in `segments/all.go`. [Building plugins](docs/building_plugins.md) is the step-by-step guide. A segment should be hidden, not wrong, when its data is missing.
 
 ### Custom segment output
 
 Scripts in the hook directory are user code, so their output is treated as untrusted. `internal/hook` strips control characters from it and keeps only colour sequences, so a script cannot move the cursor or redraw the terminal. If you change that path, keep the rule and extend its tests. The same applies to strings taken from the session payload, which `internal/payload` sanitises.
+
+### Documentation images
+
+The pictures of the status line in the README and `docs/` are generated, not drawn. Each one comes from a scenario tagged `@screenshot` in `features/screenshots.feature`. It sets up the status line like any other scenario, and ends with a step naming the image instead of checking the output:
+
+```gherkin
+@screenshot
+Scenario: The status line at 80 columns, wrapped into rows, for the customising guide
+  Given the session:
+    """json
+    {"session_id":"demo","model":{"display_name":"Opus 4.7"}}
+    """
+  When the status line renders at 80 columns
+  Then the output is saved as the screenshot "narrow"
+```
+
+Use `When the subagent rows render` to draw the agent panel rows instead. The generator runs the real status line through the same steps as the tests, draws what each `@screenshot` scenario saves, and writes `docs/images/<name>-dark.svg` and `docs/images/<name>-light.svg`, which the docs embed with a `<picture>` element so GitHub shows the one that matches the reader's theme. `go test ./...` leaves the `@screenshot` scenarios out, because they check nothing themselves.
+
+After changing a screenshot scenario, or anything that changes what the line looks like, regenerate the images from the repository root and commit the result:
+
+```sh
+go run ./tools/screenshots
+```
+
+`TestScreenshotsUpToDate` runs the same scenarios, draws the images in memory and fails when a committed one differs, is missing or has no scenario, so a stale picture cannot be merged.
 
 ### Go style
 

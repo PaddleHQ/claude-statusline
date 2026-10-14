@@ -3,6 +3,7 @@ package rate
 
 import (
 	_ "embed"
+	"fmt"
 	"time"
 )
 
@@ -81,6 +82,14 @@ func NewSevenDay(d Deps) *Window {
 
 // Name is the segment's name in the segments list.
 func (w *Window) Name() string { return w.name }
+
+// Help says what the segment shows, for the help command.
+func (w *Window) Help() string {
+	cfg := w.d.Config
+	return fmt.Sprintf("Your %s usage, with a marker at an even pace. "+
+		"Amber when more than %d points off it, red beyond %d points or from %d%% used.",
+		w.window, cfg.Int("warn"), cfg.Int("bad"), cfg.Int("hard_cap"))
+}
 
 // Keys lists the config keys the segment reads, relative to its section; the widths are read by the Meter.
 func (w *Window) Keys() []string {

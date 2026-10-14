@@ -28,6 +28,7 @@ const (
 
 var (
 	errNoOutput    = errors.New("no output to check: a When step must run first")
+	errNoRecorder  = errors.New("this run does not save screenshots")
 	errPathEscapes = errors.New("path leaves the temporary directory")
 	errDiffers     = errors.New("differs from what the scenario expects (- expected, + actual)")
 )
@@ -180,6 +181,17 @@ func (w *world) renderSubagentRows(ctx context.Context) error {
 	return nil
 }
 
+func (w *world) renderHelp(ctx context.Context) {
+	var out bytes.Buffer
+	w.suite.Execute([]string{"help"}, strings.NewReader(""), &out, w.getenv)
+
+	w.ran = true
+	w.screen = out.String()
+	w.out = strings.TrimSuffix(w.screen, "\n")
+	w.styled = w.out
+	assert.NotContains(godog.T(ctx), w.screen, "\033", "help is plain text")
+}
+
 func (w *world) checkRawOutput(want string) error {
 	if !w.ran {
 		return errNoOutput
@@ -240,6 +252,17 @@ func trimRows(text string) string {
 func (w *world) checkCache(want string) error {
 	got, _ := os.ReadFile(filepath.Join(w.tmp, w.cachePath()))
 	return compare("rate-limit cache", strings.TrimSpace(want), strings.TrimSpace(string(got)))
+}
+
+func (w *world) saveScreenshot(name string) error {
+	if !w.ran {
+		return errNoOutput
+	}
+	if w.suite.Screenshot == nil {
+		return errNoRecorder
+	}
+	w.suite.Screenshot(name, w.screen)
+	return nil
 }
 
 func escapeESC(text string) string {

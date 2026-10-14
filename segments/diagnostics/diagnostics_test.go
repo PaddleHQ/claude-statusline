@@ -84,6 +84,7 @@ func TestProvidesFiveSegments(t *testing.T) {
 	for _, name := range names {
 		seg, reads := build(t, name, info{})
 		assert.Equal(t, name, seg.Name())
+		assert.NotEmpty(t, seg.Help(), name)
 		assert.Empty(t, seg.Keys(), name)
 		assert.Zero(t, *reads, "%s asked for the transcript before drawing", name)
 	}

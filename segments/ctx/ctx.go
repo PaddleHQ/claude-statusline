@@ -3,6 +3,7 @@ package ctx
 
 import (
 	_ "embed"
+	"fmt"
 	"math"
 )
 
@@ -59,6 +60,11 @@ func New(d Deps) *Context { return &Context{d: d} }
 
 // Name is the segment's name in the segments list.
 func (c *Context) Name() string { return name }
+
+// Help says what the segment shows, for the help command.
+func (c *Context) Help() string {
+	return fmt.Sprintf("How full the context window is. Amber from %d%%, red from %d%%.", c.d.Config.Int("warn"), c.d.Config.Int("bad"))
+}
 
 // Keys lists the config keys the segment reads, relative to its section; the widths are read by the Meter.
 func (c *Context) Keys() []string {

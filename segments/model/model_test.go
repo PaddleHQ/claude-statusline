@@ -113,3 +113,13 @@ func TestNameAndKeys(t *testing.T) {
 	assert.Equal(t, []string{"effort"}, seg.Keys())
 	assert.Zero(t, *reads)
 }
+
+func TestHelp(t *testing.T) {
+	t.Parallel()
+
+	withEffort, _ := build(t, session{}, true, "")
+	withoutEffort, _ := build(t, session{}, false, "")
+	assert.Contains(t, withEffort.Help(), "effort")
+	assert.NotContains(t, withoutEffort.Help(), "effort")
+	assert.Contains(t, withoutEffort.Help(), "model")
+}

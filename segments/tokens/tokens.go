@@ -44,6 +44,11 @@ func New(d Deps) *Totals { return &Totals{d: d} }
 // Name is the segment's name in the segments list.
 func (t *Totals) Name() string { return name }
 
+// Help says what the segment shows, for the help command.
+func (t *Totals) Help() string {
+	return "Session token totals: input after the down arrow, output after the up arrow."
+}
+
 // Keys lists the config keys the segment reads; it has none.
 func (t *Totals) Keys() []string { return nil }
 
