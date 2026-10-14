@@ -1,14 +1,14 @@
 {
-  "name": "claude-statusline",
-  "description": "An open-source status line for Claude Code.",
-  "owner": {
-    "name": "Paddle"
-  },
-  "plugins": [
-    {
-      "name": "statusline",
-      "source": "./",
-      "description": "An open-source status line for Claude Code, installed and enabled on session start."
-    }
-  ]
+	"name": "claude-statusline",
+	"description": "An open-source status line for Claude Code.",
+	"owner": {
+		"name": "Paddle"
+	},
+	"plugins": [
+		{
+			"name": "statusline",
+			"source": "./",
+			"description": "An open-source status line for Claude Code, installed and enabled on session start."
+		}
+	]
 }

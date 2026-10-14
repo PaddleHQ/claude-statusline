@@ -141,6 +141,47 @@ jobs:
             exit 1
           fi
 
+  validate:
+    name: Validate Go module
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          use-policy-store: true
+          api-key: ${{ secrets.STEPSECURITY_POLICY_STORE_API_KEY }}
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Check go.mod and go.sum are tidy
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          go mod tidy -diff || {
+            echo '::error file=go.mod,line=1,endLine=1,title=Incorrect dependencies::Please run "go mod tidy"'
+            exit 1
+          }
+
+      - name: Check go.mod has no toolchain directive
+        run: |
+          line=$(grep -nE '^toolchain ' go.mod | cut -d: -f1 | head -n 1)
+          if [ -n "$line" ]; then
+            echo "::error file=go.mod,line=${line},endLine=${line},title=Toolchain::go.mod contains a toolchain directive. Remove it before merge."
+            exit 1
+          fi
+
   lint:
     name: Lint
     runs-on: ubuntu-latest

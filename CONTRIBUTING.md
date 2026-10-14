@@ -46,6 +46,9 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 CI runs the following on every pull request, and you can run the same commands locally.
 
 ```sh
+go mod verify
+go mod tidy -diff             # go.mod and go.sum are tidy
+! grep -q '^toolchain ' go.mod   # no toolchain directive
 test -z "$(gofmt -s -l .)"    # formatting
 go generate ./... && git diff --exit-code   # generated mocks are up to date
 go vet ./...
@@ -54,12 +57,16 @@ go test -race ./...
 golangci-lint run
 shellcheck -s sh hooks/bootstrap.sh hooks/bootstrap_test.sh
 sh hooks/bootstrap_test.sh
+actionlint                    # the workflow files
+editorconfig-checker          # whitespace and indentation against .editorconfig
 goreleaser check
 goreleaser release --snapshot --clean --skip=publish   # needs syft on your PATH
 claude plugin validate .                               # needs Claude Code installed
 ```
 
 The workflow files in `.github/workflows/` are the source of truth if this list and CI ever disagree. `golangci-lint run --fix` applies the formatters for you.
+
+Dependabot opens weekly pull requests for Go modules (labelled `release:patch`) and GitHub Actions (labelled `norelease`), so they pass the SemVer label check. A pull request carrying a blocking label, such as `do not merge`, fails the "Check for blocking labels" check until the label is removed.
 
 ## Tests
 
