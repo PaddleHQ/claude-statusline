@@ -33,7 +33,7 @@ type Session struct {
 }
 ```
 
-`Help` is one or two plain sentences saying what the segment shows and what its colours mean, for a future help command. Build it from the segment's own config, so it reflects the user's settings: the `ctx` segment says "How full the context window is. Amber from 50%, red from 90%." with the configured `warn` and `bad`. A package with several segments gives each its own text. Test that it is not empty and that it mentions every threshold or label it claims to.
+`Help` is one or two plain sentences saying what the segment shows and what its colours mean, for the `help` command and `/statusline:help`. Build it from the segment's own config, so it reflects the user's settings: the `ctx` segment says "How full the context window is. Amber from 50%, red from 90%." with the configured `warn` and `bad`. A package with several segments gives each its own text. Test that it is not empty and that it mentions every threshold or label it claims to.
 
 `Render` returns the finished text, already painted with the theme, or an empty string to hide the segment. A segment is hidden, not wrong, when its data is missing. Plugin code never prints and never returns an error.
 

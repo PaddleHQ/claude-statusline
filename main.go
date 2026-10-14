@@ -36,6 +36,10 @@ func execute(args []string, stdin io.Reader, stdout io.Writer, getenv func(strin
 		runSubagent(stdin, stdout, getenv)
 		return
 	}
+	if len(args) > 0 && args[0] == "help" {
+		_, _ = io.WriteString(stdout, statusline.Help(getenv))
+		return
+	}
 	run(stdin, stdout, getenv)
 }
 

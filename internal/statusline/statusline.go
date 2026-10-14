@@ -100,11 +100,7 @@ func saveSnapshot(input []byte, cfg *config.Config, getenv func(string) string) 
 // runHooks runs the scripts in the hook directory; STATUSLINE_HOOK_TTL and STATUSLINE_HOOK_TIMEOUT override the config.
 func runHooks(input []byte, p payload.Payload, cfg *config.Config, at time.Time, getenv func(string) string) []hook.Result {
 	configDir := config.Dir(getenv)
-	dir := getenv("STATUSLINE_HOOK_DIR")
-	if dir == "" && configDir != "" {
-		dir = filepath.Join(configDir, "statusline.d")
-	}
-	hooks := hook.Discover(dir)
+	hooks := hook.Discover(hookDir(getenv))
 	if len(hooks) == 0 {
 		return nil
 	}
@@ -122,6 +118,16 @@ func runHooks(input []byte, p payload.Payload, cfg *config.Config, at time.Time,
 		opts.CacheDir = filepath.Join(configDir, "claude-statusline", "cache", "hooks")
 	}
 	return opts.Run(hooks)
+}
+
+func hookDir(getenv func(string) string) string {
+	if dir := getenv("STATUSLINE_HOOK_DIR"); dir != "" {
+		return dir
+	}
+	if configDir := config.Dir(getenv); configDir != "" {
+		return filepath.Join(configDir, "statusline.d")
+	}
+	return ""
 }
 
 func seconds(override string, fallback int) time.Duration {

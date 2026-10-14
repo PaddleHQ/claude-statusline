@@ -48,6 +48,7 @@ const (
 var (
 	slotLine    = regexp.MustCompile(`^#\s*statusline-slot:\s*([a-z]+)\s*$`)
 	ttlLine     = regexp.MustCompile(`^#\s*statusline-ttl:\s*(\d+)`)
+	helpLine    = regexp.MustCompile(`^#\s*statusline-help:\s*(.*?)\s*$`)
 	numPrefix   = regexp.MustCompile(`^\d+-`)
 	sgrSeq      = regexp.MustCompile("^\x1b\\[[0-9;]*m")
 	sessionSafe = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
@@ -62,6 +63,8 @@ type Hook struct {
 	Slot Slot
 	// TTL is how long a result is reused; negative means the default applies.
 	TTL time.Duration
+	// Help is the statusline-help description, with control characters removed; empty when the script has none.
+	Help string
 }
 
 // Result is a hook and the line it contributes; Text is empty when it has nothing to show.
@@ -112,7 +115,7 @@ func nameOf(file string) string {
 	return numPrefix.ReplaceAllString(name, "")
 }
 
-// readHeader applies the first slot and ttl directive found in the script's opening lines.
+// readHeader applies the first slot, ttl and help directive found in the script's opening lines.
 func readHeader(h *Hook) {
 	f, err := os.Open(h.Path) //nolint:gosec // G304: reading the header of the user's own hook script is the feature
 	if err != nil {
@@ -121,7 +124,7 @@ func readHeader(h *Hook) {
 	defer func() { _ = f.Close() }()
 	data, _ := io.ReadAll(io.LimitReader(f, headerBytes))
 
-	var seenSlot, seenTTL bool
+	var seenSlot, seenTTL, seenHelp bool
 	for i, line := range strings.Split(string(data), "\n") {
 		if i >= headerLines {
 			break
@@ -132,6 +135,9 @@ func readHeader(h *Hook) {
 		}
 		if !seenTTL {
 			seenTTL = h.applyTTL(line)
+		}
+		if !seenHelp {
+			seenHelp = h.applyHelp(line)
 		}
 	}
 }
@@ -155,6 +161,20 @@ func (h *Hook) applyTTL(line string) bool {
 	if n, ok := config.ParseNumber(m[1]); ok {
 		h.TTL = time.Duration(n) * time.Second
 	}
+	return true
+}
+
+func (h *Hook) applyHelp(line string) bool {
+	m := helpLine.FindStringSubmatch(line)
+	if m == nil {
+		return false
+	}
+	h.Help = strings.Map(func(r rune) rune {
+		if r < 0x20 || (r >= 0x7f && r <= 0x9f) {
+			return -1
+		}
+		return r
+	}, m[1])
 	return true
 }
 

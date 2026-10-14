@@ -34,7 +34,7 @@ Set `NO_COLOR` to any non-empty value to turn colour and styling off; see [NO_CO
 
 ## Segments and order
 
-`segments` lists what the line shows, left to right. The built-in segments are:
+`segments` lists what the line shows, left to right. To see what your own line shows, with your thresholds and custom segments, run `/statusline:help` in Claude Code, or `claude-statusline help` in a terminal. The built-in segments are:
 
 | Segment | Shows |
 |---|---|
@@ -103,6 +103,7 @@ A hook's name is its filename without a leading `NN-` and without its extension,
 - If the name is in `segments`, the hook is drawn there: `segments = backup path model ctx tokens cache rate5h rate7d` puts it first.
 - If the name is a built-in segment that is in `segments` (`model`, say), the hook replaces the built-in.
 - Any other hook goes to its slot, chosen by a comment in the first 20 lines of the script: `# statusline-slot: ctx` (the default) draws it straight after `ctx`, or after `model` when there is no `ctx`; `usage` draws it after `tokens` and `cache`; `end` draws it last. Any other slot name means `ctx`, so a typo shows up on the line.
+- A comment `# statusline-help: <text>` in the first 20 lines is the description that `/statusline:help` and `claude-statusline help` show for the hook. Without one, the help says "custom segment from" and the file name. Help only reads the script's header; it never runs it.
 
 ### Timeouts and caching
 

@@ -15,8 +15,8 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 
 | Path | What it is |
 |---|---|
-| `main.go` | Picks the command from the arguments (`--version`, `setup`, `subagent`, or the status line itself) and reads stdin. It never reports an error, because a blank status line is better than a broken one. |
-| `internal/statusline` | Builds the line: loads config, saves the snapshot, merges rate limits, reads the transcript, runs hooks and renders. Also lists every config key the code reads. |
+| `main.go` | Picks the command from the arguments (`--version`, `setup`, `subagent`, `help`, or the status line itself) and reads stdin. It never reports an error, because a blank status line is better than a broken one. |
+| `internal/statusline` | Builds the line (and the text of `help`): loads config, saves the snapshot, merges rate limits, reads the transcript, runs hooks and renders. Also lists every config key the code reads. |
 | `segments/` | One folder per plugin, each providing the segments it names and owning their `defaults.conf` and tests. `segments/all.go` is the single list of plugins. See [Building plugins](docs/building_plugins.md). |
 | `internal/plugin` | What a plugin is: the `Segment` interface, the per-render `Session`, and the `Providers` (theme, config section, clock, and the lazily computed transcript and rate limits). |
 | `internal/render` | Renders the configured segments in order, and places custom segments among them. |
@@ -38,6 +38,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `tools/screenshots` | The command that regenerates the documentation images: it runs each fixture through the status line and draws the output as SVG. It is one `main` package with its own tests. |
 | `docs/` | The user documentation, and the generated images in `docs/images/`. |
 | `testdata/` | The render test cases for the end-to-end tests, and the fixtures the documentation images are made from. |
+| `commands/` | The plugin's slash commands: `help.md` is `/statusline:help`, which runs `claude-statusline help` and has Claude relay its output. |
 | `.claude-plugin/` | The plugin and marketplace manifests. |
 
 ## Verifying a change

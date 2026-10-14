@@ -34,7 +34,7 @@ With `theme = gradient`, the bars are shaded from green to red along their lengt
   <img alt="The status line with the gradient theme: the context and rate-limit bars are drawn as segmented cells shaded from green towards red, with a slash marking the pace point" src="docs/images/gradient-light.svg">
 </picture>
 
-`theme` picks the colours and bar glyphs, and `segments` chooses what to show and in what order. Every key, custom segments, wrapping and themes are in [Customising](docs/customising.md).
+`theme` picks the colours and bar glyphs, and `segments` chooses what to show and in what order. Every key, custom segments, wrapping and themes are in [Customising](docs/customising.md). To see what your own line shows, run `/statusline:help` in Claude Code, or `claude-statusline help` if you installed by hand.
 
 ## More
 
