@@ -6,7 +6,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 
 - Go, at the version in `go.mod`.
 - [golangci-lint](https://golangci-lint.run/) v2, for the linters and formatters in `.golangci.yml` (the build uses v2.14.0).
-- [shellcheck](https://www.shellcheck.net/), for the shell scripts under `hooks/` and `tests/`.
+- [shellcheck](https://www.shellcheck.net/), for the shell scripts under `hooks/`.
 - [GoReleaser](https://goreleaser.com/) and [syft](https://github.com/anchore/syft), only if you want to build a snapshot release locally.
 
 `jq` is not needed: the shell scripts parse what they need with `awk` and `grep`, so the plugin works on a machine without it.
@@ -33,8 +33,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `internal/snapshot` | Saves the latest payload for other tools. |
 | `internal/subagent` | Renders the rows of Claude Code's agent panel. |
 | `internal/setup` | Adds `statusLine` and `subagentStatusLine` to `settings.json` once, backing the file up first. |
-| `hooks/` | The plugin's `SessionStart` hook: `hooks.json` and `bootstrap.sh`, which installs the latest release. |
-| `tests/` | Shell tests for the bootstrap hook. |
+| `hooks/` | The plugin's `SessionStart` hook: `hooks.json` and `bootstrap.sh`, which installs the latest release, and `bootstrap_test.sh`, its shell tests. |
 | `internal/rendertest` | Loads the txtar files the render tests and the image generator read. |
 | `tools/screenshots` | The command that regenerates the documentation images: it runs each fixture through the status line and draws the output as SVG. It is one `main` package with its own tests. |
 | `docs/` | The user documentation, and the generated images in `docs/images/`. |
@@ -50,8 +49,8 @@ test -z "$(gofmt -s -l .)"    # formatting
 go vet ./...
 go test -race ./...
 golangci-lint run
-shellcheck -s sh hooks/bootstrap.sh tests/bootstrap_test.sh
-sh tests/bootstrap_test.sh
+shellcheck -s sh hooks/bootstrap.sh hooks/bootstrap_test.sh
+sh hooks/bootstrap_test.sh
 goreleaser check
 goreleaser release --snapshot --clean --skip=publish   # needs syft on your PATH
 claude plugin validate .                               # needs Claude Code installed
