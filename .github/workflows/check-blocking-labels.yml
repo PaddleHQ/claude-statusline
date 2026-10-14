@@ -1,0 +1,40 @@
+name: Check for blocking labels
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+env:
+  BLOCKING_LABELS: do not merge,do-not-merge,wip,work in progress,work-in-progress,needs review,needs-review,draft,hold,blocked
+
+jobs:
+  check_blocking_labels:
+    name: Check for blocking labels
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          use-policy-store: true
+          api-key: ${{ secrets.STEPSECURITY_POLICY_STORE_API_KEY }}
+
+      - name: Fail if a blocking label is present
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const blocking = process.env.BLOCKING_LABELS.split(',');
+            const labels = await github.paginate(github.rest.issues.listLabelsOnIssue, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const found = labels.map((l) => l.name).filter((n) => blocking.includes(n));
+            if (found.length > 0) {
+              core.setFailed('Merge blocked by label(s): ' + found.join(', '));
+            }

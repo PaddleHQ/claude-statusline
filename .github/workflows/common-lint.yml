@@ -1,0 +1,58 @@
+name: Ensure code passes common linting rules
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  common_lint:
+    name: Ensure code passes generic linting rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          use-policy-store: true
+          api-key: ${{ secrets.STEPSECURITY_POLICY_STORE_API_KEY }}
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          mkdir -p "${RUNNER_TEMP}/actionlint"
+          curl -fsSL -o "${RUNNER_TEMP}/actionlint.tar.gz" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  ${RUNNER_TEMP}/actionlint.tar.gz" | sha256sum -c -
+          tar -xzf "${RUNNER_TEMP}/actionlint.tar.gz" -C "${RUNNER_TEMP}/actionlint" actionlint
+          echo "${RUNNER_TEMP}/actionlint" >> "$GITHUB_PATH"
+
+      - name: Lint GitHub Actions workflows
+        run: actionlint -color
+
+      - name: Install editorconfig-checker
+        env:
+          EDITORCONFIG_CHECKER_VERSION: v4.0.2
+          EDITORCONFIG_CHECKER_SHA256: 44efaef3ed14c6ab52eb87481d78e5e5c204796dccf26e2f4598a61ba17f8003
+        run: |
+          mkdir -p "${RUNNER_TEMP}/editorconfig-checker"
+          curl -fsSL -o "${RUNNER_TEMP}/editorconfig-checker.tar.gz" "https://github.com/editorconfig-checker/editorconfig-checker/releases/download/${EDITORCONFIG_CHECKER_VERSION}/editorconfig-checker-linux-amd64.tar.gz"
+          echo "${EDITORCONFIG_CHECKER_SHA256}  ${RUNNER_TEMP}/editorconfig-checker.tar.gz" | sha256sum -c -
+          tar -xzf "${RUNNER_TEMP}/editorconfig-checker.tar.gz" -C "${RUNNER_TEMP}/editorconfig-checker" editorconfig-checker
+          echo "${RUNNER_TEMP}/editorconfig-checker" >> "$GITHUB_PATH"
+
+      - name: Validate editorconfig
+        run: editorconfig-checker
