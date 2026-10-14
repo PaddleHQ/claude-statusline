@@ -1,21 +1,38 @@
-package segment_test
+package diagnostics_test
 
 import (
 	"testing"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
-	"github.com/PaddleHQ/claude-statusline/internal/segment"
+	"github.com/PaddleHQ/claude-statusline/internal/layout"
+	"github.com/PaddleHQ/claude-statusline/internal/plugin"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/internal/transcript"
+	"github.com/PaddleHQ/claude-statusline/segments/diagnostics"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestDiagnostics(t *testing.T) {
+func build(t *testing.T, name string, info transcript.Info) plugin.Segment {
+	t.Helper()
+	providers := plugin.NewProviders(&plugin.Sources{
+		Config:     config.New(""),
+		Theme:      theme.Theme{Text: "<t>", Bad: "<b>", Warn: "<w>", Reset: "</>"},
+		Transcript: func() transcript.Info { return info },
+	})
+	for _, e := range diagnostics.Plugin().Segments {
+		if e.Name == name {
+			return e.New(providers.For(name))
+		}
+	}
+	require.Failf(t, "not provided", "%s", name)
+	return nil
+}
+
+func TestRender(t *testing.T) {
 	t.Parallel()
 
-	th := theme.Theme{Text: "<t>", Bad: "<b>", Warn: "<w>", Reset: "</>"}
 	tests := []struct {
 		name string
 		seg  string
@@ -37,19 +54,27 @@ func TestDiagnostics(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			s, ok := segment.Lookup(tt.seg)
-			require.True(t, ok)
-			assert.Equal(t, tt.want, s.Render(&segment.Context{Config: config.New("").Section(""), Theme: th, Transcript: tt.info}))
+			assert.Equal(t, tt.want, build(t, tt.seg, tt.info).Render(&plugin.Session{}))
 		})
 	}
 }
 
-func TestDiagnosticsAreUsageGroup(t *testing.T) {
+func TestProvidesTheUsageGroupSegments(t *testing.T) {
 	t.Parallel()
 
-	for _, name := range []string{"boot", "skills", "skills_stripped", "agent_skills", "mem"} {
-		s, ok := segment.Lookup(name)
-		require.True(t, ok, name)
-		assert.Equal(t, segment.Registry["tokens"].Group(), s.Group(), name)
+	entries := diagnostics.Plugin().Segments
+	require.Len(t, entries, 5)
+	for _, e := range entries {
+		seg := build(t, e.Name, transcript.Info{})
+		assert.Equal(t, e.Name, seg.Name())
+		assert.Equal(t, layout.Usage, seg.Group(), e.Name)
+	}
+}
+
+func TestEverySegmentHasHelp(t *testing.T) {
+	t.Parallel()
+
+	for _, e := range diagnostics.Plugin().Segments {
+		assert.NotEmpty(t, build(t, e.Name, transcript.Info{}).Help(), e.Name)
 	}
 }

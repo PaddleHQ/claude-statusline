@@ -31,15 +31,10 @@ func (l *Line) Render() string {
 	th := l.Providers.Theme
 	opts := &layout.Options{
 		Columns:   l.Providers.Columns,
-		Separator: l.separator(),
+		Separator: l.Providers.Separator(),
 		Anchor:    th.Paint(th.Muted, "↳"),
 	}
 	return opts.Render(l.items())
-}
-
-func (l *Line) separator() string {
-	th := l.Providers.Theme
-	return " " + th.Paint(th.Muted, l.Providers.Config.String(keySeparator)) + " "
 }
 
 // lookup builds the segment with the given name, if some plugin provides it.

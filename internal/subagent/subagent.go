@@ -6,15 +6,15 @@ import (
 	"encoding/json"
 	"math"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/bar"
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
-	"github.com/PaddleHQ/claude-statusline/internal/segment"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments"
+	"github.com/PaddleHQ/claude-statusline/segments/ctx"
+	"github.com/PaddleHQ/claude-statusline/segments/tokens"
 
 	"github.com/tidwall/gjson"
 )
@@ -124,14 +124,14 @@ func (r *renderer) appendModel(parts []string, task gjson.Result) []string {
 }
 
 func (r *renderer) appendTokens(parts []string, task gjson.Result) []string {
-	tokens, hasTokens := number(task.Get("tokenCount"))
+	count, hasTokens := number(task.Get("tokenCount"))
 	if !hasTokens {
 		return parts
 	}
 	if window, ok := number(task.Get("contextWindowSize")); ok && window > 0 {
-		parts = append(parts, r.ctx(tokens*percentScale/window))
+		parts = append(parts, r.ctx(count*percentScale/window))
 	}
-	return append(parts, segment.FormatTokens(int64(math.Min(tokens, maxPercent*maxPercent))))
+	return append(parts, tokens.FormatTokens(int64(math.Min(count, maxPercent*maxPercent))))
 }
 
 func (r *renderer) appendDescription(parts []string, task gjson.Result) []string {
@@ -146,12 +146,15 @@ func (r *renderer) appendDescription(parts []string, task gjson.Result) []string
 }
 
 func (r *renderer) ctx(raw float64) string {
-	pct := int(math.Floor(math.Min(math.Max(raw, 0), maxPercent)))
-	warn, bad := r.cfg.Int("ctx.warn"), r.cfg.Int("ctx.bad")
-	width := bar.WidthFor(r.columns, r.cfg.Int("ctx.width"), r.cfg.Int("ctx.width_medium"), r.cfg.Int("ctx.width_narrow"))
-	params := &bar.Params{Usage: pct, Width: width, Warn: warn, Bad: bad, NoTarget: true}
-	b := params.Render(r.th)
-	return r.th.Paint(r.th.Text, "ctx: ") + b + " " + r.th.Paint(params.Fill(r.th), strconv.Itoa(pct)+"%")
+	section := r.cfg.Section("ctx")
+	params := &bar.Params{
+		Usage:    int(math.Floor(math.Min(math.Max(raw, 0), maxPercent))),
+		Width:    bar.WidthOf(r.columns, section),
+		Warn:     section.Int("warn"),
+		Bad:      section.Int("bad"),
+		NoTarget: true,
+	}
+	return ctx.Draw(r.th, params, params.Fill(r.th))
 }
 
 // truthy mirrors jq: only null, false and a missing field count as absent.

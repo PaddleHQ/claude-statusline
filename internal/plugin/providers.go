@@ -66,6 +66,11 @@ func (p *Providers) Transcript() transcript.Info { return p.transcript() }
 // RateLimits is the merged, still-valid rate-limit reading; the shared cache is synced on the first call.
 func (p *Providers) RateLimits() ratecache.Limits { return p.rateLimits() }
 
+// Separator is the painted glyph drawn between segments, with a space either side.
+func (p *Providers) Separator() string {
+	return " " + p.Theme.Paint(p.Theme.Muted, p.src.Config.String("separator")) + " "
+}
+
 // BarWidth is the width of a bar for this terminal, from the segment's width, width_medium and width_narrow settings.
 func (p *Providers) BarWidth() int { return bar.WidthOf(p.Columns, p.Config) }
 

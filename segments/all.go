@@ -3,15 +3,25 @@ package segments
 
 import (
 	"github.com/PaddleHQ/claude-statusline/internal/plugin"
-	"github.com/PaddleHQ/claude-statusline/internal/segment"
+	"github.com/PaddleHQ/claude-statusline/segments/cache"
+	"github.com/PaddleHQ/claude-statusline/segments/ctx"
+	"github.com/PaddleHQ/claude-statusline/segments/diagnostics"
 	"github.com/PaddleHQ/claude-statusline/segments/model"
+	"github.com/PaddleHQ/claude-statusline/segments/path"
+	"github.com/PaddleHQ/claude-statusline/segments/rate"
+	"github.com/PaddleHQ/claude-statusline/segments/tokens"
 )
 
 // All returns every plugin. To add one, add a line here.
 func All() []*plugin.Plugin {
 	return []*plugin.Plugin{
+		path.Plugin(),
 		model.Plugin(),
-		segment.Plugin(),
+		ctx.Plugin(),
+		tokens.Plugin(),
+		cache.Plugin(),
+		rate.Plugin(),
+		diagnostics.Plugin(),
 	}
 }
 

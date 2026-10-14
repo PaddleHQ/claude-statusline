@@ -47,6 +47,7 @@ A segment is built with `Providers`, the shared, read-only data every plugin may
 | `Config` | A view of the config scoped to the segment, so `Config.Bool("effort")` reads `model.effort`. |
 | `Now()` | The time of the render. |
 | `Columns`, `Home` | The terminal width and the home directory. |
+| `Separator()` | The painted separator glyph, for segments that join several parts. |
 | `BarWidth()` | The bar width for this terminal, from the segment's `width`, `width_medium` and `width_narrow` keys. |
 | `Transcript()` | What the session transcript revealed. **Lazy.** |
 | `RateLimits()` | The rate-limit readings, merged with the shared cache. **Lazy.** |

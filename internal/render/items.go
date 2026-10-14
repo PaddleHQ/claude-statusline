@@ -39,7 +39,7 @@ func (l *Line) items() []layout.Item {
 			modelAt = len(out) - 1
 		}
 	}
-	return place(out, unplaced, ctxAt, modelAt, l.separator())
+	return place(out, unplaced, ctxAt, modelAt, l.Providers.Separator())
 }
 
 // partitionHooks splits the hooks into those named in the segments list, keyed by name, and the rest.

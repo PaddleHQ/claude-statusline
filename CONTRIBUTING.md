@@ -20,7 +20,6 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `segments/` | One folder per plugin, each providing the segments it names and owning their `defaults.conf` and tests. `segments/all.go` is the single list of plugins. See [Building plugins](docs/building_plugins.md). |
 | `internal/plugin` | What a plugin is: the `Segment` interface, the per-render `Session`, and the `Providers` (theme, config section, clock, and the lazily computed transcript and rate limits). |
 | `internal/render` | Renders the configured segments in order, and places custom segments among them. |
-| `internal/segment` | The segments not yet converted to plugins, bridged to the plugin interface. |
 | `internal/layout` | Joins rendered segments into one row, or wraps them into groups when the terminal is too narrow. |
 | `internal/config` | Layers your config file over the defaults embedded in the binary: its own `defaults.conf` for the global keys, and each plugin's. |
 | `internal/payload` | Decodes the session JSON from Claude Code and strips control characters from its strings. |
@@ -150,7 +149,7 @@ go run ./tools/screenshots
 
 - Methods on a struct use pointer receivers, never value receivers, so that a type has one consistent method set.
 - Every receiver is named, with a short name taken from the type (`func (m *model) Keys()`, never `func (*model) Keys()`).
-- Behaviour that operates on a struct's data is a method on that struct, so it is found by looking at the type rather than by searching the package for a free function. Constructors stay functions (`New`, `Load`, `Parse`, `Open`, `Discover`: anything that builds and returns a value for the caller to use), and so do stateless helpers with no natural owning type, such as `payload.Sanitize`, `segment.FormatTokens` and the colour-spec parser. Do not force a helper onto a type just to avoid a package-level function.
+- Behaviour that operates on a struct's data is a method on that struct, so it is found by looking at the type rather than by searching the package for a free function. Constructors stay functions (`New`, `Load`, `Parse`, `Open`, `Discover`: anything that builds and returns a value for the caller to use), and so do stateless helpers with no natural owning type, such as `payload.Sanitize`, `tokens.FormatTokens` and the colour-spec parser. Do not force a helper onto a type just to avoid a package-level function.
 
 ### Comments and language
 
