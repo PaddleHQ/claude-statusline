@@ -26,6 +26,7 @@ func TestFormatTokens(t *testing.T) {
 		{1000000, "1.0M"},
 		{1500000, "1.5M"},
 		{12345678, "12.3M"},
+		{64506, "64.5k"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.want, func(t *testing.T) {
@@ -66,6 +67,10 @@ func TestRender(t *testing.T) {
 		{"input only", i(1500), nil, "<t>↓ 1.5k</>"},
 		{"output only", nil, i(7), "<t>↑ 7</>"},
 		{"zero is shown", i(0), nil, "<t>↓ 0</>"},
+		{"output zero alone is shown", nil, i(0), "<t>↑ 0</>"},
+		{"below a thousand as is, exactly a thousand as 1.0k", i(999), i(1000), "<t>↓ 999</> <m>·</> <t>↑ 1.0k</>"},
+		{"thousands with a k suffix", i(1500), i(999999), "<t>↓ 1.5k</> <m>·</> <t>↑ 999.9k</>"},
+		{"millions with an M suffix", i(1000000), i(1500000), "<t>↓ 1.0M</> <m>·</> <t>↑ 1.5M</>"},
 		{"neither hides the segment", nil, nil, ""},
 	}
 	for _, tt := range tests {

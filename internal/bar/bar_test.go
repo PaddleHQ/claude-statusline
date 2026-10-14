@@ -188,3 +188,51 @@ func TestRenderMergesRuns(t *testing.T) {
 		})
 	}
 }
+
+func TestFillAgainstThePaceAtTheDefaultThresholds(t *testing.T) {
+	t.Parallel()
+
+	classic := theme.Load("classic", "", "")
+	tests := []struct {
+		name          string
+		usage, target int
+		want          string
+	}{
+		{"60% with half the window elapsed is green", 60, 50, classic.Good},
+		{"exactly the warn deviation is still green", 70, 50, classic.Good},
+		{"75% with half the window elapsed is amber", 75, 50, classic.Warn},
+		{"exactly the bad deviation is still amber", 90, 50, classic.Warn},
+		{"92% with half the window elapsed is red", 92, 50, classic.Bad},
+		{"5% with half the window elapsed, far behind the pace, is red", 5, 50, classic.Bad},
+		{"96% is red from the hard cap even on the pace", 96, 96, classic.Bad},
+		{"96% a quarter of the window ahead of the pace is red", 96, 5, classic.Bad},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			p := &bar.Params{Usage: tt.usage, Target: tt.target, Width: 10, Warn: 20, Bad: 40, HardCap: 95}
+			assert.Equal(t, tt.want, p.Fill(classic))
+		})
+	}
+}
+
+func TestFillByUsageAtTheDefaultContextThresholds(t *testing.T) {
+	t.Parallel()
+
+	classic := theme.Load("classic", "", "")
+	tests := []struct {
+		usage int
+		want  string
+	}{
+		{30, classic.Good},
+		{49, classic.Good},
+		{50, classic.Warn},
+		{89, classic.Warn},
+		{90, classic.Bad},
+		{125, classic.Bad},
+	}
+	for _, tt := range tests {
+		p := &bar.Params{Usage: tt.usage, Width: 10, Warn: 50, Bad: 90, NoTarget: true}
+		assert.Equal(t, tt.want, p.Fill(classic), "usage %d", tt.usage)
+	}
+}

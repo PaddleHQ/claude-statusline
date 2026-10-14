@@ -59,6 +59,7 @@ func TestRender(t *testing.T) {
 		{"boot", "boot", info{boot: 64506}, "<t>⌂ T64506</>"},
 		{"boot hidden at zero", "boot", info{}, ""},
 		{"skills is chars over four", "skills", info{skillsChars: 38000}, "<t>⚙ T9500</>"},
+		{"skills of a three entry listing", "skills", info{skillsChars: 64}, "<t>⚙ T16</>"},
 		{"skills under four chars", "skills", info{skillsChars: 3}, "<t>⚙ T0</>"},
 		{"skills hidden at zero", "skills", info{}, ""},
 		{"stripped skills", "skills_stripped", info{skillsBare: 2, skillsTotal: 9}, "<b>✗ skills 2/9</>"},

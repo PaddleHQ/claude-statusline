@@ -137,3 +137,86 @@ func TestRenderMeasuresVisibleWidth(t *testing.T) {
 	assert.Equal(t, red+sep+red, render(9, id(red), id(red)), "color sequences take no room")
 	assert.Equal(t, red+"\n"+red, render(8, id(red), id(red)))
 }
+
+// bars are the context and rate-limit bars the segments draw at each width class, without color.
+type bars struct{ ctx, five, seven string }
+
+var (
+	wideBars   = bars{"ctx: ████▎░░░░░ 42%", "5h: █████████░┃░░░░░░░░░ 45%", "7d: ████████░░┃░░░░░░░░░ 40%"}
+	mediumBars = bars{"ctx: ███▍░░░░ 42%", "5h: ██████▎┃░░░░░░ 45%", "7d: █████▋░┃░░░░░░ 40%"}
+	narrowBars = bars{"ctx: ██▌░░░ 42%", "5h: ████▌┃░░░░ 45%", "7d: ████░┃░░░░ 40%"}
+)
+
+func TestRenderTheDefaultLineAtTerminalWidths(t *testing.T) {
+	t.Parallel()
+
+	line := func(b bars, tokens, rated bool) []layout.Item {
+		items := []layout.Item{id("/srv/app"), id("Opus 4.7 [high]"), id(b.ctx)}
+		if tokens {
+			items = append(items, usage("↓ 1.5k · ↑ 23.4k"), usage("⧉ 85%"))
+		}
+		if rated {
+			items = append(items, rates(b.five), rates(b.seven))
+		}
+		return items
+	}
+	noCtx := func(items []layout.Item) []layout.Item { return append(items[:2:2], items[3:]...) }
+	tests := []struct {
+		name  string
+		cols  int
+		items []layout.Item
+		want  string
+	}{
+		{
+			"every segment fits on one row at 200 columns", 200, line(wideBars, true, true),
+			"/srv/app · Opus 4.7 [high] · ctx: ████▎░░░░░ 42% · ↓ 1.5k · ↑ 23.4k · ⧉ 85% · 5h: █████████░┃░░░░░░░░░ 45% · 7d: ████████░░┃░░░░░░░░░ 40%",
+		},
+		{
+			"two rows at 120 columns", 120, line(mediumBars, true, true),
+			"/srv/app · Opus 4.7 [high] · ctx: ███▍░░░░ 42%\n↓ 1.5k · ↑ 23.4k · ⧉ 85% 5h: ██████▎┃░░░░░░ 45% · 7d: █████▋░┃░░░░░░ 40%",
+		},
+		{
+			"two rows at 100 columns", 100, line(narrowBars, true, true),
+			"/srv/app · Opus 4.7 [high] · ctx: ██▌░░░ 42%\n↓ 1.5k · ↑ 23.4k · ⧉ 85% 5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%",
+		},
+		{
+			"two rows at 80 columns", 80, line(narrowBars, true, true),
+			"/srv/app · Opus 4.7 [high] · ctx: ██▌░░░ 42%\n↓ 1.5k · ↑ 23.4k · ⧉ 85% 5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%",
+		},
+		{
+			"the rates drop to an indented row at 60 columns", 60, line(narrowBars, true, true),
+			"/srv/app · Opus 4.7 [high] · ctx: ██▌░░░ 42%\n↓ 1.5k · ↑ 23.4k · ⧉ 85%\n↳          5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%",
+		},
+		{
+			"several rows at 40 columns, the continuation rows marked by an arrow", 40, line(narrowBars, true, true),
+			"/srv/app · Opus 4.7 [high]\n↳          ctx: ██▌░░░ 42%\n↓ 1.5k · ↑ 23.4k · ⧉ 85%\n↳          5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%",
+		},
+		{
+			"every group on its own row at 10 columns", 10, line(narrowBars, true, true),
+			"/srv/app\nOpus 4.7 [high]\nctx: ██▌░░░ 42%\n↓ 1.5k · ↑ 23.4k · ⧉ 85%\n5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%",
+		},
+		{
+			"no rate limits at 60 columns", 60, line(narrowBars, true, false),
+			"/srv/app · Opus 4.7 [high] · ctx: ██▌░░░ 42%\n↓ 1.5k · ↑ 23.4k · ⧉ 85%",
+		},
+		{
+			"neither rate limits nor tokens, and no effort, at 30 columns", 30,
+			[]layout.Item{id("/srv/app"), id("Opus 4.7"), id(narrowBars.ctx)},
+			"/srv/app · Opus 4.7\nctx: ██▌░░░ 42%",
+		},
+		{
+			"no tokens at 80 columns", 80, line(narrowBars, false, true),
+			"/srv/app · Opus 4.7 [high] · ctx: ██▌░░░ 42%\n↳          5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%",
+		},
+		{
+			"no tokens and no context at 50 columns", 50, noCtx(line(narrowBars, false, true)),
+			"/srv/app · Opus 4.7 [high]\n↳          5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, render(tt.cols, tt.items...))
+		})
+	}
+}

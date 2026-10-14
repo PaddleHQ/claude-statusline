@@ -36,6 +36,7 @@ func TestRender(t *testing.T) {
 		{"rounds to even down", 42.5, 42},
 		{"rounds to even up", 43.5, 44},
 		{"zero is shown", 0, 0},
+		{"a fraction rounds to the nearest", 64.6, 65},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

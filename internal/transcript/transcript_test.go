@@ -309,3 +309,22 @@ func TestReadModelAcrossChunks(t *testing.T) {
 	write(t, path, lines...)
 	assert.Equal(t, "claude-opus-4-7", transcript.Read(path).ActualModel, "lines longer than a chunk")
 }
+
+func TestReadSubagentsFlagsTheFirstOfEqualWorst(t *testing.T) {
+	t.Parallel()
+
+	listing := func(entries string) string {
+		return `{"type":"attachment","attachment":{"type":"skill_listing","isInitial":true,"content":"` + entries + `"}}`
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "session.jsonl")
+	write(t, path, user)
+	sub := filepath.Join(dir, "session", "subagents")
+	write(t, filepath.Join(sub, "agent-a.jsonl"), user, listing(`- alpha: x\n- beta\n- gamma\n- delta: y\n- eps\n`))
+	write(t, filepath.Join(sub, "agent-b.jsonl"), user, listing(`- a\n- b\n- c\n- d: x\n- e: y\n- f: z\n`))
+	write(t, filepath.Join(sub, "agent-c.jsonl"), user, listing(`- alpha: x\n- beta: y\n- gamma: z\n`))
+
+	got := transcript.Read(path)
+	assert.Equal(t, 3, got.SubBare)
+	assert.Equal(t, 5, got.SubTotal, "agent-a comes first, so it wins the tie with agent-b")
+}

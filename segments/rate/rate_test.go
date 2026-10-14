@@ -127,3 +127,13 @@ func TestHelp(t *testing.T) {
 	}
 	assert.Contains(t, seven, "7 day")
 }
+
+func TestLabelIsDrawnAsText(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t, map[string]string{"label": "`touch x`; $(y)"})
+	f.limits.EXPECT().SevenDay().Return(rate.Reading{Used: 40, ResetsAt: now + 302400}, true)
+	f.meter.EXPECT().Pace(40, 50, 20, 40, 95).Return("BAR 40%")
+
+	assert.Equal(t, "<t>`touch x`; $(y): </>BAR 40%", rate.NewSevenDay(f.deps).Render())
+}

@@ -162,6 +162,8 @@ func TestInvalidThemesFallBack(t *testing.T) {
 		{"wrong number of partials", "", broken("partials: [\"1\", ", "partials: [")},
 		{"gradient without a ramp", "", broken("style: solid", "style: gradient")},
 		{"bad ramp stop", "", broken("style: solid", "style: gradient\n  ramp: [\"#000000\", \"red\", \"#ffffff\"]")},
+		{"short hex ramp stop", "", broken("style: solid", "style: gradient\n  ramp: [\"#fff\", \"#000000\", \"#000000\"]")},
+		{"misspelled colors section", "", strings.Replace(validTheme, "colors:", "colrs:", 1)},
 		{"empty file", "", ""},
 	}
 	classic := theme.Load("classic", "", "")

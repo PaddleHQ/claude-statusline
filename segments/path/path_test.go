@@ -36,6 +36,7 @@ func TestDisplayPath(t *testing.T) {
 		{"tilde prefix without home is ignored", "/home/me/code/app", "", []string{"~/code"}, "/home/me/code/app"},
 		{"tilde user form is not expanded", "/home/me/code/app", "/home/me", []string{"~me/code"}, "~/code/app"},
 		{"root prefix is ignored", "/srv/app", "", []string{"/"}, "/srv/app"},
+		{"the first listed prefix that matches is used", "/home/me/code/team/app", "/home/me", []string{"~/projects", "~/code"}, "team/app"},
 		{"unmatched prefixes fall back to home", "/home/me/work/app", "/home/me", []string{"~/code", "/srv"}, "~/work/app"},
 	}
 	for _, tt := range tests {

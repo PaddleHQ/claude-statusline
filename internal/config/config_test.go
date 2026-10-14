@@ -100,6 +100,8 @@ func TestParseNumber(t *testing.T) {
 		{"+3", 0, false},
 		{"4x", 0, false},
 		{"1e2", 0, false},
+		{"5; touch x", 0, false},
+		{"`touch x`", 0, false},
 		{"1.5", 0, false},
 		{" 3", 0, false},
 	}

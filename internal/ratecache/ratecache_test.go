@@ -182,3 +182,58 @@ func TestStoreUnwritableIsSilent(t *testing.T) {
 	require.NoError(t, os.WriteFile(blocker, nil, 0o600))
 	ratecache.NewCache(filepath.Join(blocker, "sub", "ratelimits")).Store(ratecache.Limits{FiveHour: r(1, 2)})
 }
+
+func TestSyncWritesTheMergedReadings(t *testing.T) {
+	t.Parallel()
+
+	const cached = `{"five_hour":{"used":45,"resets_at":1760009000},"seven_day":{"used":40,"resets_at":1760302400}}`
+	tests := []struct {
+		name     string
+		cached   string
+		incoming ratecache.Limits
+		want     string
+	}{
+		{"the first reading is written", "", ratecache.Limits{FiveHour: r(45, 1760009000), SevenDay: r(40, 1760302400)}, cached},
+		{"nothing in the payload keeps the cache as it is", cached, ratecache.Limits{}, cached},
+		{
+			"a higher reading replaces the cached one", cached,
+			ratecache.Limits{FiveHour: r(55, 1760009000), SevenDay: r(40, 1760302400)},
+			`{"five_hour":{"used":55,"resets_at":1760009000},"seven_day":{"used":40,"resets_at":1760302400}}`,
+		},
+		{"a lower reading from an idle session keeps the cached one", cached, ratecache.Limits{FiveHour: r(40, 1760009000), SevenDay: r(38, 1760302400)}, cached},
+		{"a drop of exactly ten points is stale", cached, ratecache.Limits{FiveHour: r(35, 1760009000), SevenDay: r(40, 1760302400)}, cached},
+		{
+			"a drop of more than ten points is a real reset", cached,
+			ratecache.Limits{FiveHour: r(20, 1760009000), SevenDay: r(40, 1760302400)},
+			`{"five_hour":{"used":20,"resets_at":1760009000},"seven_day":{"used":40,"resets_at":1760302400}}`,
+		},
+		{"a reading from an earlier window is ignored", cached, ratecache.Limits{FiveHour: r(5, 1759991000), SevenDay: r(40, 1760302400)}, cached},
+		{
+			"a reading from a later window replaces a higher one", `{"five_hour":{"used":90,"resets_at":1759991000},"seven_day":{"used":40,"resets_at":1760302400}}`,
+			ratecache.Limits{FiveHour: r(5, 1760009000), SevenDay: r(40, 1760302400)},
+			`{"five_hour":{"used":5,"resets_at":1760009000},"seven_day":{"used":40,"resets_at":1760302400}}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			path := filepath.Join(t.TempDir(), "ratelimits")
+			if tt.cached != "" {
+				require.NoError(t, os.WriteFile(path, []byte(tt.cached+"\n"), 0o600))
+			}
+			ratecache.NewCache(path).Sync(tt.incoming)
+			data, err := os.ReadFile(path)
+			require.NoError(t, err)
+			assert.JSONEq(t, tt.want, string(data))
+		})
+	}
+}
+
+func TestVisibleHidesAWindowThatHasReset(t *testing.T) {
+	t.Parallel()
+
+	limits := ratecache.Limits{FiveHour: r(45, 1759999900), SevenDay: r(40, 1760302400)}
+	got := limits.Visible(1760000000)
+	assert.Nil(t, got.FiveHour, "the five hour window reset 100 seconds ago")
+	assert.Equal(t, r(40, 1760302400), got.SevenDay)
+}

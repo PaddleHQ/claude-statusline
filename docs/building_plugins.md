@@ -171,7 +171,7 @@ assert.Equal(t, "<t>Opus 4.7 [high]</t>", seg.Render())
 
 A mock fails the test when an expected call does not happen, and when an unexpected one does, so a test that gives the segment no transcript function proves that it never asks for one. Use `.Maybe()` on a call that a particular case may or may not make. Cover the case where the data is missing, as well as the ones where it is there, and test that `Help` is not empty and mentions every threshold or label it claims to.
 
-Cover the case where the data is missing, as well as the ones where it is there. Add at least one scenario under `features/` (see "Feature tests" in Contributing), and regenerate the documentation images if a `@screenshot` scenario changes.
+These tests are the plugin's own, and cover every edge of what it draws: the formatting, each threshold and colour, the missing data and each config variant. The feature files only show the overall line, so add one representative scenario for the segment under `features/` (see "Which layer does my test belong in?" in Contributing), and regenerate the documentation images if a `@screenshot` scenario changes.
 
 ### 8. Document it
 
