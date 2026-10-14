@@ -21,4 +21,4 @@ bar:
   ramp: ["#94e2ad", "#f9e2af", "#f38ba8"]
   # Unfilled cells and the pace marker.
   empty_color: "#4a4a4a"
-  marker_color: "bold #ffffff"
+  marker_color: bold

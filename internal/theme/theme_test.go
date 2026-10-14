@@ -42,7 +42,7 @@ func TestLoadGradient(t *testing.T) {
 	assert.True(t, got.Gradient)
 	assert.Equal(t, [][3]int{{148, 226, 173}, {249, 226, 175}, {243, 139, 168}}, got.Ramp)
 	assert.Equal(t, "\033[38;2;74;74;74m", got.EmptyColor)
-	assert.Equal(t, "\033[1m\033[38;2;255;255;255m", got.MarkerColor)
+	assert.Equal(t, "\033[1m", got.MarkerColor, "the terminal's own text color, so the marker shows on light and dark")
 	assert.Equal(t, "▰", got.Full)
 	assert.Equal(t, "▱", got.Empty)
 	assert.Equal(t, "/", got.MarkerGlyph)

@@ -181,12 +181,11 @@ colors:
 bar:
   style: gradient
   full: "▰"
-  partials: ["▏", "▎", "▍", "▌", "▋", "▊", "▉"]
   empty: "▱"
   marker: "/"
   ramp: ["#7aa2f7", "#e0af68", "#f7768e"]
   empty_color: bright-black
-  marker_color: bold #ffffff
+  marker_color: bold
 ```
 
 | Field | Meaning |
