@@ -2,14 +2,8 @@
 package rate
 
 import (
-	_ "embed"
 	"fmt"
-	"strconv"
-
-	"github.com/PaddleHQ/claude-statusline/internal/bar"
-	"github.com/PaddleHQ/claude-statusline/internal/layout"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
-	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
+	"time"
 )
 
 const (
@@ -17,67 +11,105 @@ const (
 	sevenDay        = "rate7d"
 	fiveHourSeconds = 5 * 60 * 60
 	sevenDaySeconds = 7 * 24 * 60 * 60
+	percentScale    = 100
 )
 
-//go:embed defaults.conf
-var defaults string
-
-// Plugin is the rate plugin, providing one segment per window.
-func Plugin() *plugin.Plugin {
-	return &plugin.Plugin{Defaults: defaults, Segments: []plugin.Entry{
-		{Name: fiveHour, New: func(p *plugin.Providers) plugin.Segment {
-			return &rate{p: p, name: fiveHour, window: "5 hour", seconds: fiveHourSeconds, reading: fiveHourReading}
-		}},
-		{Name: sevenDay, New: func(p *plugin.Providers) plugin.Segment {
-			return &rate{p: p, name: sevenDay, window: "7 day", seconds: sevenDaySeconds, reading: sevenDayReading}
-		}},
-	}}
+// Reading is one window's usage percentage and the Unix time it resets.
+type Reading struct {
+	Used     int64
+	ResetsAt int64
 }
 
-func fiveHourReading(l *ratecache.Limits) *ratecache.Reading { return l.FiveHour }
+//go:generate go run github.com/vektra/mockery/v2 --name=Limits
 
-func sevenDayReading(l *ratecache.Limits) *ratecache.Reading { return l.SevenDay }
+// Limits holds the readings of both windows; false means there is none.
+type Limits interface {
+	FiveHour() (Reading, bool)
+	SevenDay() (Reading, bool)
+}
 
-// rate draws one usage window as "<label>: <bar> <NN>%".
-type rate struct {
-	p       *plugin.Providers
+//go:generate go run github.com/vektra/mockery/v2 --name=Config
+
+// Config reads the segment's settings.
+type Config interface {
+	String(key string) string
+	Int(key string) int
+}
+
+//go:generate go run github.com/vektra/mockery/v2 --name=Painter
+
+// Painter colors text.
+type Painter interface {
+	Text(s string) string
+}
+
+//go:generate go run github.com/vektra/mockery/v2 --name=Meter
+
+// Meter draws a bar with a pace marker and a percentage after it.
+type Meter interface {
+	// Pace draws the bar for a usage percentage against a target percentage. Warn and bad are deviations from the
+	// target in percentage points, and the fill is always bad from hardCap.
+	Pace(usage, target, warn, bad, hardCap int) string
+}
+
+// Deps is everything the segments are built from. Limits is a function so that the rate cache is only read when a bar is drawn.
+type Deps struct {
+	Config Config
+	Paint  Painter
+	Meter  Meter
+	Now    time.Time
+	Limits func() Limits
+}
+
+// Window draws one usage window as "<label>: <bar> <NN>%".
+type Window struct {
+	d       Deps
 	name    string
 	window  string
 	seconds int64
-	reading func(*ratecache.Limits) *ratecache.Reading
+	reading func(Limits) (Reading, bool)
 }
 
-func (r *rate) Name() string { return r.name }
+// NewFiveHour builds the rate5h segment.
+func NewFiveHour(d Deps) *Window {
+	return &Window{d: d, name: fiveHour, window: "5 hour", seconds: fiveHourSeconds, reading: Limits.FiveHour}
+}
 
-func (r *rate) Group() layout.Group { return layout.Rates }
+// NewSevenDay builds the rate7d segment.
+func NewSevenDay(d Deps) *Window {
+	return &Window{d: d, name: sevenDay, window: "7 day", seconds: sevenDaySeconds, reading: Limits.SevenDay}
+}
 
-func (r *rate) Help() string {
-	cfg := r.p.Config
+// Name is the segment's name in the segments list.
+func (w *Window) Name() string { return w.name }
+
+// Help says what the segment shows, for the help command.
+func (w *Window) Help() string {
+	cfg := w.d.Config
 	return fmt.Sprintf("Your %s usage, with a marker at an even pace. "+
 		"Amber when more than %d points off it, red beyond %d points or from %d%% used.",
-		r.window, cfg.Int("warn"), cfg.Int("bad"), cfg.Int("hard_cap"))
+		w.window, cfg.Int("warn"), cfg.Int("bad"), cfg.Int("hard_cap"))
 }
 
-func (r *rate) Keys() []string {
+// Keys lists the config keys the segment reads, relative to its section; the widths are read by the Meter.
+func (w *Window) Keys() []string {
 	return []string{"label", "width", "width_medium", "width_narrow", "warn", "bad", "hard_cap"}
 }
 
-func (r *rate) Render(*plugin.Session) string {
-	limits := r.p.RateLimits()
-	reading := r.reading(&limits)
-	if reading == nil {
+// Render returns the segment's text, or "" to hide it.
+func (w *Window) Render() string {
+	reading, ok := w.reading(w.d.Limits())
+	if !ok {
 		return ""
 	}
-	th := r.p.Theme
-	cfg := r.p.Config
-	params := &bar.Params{
-		Usage:   int(reading.Used),
-		Target:  bar.ElapsedPercent(r.p.Now().Unix(), reading.ResetsAt, r.seconds),
-		Width:   r.p.BarWidth(),
-		Warn:    cfg.Int("warn"),
-		Bad:     cfg.Int("bad"),
-		HardCap: cfg.Int("hard_cap"),
-	}
-	label := th.Paint(th.Text, cfg.String("label")+": ")
-	return label + params.Render(th) + " " + th.Paint(params.PercentColor(th), strconv.FormatInt(reading.Used, 10)+"%")
+	cfg := w.d.Config
+	target := elapsedPercent(w.d.Now.Unix(), reading.ResetsAt, w.seconds)
+	bar := w.d.Meter.Pace(int(reading.Used), target, cfg.Int("warn"), cfg.Int("bad"), cfg.Int("hard_cap"))
+	return w.d.Paint.Text(cfg.String("label")+": ") + bar
+}
+
+// elapsedPercent is how much of a window, ending at resetsAt, has passed by now, clamped to 0..100.
+func elapsedPercent(now, resetsAt, windowSeconds int64) int {
+	elapsed := min(max(now-(resetsAt-windowSeconds), 0), windowSeconds)
+	return int(elapsed * percentScale / windowSeconds)
 }

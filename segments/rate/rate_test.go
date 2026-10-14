@@ -4,76 +4,114 @@ import (
 	"testing"
 	"time"
 
-	"github.com/PaddleHQ/claude-statusline/internal/config"
-	"github.com/PaddleHQ/claude-statusline/internal/layout"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
-	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
-	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments/rate"
+	"github.com/PaddleHQ/claude-statusline/segments/rate/mocks"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/mock"
 )
 
-func build(t *testing.T, name, cfg string, rates ratecache.Limits, now time.Time, columns int) plugin.Segment {
-	t.Helper()
-	classic := theme.Load("classic", "", "")
-	providers := plugin.NewProviders(&plugin.Sources{
-		Config:     config.New(cfg, rate.Plugin().Defaults),
-		Theme:      classic.WithoutColor(),
-		Now:        now,
-		Columns:    columns,
-		RateLimits: func() ratecache.Limits { return rates },
-	})
-	for _, e := range rate.Plugin().Segments {
-		if e.Name == name {
-			return e.New(providers.For(name))
-		}
-	}
-	require.Failf(t, "not provided", "%s", name)
-	return nil
+const now = 1760000000
+
+type fixture struct {
+	limits *mocks.Limits
+	meter  *mocks.Meter
+	deps   rate.Deps
+	reads  int
 }
 
-func TestRender(t *testing.T) {
+func newFixture(t *testing.T, cfg map[string]string) *fixture {
+	t.Helper()
+
+	f := &fixture{limits: mocks.NewLimits(t), meter: mocks.NewMeter(t)}
+	config := mocks.NewConfig(t)
+	config.EXPECT().String("label").Return(cfg["label"]).Maybe()
+	for key, value := range map[string]int{"warn": 20, "bad": 40, "hard_cap": 95} {
+		config.EXPECT().Int(key).Return(value).Maybe()
+	}
+	paint := mocks.NewPainter(t)
+	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + "</>" }).Maybe()
+	f.deps = rate.Deps{
+		Config: config,
+		Paint:  paint,
+		Meter:  f.meter,
+		Now:    time.Unix(now, 0),
+		Limits: func() rate.Limits { f.reads++; return f.limits },
+	}
+	return f
+}
+
+func TestFiveHourDrawsItsReading(t *testing.T) {
 	t.Parallel()
 
-	now := time.Unix(1760000000, 0)
-	rates := ratecache.Limits{
-		FiveHour: &ratecache.Reading{Used: 45, ResetsAt: 1760009000},
-		SevenDay: &ratecache.Reading{Used: 40, ResetsAt: 1760302400},
-	}
+	f := newFixture(t, map[string]string{"label": "5h"})
+	f.limits.EXPECT().FiveHour().Return(rate.Reading{Used: 45, ResetsAt: now + 9000}, true)
+	f.meter.EXPECT().Pace(45, 50, 20, 40, 95).Return("BAR 45%")
 
+	assert.Equal(t, "<t>5h: </>BAR 45%", rate.NewFiveHour(f.deps).Render())
+}
+
+func TestSevenDayDrawsItsReading(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t, map[string]string{"label": "7d"})
+	f.limits.EXPECT().SevenDay().Return(rate.Reading{Used: 40, ResetsAt: now + 302400}, true)
+	f.meter.EXPECT().Pace(40, 50, 20, 40, 95).Return("BAR 40%")
+
+	assert.Equal(t, "<t>7d: </>BAR 40%", rate.NewSevenDay(f.deps).Render())
+}
+
+func TestTargetIsTheElapsedShareOfTheWindowClamped(t *testing.T) {
+	t.Parallel()
+
+	const window = 5 * 60 * 60
 	tests := []struct {
-		name    string
-		seg     string
-		cfg     string
-		rates   ratecache.Limits
-		columns int
-		want    string
+		name     string
+		resetsAt int64
+		want     int
 	}{
-		{"five hour bar", "rate5h", "rate5h.width = 4", rates, 999, "5h: █▊┃░ 45%"},
-		{"seven day bar", "rate7d", "rate7d.width = 4", rates, 999, "7d: █▋┃░ 40%"},
-		{"custom label", "rate5h", "rate5h.width = 4\nrate5h.label = five", rates, 999, "five: █▊┃░ 45%"},
-		{"narrow terminal shrinks the bar", "rate5h", "rate5h.width_narrow = 4", rates, 100, "5h: █▊┃░ 45%"},
-		{"no reading hides the segment", "rate5h", "", ratecache.Limits{}, 999, ""},
-		{"only the other window", "rate5h", "", ratecache.Limits{SevenDay: rates.SevenDay}, 999, ""},
+		{"just started", now + window, 0},
+		{"before the window", now + window + 1000, 0},
+		{"after the window", now - 1000, 100},
+		{"rounds down", now + window - 179, 0},
+		{"one percent", now + window - 180, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			seg := build(t, tt.seg, tt.cfg, tt.rates, now, tt.columns)
-			assert.Equal(t, tt.want, seg.Render(&plugin.Session{}))
+			f := newFixture(t, map[string]string{"label": "5h"})
+			f.limits.EXPECT().FiveHour().Return(rate.Reading{Used: 10, ResetsAt: tt.resetsAt}, true)
+			f.meter.EXPECT().Pace(10, tt.want, 20, 40, 95).Return("BAR").Once()
+			rate.NewFiveHour(f.deps).Render()
 		})
 	}
 }
 
-func TestProvidesBothWindowsInTheRatesGroup(t *testing.T) {
+func TestNoReadingHidesTheSegment(t *testing.T) {
 	t.Parallel()
 
-	for _, name := range []string{"rate5h", "rate7d"} {
-		seg := build(t, name, "", ratecache.Limits{}, time.Time{}, 999)
+	f := newFixture(t, map[string]string{"label": "5h"})
+	f.limits.EXPECT().FiveHour().Return(rate.Reading{}, false)
+	assert.Empty(t, rate.NewFiveHour(f.deps).Render())
+}
+
+func TestLimitsAreOnlyAskedForWhenDrawing(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t, nil)
+	seg := rate.NewFiveHour(f.deps)
+	seg.Name()
+	seg.Keys()
+	seg.Help()
+	assert.Zero(t, f.reads)
+}
+
+func TestNamesAndKeys(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t, nil)
+	for name, seg := range map[string]*rate.Window{"rate5h": rate.NewFiveHour(f.deps), "rate7d": rate.NewSevenDay(f.deps)} {
 		assert.Equal(t, name, seg.Name())
-		assert.Equal(t, layout.Rates, seg.Group())
 		assert.Len(t, seg.Keys(), 7, "%s declares %v", name, seg.Keys())
 	}
 }
@@ -81,13 +119,11 @@ func TestProvidesBothWindowsInTheRatesGroup(t *testing.T) {
 func TestHelp(t *testing.T) {
 	t.Parallel()
 
-	cfg := "rate5h.warn = 11\nrate5h.bad = 22\nrate5h.hard_cap = 88\nrate7d.warn = 33\nrate7d.bad = 44\nrate7d.hard_cap = 99"
-	five := build(t, "rate5h", cfg, ratecache.Limits{}, time.Time{}, 999).Help()
-	seven := build(t, "rate7d", cfg, ratecache.Limits{}, time.Time{}, 999).Help()
-	for _, want := range []string{"5 hour", "11 points", "22 points", "88%"} {
+	f := newFixture(t, nil)
+	five := rate.NewFiveHour(f.deps).Help()
+	seven := rate.NewSevenDay(f.deps).Help()
+	for _, want := range []string{"5 hour", "20 points", "40 points", "95%"} {
 		assert.Contains(t, five, want)
 	}
-	for _, want := range []string{"7 day", "33 points", "44 points", "99%"} {
-		assert.Contains(t, seven, want)
-	}
+	assert.Contains(t, seven, "7 day")
 }

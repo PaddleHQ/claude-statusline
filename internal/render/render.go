@@ -4,7 +4,6 @@ package render
 import (
 	"github.com/PaddleHQ/claude-statusline/internal/hook"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
 )
 
 const (
@@ -17,34 +16,29 @@ const (
 // Keys lists the config keys the renderer itself reads.
 func Keys() []string { return []string{keySegments, keySeparator} }
 
-// Line is one render: the plugins that may be listed in segments, what they draw from, and the hooks to place among them.
+// Segment is a built-in segment, ready to draw.
+type Segment interface {
+	// Render returns the segment's text, or "" to hide it.
+	Render() string
+}
+
+// Line is one render: the segments to show, and how to find, join and wrap them.
 type Line struct {
-	Plugins   []*plugin.Plugin
-	Providers *plugin.Providers
-	Session   *plugin.Session
+	// Names is the segments list from the config, in order.
+	Names []string
+	// Lookup builds the built-in segment with a name, with the layout group it belongs to.
+	Lookup  func(name string) (Segment, layout.Group, bool)
+	Columns int
+	// Separator is the painted glyph drawn between segments, with a space either side.
+	Separator string
+	// Anchor is drawn at the start of an indented row.
+	Anchor string
 	// Hooks holds the output of the user's hook scripts, in filename order.
 	Hooks []hook.Result
 }
 
 // Render lays out the configured segments and the hooks, wrapping onto further rows when they do not fit.
 func (l *Line) Render() string {
-	th := l.Providers.Theme
-	opts := &layout.Options{
-		Columns:   l.Providers.Columns,
-		Separator: l.Providers.Separator(),
-		Anchor:    th.Paint(th.Muted, "↳"),
-	}
+	opts := &layout.Options{Columns: l.Columns, Separator: l.Separator, Anchor: l.Anchor}
 	return opts.Render(l.items())
-}
-
-// lookup builds the segment with the given name, if some plugin provides it.
-func (l *Line) lookup(name string) (plugin.Segment, bool) {
-	for _, pl := range l.Plugins {
-		for _, e := range pl.Segments {
-			if e.Name == name {
-				return e.New(l.Providers.For(name)), true
-			}
-		}
-	}
-	return nil, false
 }

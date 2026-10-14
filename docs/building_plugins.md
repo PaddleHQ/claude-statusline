@@ -6,125 +6,137 @@ A segment is a small plugin: one folder under [`segments/`](../segments) that dr
 
 A package under `segments/` provides one or more segments, which are the names users put in `segments`. `segments/rate` provides `rate5h` and `rate7d`, and `segments/diagnostics` provides `boot`, `skills`, `skills_stripped`, `agent_skills` and `mem`. A package is the right size when its segments share code or keys; otherwise give each its own.
 
-The package owns everything about its segments: the code, the defaults for its config keys, and the tests. The only places outside it that change are the one line in `segments/all.go` that lists it and the documentation.
+The package owns its code, the defaults for its config keys, its README and its tests. It knows nothing about the rest of the program:
 
-## The interface
+- **A plugin imports nothing from `internal/`.** It declares the small interfaces it needs, in its own package, and receives implementations through its constructor. `TestPluginsImportNothingFromInternal` in `segments/all_test.go` fails on any import of an `internal/` package in a plugin's non-test files.
+- **Expensive dependencies are passed as functions**, so they are only paid for when the segment draws: `func() Transcript` reads a transcript file, and `func() Limits` reads and writes the shared rate cache. Call them from `Render`, only when you need them, never from the constructor. `TestLazyDependencies` in `segments/all_test.go` pins this.
+- **A plugin's methods use only types from its own package, or builtin types.** The layout group is not its concern.
+- **[`segments/all.go`](../segments/all.go) is the composition root**, the one file under `segments/` that may import `internal/`. It embeds each plugin's `defaults.conf`, registers each segment's name, layout group and constructor, and adapts the program's internal types (the payload, the theme, the config section, the transcript, the rate cache, the bar drawing) to the interfaces the plugins declare, with small adapter types.
 
-The shared types live in [`internal/plugin`](../internal/plugin).
+Plugins do not share helpers through a common package. Where two need the same behaviour it is injected: `ctx` and `rate` each declare a `Meter` that draws the bar, and `diagnostics` takes a `Tokens` function that `all.go` supplies from the `tokens` plugin.
+
+## The worked example
+
+### 1. Declare what you need
+
+Write one interface per thing the segment depends on, with only the methods it calls, named for what the segment needs. Put a `go:generate` line above each, so that a mock is generated for the tests. These are `model`'s:
 
 ```go
-// Segment renders one part of the line.
-type Segment interface {
-	Name() string
-	// Group says which part of the line the segment belongs to when it wraps.
-	Group() layout.Group
-	// Keys lists every config key Render reads, relative to the segment's section, so a test can check them against defaults.conf.
-	Keys() []string
-	// Help says in a sentence or two what the segment shows and what its colors mean,
-	// using the user's current settings for any threshold or label.
-	Help() string
-	// Render returns the segment's text, or "" to hide it.
-	Render(*Session) string
+//go:generate go run github.com/vektra/mockery/v2 --name=Session
+
+// Session is what the segment needs to know about the session.
+type Session interface {
+	DisplayName() string
+	ModelID() string
+	EffortLevel() string
+	TranscriptPath() string
 }
 
-// Session is what one render is about: the payload Claude Code sent.
-type Session struct {
-	Payload payload.Payload
+//go:generate go run github.com/vektra/mockery/v2 --name=Transcript
+
+// Transcript is what the segment needs from the session transcript.
+type Transcript interface {
+	ActualModel() string
+}
+
+//go:generate go run github.com/vektra/mockery/v2 --name=Config
+
+// Config reads the segment's settings.
+type Config interface {
+	Bool(key string) bool
+}
+
+//go:generate go run github.com/vektra/mockery/v2 --name=Painter
+
+// Painter colors text.
+type Painter interface {
+	Text(s string) string
+}
+
+// Deps is everything the segment is built from. Transcript is a function so that the transcript is only read when the segment needs it.
+type Deps struct {
+	Session    Session
+	Transcript func() Transcript
+	Config     Config
+	Paint      Painter
 }
 ```
 
-`Help` is one or two plain sentences saying what the segment shows and what its colours mean, for the `help` command and `/statusline:help`. Build it from the segment's own config, so it reflects the user's settings: the `ctx` segment says "How full the context window is. Amber from 50%, red from 90%." with the configured `warn` and `bad`. A package with several segments gives each its own text. Test that it is not empty and that it mentions every threshold or label it claims to.
-
-`Render` returns the finished text, already painted with the theme, or an empty string to hide the segment. A segment is hidden, not wrong, when its data is missing. Plugin code never prints and never returns an error.
-
-## What a plugin may use
-
-A segment is built with `Providers`, the shared, read-only data every plugin may use. They are per render, and they are the only way to reach the outside world.
-
-| Provider | What it gives |
-|---|---|
-| `Theme` | The colours and glyphs; paint text with `p.Theme.Paint(p.Theme.Text, s)`. |
-| `Config` | A view of the config scoped to the segment, so `Config.Bool("effort")` reads `model.effort`. |
-| `Now()` | The time of the render. |
-| `Columns`, `Home` | The terminal width and the home directory. |
-| `Separator()` | The painted separator glyph, for segments that join several parts. |
-| `BarWidth()` | The bar width for this terminal, from the segment's `width`, `width_medium` and `width_narrow` keys. |
-| `Transcript()` | What the session transcript revealed. **Lazy.** |
-| `RateLimits()` | The rate-limit readings, merged with the shared cache. **Lazy.** |
-
-The last two are expensive: `Transcript()` reads a file, and `RateLimits()` reads and writes the shared cache. They do nothing until a segment calls them, and then do the work once for the whole render, however many segments ask. If no listed segment asks, the work never happens. So call them from `Render`, only when you need them, and never from the constructor. `TestLazyProviders` in `segments/all_test.go` pins this.
-
-The scoping is by segment name. A package that provides several segments gets each one its own section, so `rate5h` reads `warn` and gets `rate5h.warn`, and `rate7d` gets `rate7d.warn`.
-
-## Step by step
-
-### 1. Create the package
-
-Make `segments/<name>/` with a `<name>.go`. The package name is the folder name. It exports a `Plugin()` function, which says which segments it provides and the defaults they use, and a constructor per segment:
+The `go:generate` lines are already there in the source and look like this, with the interface name changed:
 
 ```go
-//go:embed defaults.conf
-var defaults string
-
-// Plugin is the model plugin.
-func Plugin() *plugin.Plugin {
-	return &plugin.Plugin{Defaults: defaults, Segments: []plugin.Entry{{Name: name, New: New}}}
-}
-
-// New builds the model segment.
-func New(p *plugin.Providers) plugin.Segment { return &model{p: p} }
+//go:generate go run github.com/vektra/mockery/v2 --name=Session
 ```
 
-The constructor receives the providers scoped to the segment and keeps them. It must be cheap, because a segment is built whenever its name is in `segments`, even if a custom segment ends up replacing it.
+Keep the interfaces small. A method the segment does not call does not belong in its interface, and a session question like `DisplayName()` is better than handing the segment a whole payload.
 
-### 2. Write the segment
-
-Behaviour is a method on the type, with a named pointer receiver (see "Go style" in Contributing).
+### 2. Collect them in `Deps`, and write `New`
 
 ```go
-type model struct{ p *plugin.Providers }
-
-func (m *model) Name() string { return name }
-
-func (m *model) Group() layout.Group { return layout.Identity }
-
-func (m *model) Help() string {
-	help := "The model in use"
-	if m.p.Config.Bool("effort") {
-		help += " and its effort level, as in Opus 4.7 [high]"
-	}
-	return help + ". It reads Haiku (skill), for example, while a skill or subagent runs a different model than the session's."
+type Deps struct {
+	Session    Session
+	Transcript func() Transcript
+	Config     Config
+	Paint      Painter
 }
 
-func (m *model) Keys() []string { return []string{"effort"} }
+type Model struct{ d Deps }
 
-func (m *model) Render(s *plugin.Session) string {
-	th := m.p.Theme
-	display := s.Payload.Model.DisplayName
-	level := s.Payload.Effort.Level
-	// A skill or subagent can run a different model than the session's, which the payload does not reflect.
-	if s.Payload.TranscriptPath != "" {
-		if actual, ok := family(m.p.Transcript().ActualModel); ok {
-			if session, _ := family(s.Payload.Model.ID); actual.key != session.key {
-				display, level = actual.label+" (skill)", ""
-			}
-		}
-	}
-	if display == "" {
-		return ""
-	}
-	if level != "" && m.p.Config.Bool("effort") {
-		display += " [" + level + "]"
-	}
-	return th.Paint(th.Text, display)
-}
+func New(d Deps) *Model { return &Model{d: d} }
 ```
 
-Two things to notice. The model segment only asks for the transcript when the payload names one, so a session without a transcript pays nothing for it. And it returns `""` when there is no model name.
+`New` only stores what it is given. It must be cheap, because a segment is built whenever its name is in `segments`, even if a custom segment ends up replacing it. The config is already scoped to the segment, so `Config.Bool("effort")` reads `model.effort`.
 
-### 3. Choose a layout group
+### 3. Write the methods
 
-`Group()` decides how the segment behaves when the line is too narrow for one row (see [Wrapping](customising.md#wrapping)):
+Behaviour is a method on the type, with a named pointer receiver (see "Go style" in Contributing). A segment has four methods:
+
+```go
+func (m *Model) Name() string
+func (m *Model) Help() string
+func (m *Model) Keys() []string
+func (m *Model) Render() string
+```
+
+`Help` is one or two plain sentences saying what the segment shows and what its colours mean, for the `help` command and `/statusline:help`. Build it from the segment's own config, so it reflects the user's settings: the `ctx` segment says "How full the context window is. Amber from 50%, red from 90%." with the configured `warn` and `bad`. A package with several segments gives each its own text.
+
+`Keys` lists every config key the segment reads, relative to its section, including keys that a dependency such as a `Meter` reads on its behalf. `Render` returns the finished text, already painted through the `Painter`, or an empty string to hide the segment. A segment is hidden, not wrong, when its data is missing. A plugin never prints and never returns an error. `model` only asks for the transcript when the payload names one, so a session without a transcript pays nothing for it.
+
+### 4. Give it defaults
+
+`segments/<name>/defaults.conf` holds the plugin's keys, with full names and a comment above each:
+
+```conf
+# Show the effort level after the model name (true or false).
+model.effort = true
+```
+
+Every key a segment reads must be in its `defaults.conf` with a comment, and every key in the file must be read by its segment, which `Keys()` declares. `TestKeysMatchDefaults` in `internal/statusline` checks both directions across every plugin. Key names are `<segment>.<setting>`, lower case, one dot. Settings that are not about a segment (`segments`, `separator`, `theme`, `hooks.*`, `snapshot.*`) stay in `internal/config/defaults.conf`. To show a segment by default, add its name to the `segments` default there too. A plugin with no settings has no `defaults.conf`.
+
+User config is layered over the union of all the defaults, so a user's `model.effort = false` wins, and an invalid value falls back to the default.
+
+### 5. Write its README
+
+Every plugin has a short `README.md` (under about 30 lines): what it shows, in one sentence with an example; a table of its config keys and defaults, which must match its `defaults.conf` (`TestEveryPluginReadmeDocumentsItsDefaults` checks each row); what it depends on, in plain words; and the layout group `all.go` gives it. Copy [`segments/model/README.md`](../segments/model/README.md).
+
+### 6. Register it in `all.go`
+
+In `segments/all.go`, embed the defaults, then add one entry to `registrations`: the name, the layout group, and a constructor that adapts the program's types to your interfaces:
+
+```go
+{"model", layout.Identity, func(cfg *config.Section) Segment {
+	return model.New(model.Deps{
+		Session:    e.session(),
+		Transcript: func() model.Transcript { return &transcriptView{info: e.transcript()} },
+		Config:     cfg,
+		Paint:      e.painter(),
+	})
+}},
+```
+
+`cfg` is the config scoped to the segment's name, and a `*config.Section` already has the `Bool`, `Int` and `String` methods the plugins ask for. The session, painter and transcript adapters are small types at the bottom of `all.go`; add a method to one when your interface needs a new question answered, or a new adapter type when none fits. The transcript and rate-limit functions are memoised by the environment, so however many segments ask, the work happens once, and not at all if none does.
+
+The layout group decides how the segment behaves when the line is too narrow for one row (see [Wrapping](customising.md#wrapping)):
 
 | Group | Behaviour |
 |---|---|
@@ -133,56 +145,34 @@ Two things to notice. The model segment only asks for the transcript when the pa
 | `layout.Rates` | Stays together with the other rate bars, lined up under the second identity segment. |
 | `layout.Extra` | Takes a row of its own. This is the group of custom segments that are not in a built-in slot. |
 
-User [custom segments](customising.md#custom-segments) are placed among the built-ins by name and slot, and a hook named like a plugin replaces it. That needs nothing from the plugin.
+There is no registration magic: a plugin that is not in `registrations` does not exist. The help command and the keys check read the same list. User [custom segments](customising.md#custom-segments) are placed among the built-ins by name and slot, and a hook named like a plugin replaces it. That needs nothing from the plugin.
 
-### 4. Give it defaults
+### 7. Test it with mocks
 
-`segments/<name>/defaults.conf` is embedded into the binary and holds the plugin's keys, with full names and a comment above each:
+Run `go generate ./...` to create the mocks. They are written to a `mocks/` folder inside the package, one file per interface, and are committed. CI regenerates them and fails if the committed ones differ, so rerun `go generate ./...` whenever you change an interface.
 
-```conf
-# Show the effort level after the model name (true or false).
-model.effort = true
-```
-
-The key rule: every key a segment reads must be in its `defaults.conf` with a comment, and every key in the file must be read by its segment, which `Keys()` declares. `TestKeysMatchDefaults` in `internal/statusline` checks both directions across every plugin, so a setting cannot ship undocumented and a dead one cannot linger. Key names are `<segment>.<setting>`, lower case, one dot. Settings that are not about a segment (`segments`, `separator`, `theme`, `hooks.*`, `snapshot.*`) stay in `internal/config/defaults.conf`.
-
-To show a segment by default, add its name to the `segments` default there too.
-
-User config is layered over the union of all the defaults, so a user's `model.effort = false` wins, and an invalid value falls back to the default.
-
-### 5. Test it
-
-Tests are in an external `_test` package, as everywhere else. Build the providers from `plugin.Sources`, feeding the data you want, and render a `Session`:
+Tests are in an external `_test` package and use the typed expecter API. Nothing from `internal/` is needed:
 
 ```go
-func render(json, cfg string, th theme.Theme, info transcript.Info) string {
-	providers := plugin.NewProviders(&plugin.Sources{
-		Config:     config.New(cfg, model.Plugin().Defaults),
-		Theme:      th,
-		Transcript: func() transcript.Info { return info },
-	})
-	seg := model.New(providers.For("model"))
-	return seg.Render(&plugin.Session{Payload: payload.Parse([]byte(json))})
-}
+sess := mocks.NewSession(t)
+sess.EXPECT().DisplayName().Return("Opus 4.7")
+sess.EXPECT().EffortLevel().Return("high")
+sess.EXPECT().TranscriptPath().Return("")
+
+cfg := mocks.NewConfig(t)
+cfg.EXPECT().Bool("effort").Return(true)
+
+paint := mocks.NewPainter(t)
+paint.EXPECT().Text("Opus 4.7 [high]").Return("<t>Opus 4.7 [high]</t>")
+
+seg := model.New(model.Deps{Session: sess, Config: cfg, Paint: paint})
+assert.Equal(t, "<t>Opus 4.7 [high]</t>", seg.Render())
 ```
+
+A mock fails the test when an expected call does not happen, and when an unexpected one does, so a test that gives the segment no transcript function proves that it never asks for one. Use `.Maybe()` on a call that a particular case may or may not make. Cover the case where the data is missing, as well as the ones where it is there, and test that `Help` is not empty and mentions every threshold or label it claims to.
 
 Cover the case where the data is missing, as well as the ones where it is there. Add at least one scenario under `features/` (see "Feature tests" in Contributing), and regenerate the documentation images if a `@screenshot` scenario changes.
 
-### 6. List it
-
-Add one line to `segments/all.go`:
-
-```go
-func All() []*plugin.Plugin {
-	return []*plugin.Plugin{
-		model.Plugin(),
-		// ...
-	}
-}
-```
-
-There is no registration magic: a plugin that is not in this list does not exist. The list also supplies the defaults and the keys check, so nothing else needs wiring.
-
-### 7. Document it
+### 8. Document it
 
 Add the segment to the table in [Customising](customising.md), and its keys to the key table there; the table must match the union of the `defaults.conf` files. Describe what the segment shows and when it is hidden.

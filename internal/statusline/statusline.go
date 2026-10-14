@@ -3,12 +3,13 @@ package statusline
 
 import (
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/hook"
+	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/render"
 	"github.com/PaddleHQ/claude-statusline/internal/snapshot"
@@ -30,12 +31,9 @@ const (
 // Keys lists every config key the status line reads, for checking against defaults.conf.
 func Keys() []string {
 	keys := append(render.Keys(), keyTheme, keyHookTTL, keyHookTimeout, keySnapEnabled, keySnapPath)
-	providers := plugin.NewProviders(&plugin.Sources{Config: config.New("")})
-	for _, pl := range segments.All() {
-		for _, e := range pl.Segments {
-			for _, k := range e.New(providers).Keys() {
-				keys = append(keys, e.Name+"."+k)
-			}
+	for _, seg := range segments.NewEnv(&segments.Sources{Config: config.New("")}).All() {
+		for _, k := range seg.Keys() {
+			keys = append(keys, seg.Name()+"."+k)
 		}
 	}
 	return append(keys, subagent.Keys()...)
@@ -59,26 +57,41 @@ func Build(input []byte, getenv func(string) string) string {
 	p := payload.Parse(input)
 	at := now(getenv)
 
+	env := segments.NewEnv(&segments.Sources{
+		Payload: p,
+		Config:  cfg,
+		Theme:   th,
+		Now:     at,
+		Columns: columns(getenv),
+		Home:    getenv("HOME"),
+		Transcript: func() transcript.Info {
+			return transcript.Read(p.TranscriptPath)
+		},
+		RateLimits: func() ratecache.Limits {
+			synced := ratecache.NewCache(cachePath(getenv)).Sync(ratecache.FromPayload(p.RateLimits))
+			return synced.Visible(at.Unix())
+		},
+	})
 	line := &render.Line{
-		Plugins: segments.All(),
-		Providers: plugin.NewProviders(&plugin.Sources{
-			Config:  cfg,
-			Theme:   th,
-			Now:     at,
-			Columns: columns(getenv),
-			Home:    getenv("HOME"),
-			Transcript: func() transcript.Info {
-				return transcript.Read(p.TranscriptPath)
-			},
-			RateLimits: func() ratecache.Limits {
-				synced := ratecache.NewCache(cachePath(getenv)).Sync(ratecache.FromPayload(p.RateLimits))
-				return synced.Visible(at.Unix())
-			},
-		}),
-		Session: &plugin.Session{Payload: p},
-		Hooks:   runHooks(input, p, cfg, at, getenv),
+		Names:     strings.Fields(cfg.String("segments")),
+		Lookup:    lookup(env),
+		Columns:   env.Columns,
+		Separator: env.Separator(),
+		Anchor:    th.Paint(th.Muted, "↳"),
+		Hooks:     runHooks(input, p, cfg, at, getenv),
 	}
 	return line.Render()
+}
+
+// lookup lets the renderer find the segments of env.
+func lookup(env *segments.Env) func(string) (render.Segment, layout.Group, bool) {
+	return func(name string) (render.Segment, layout.Group, bool) {
+		seg, group, ok := env.Lookup(name)
+		if !ok {
+			return nil, 0, false
+		}
+		return seg, group, true
+	}
 }
 
 // saveSnapshot keeps the latest payload where other tools can read it; a failed write never affects the line.

@@ -1,33 +1,50 @@
 package diagnostics_test
 
 import (
+	"strconv"
 	"testing"
 
-	"github.com/PaddleHQ/claude-statusline/internal/config"
-	"github.com/PaddleHQ/claude-statusline/internal/layout"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
-	"github.com/PaddleHQ/claude-statusline/internal/theme"
-	"github.com/PaddleHQ/claude-statusline/internal/transcript"
 	"github.com/PaddleHQ/claude-statusline/segments/diagnostics"
+	"github.com/PaddleHQ/claude-statusline/segments/diagnostics/mocks"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-func build(t *testing.T, name string, info transcript.Info) plugin.Segment {
+// info is the transcript a test describes; every field is zero by default.
+type info struct {
+	boot                                 int64
+	skillsChars, skillsBare, skillsTotal int
+	subBare, subTotal                    int
+	memDropped                           bool
+}
+
+func build(t *testing.T, name string, i info) (seg *diagnostics.Diagnostic, reads *int) {
 	t.Helper()
-	providers := plugin.NewProviders(&plugin.Sources{
-		Config:     config.New(""),
-		Theme:      theme.Theme{Text: "<t>", Bad: "<b>", Warn: "<w>", Reset: "</>"},
-		Transcript: func() transcript.Info { return info },
+
+	tr := mocks.NewTranscript(t)
+	tr.EXPECT().Boot().Return(i.boot).Maybe()
+	tr.EXPECT().SkillsChars().Return(i.skillsChars).Maybe()
+	tr.EXPECT().SkillsBare().Return(i.skillsBare).Maybe()
+	tr.EXPECT().SkillsTotal().Return(i.skillsTotal).Maybe()
+	tr.EXPECT().SubagentSkillsBare().Return(i.subBare).Maybe()
+	tr.EXPECT().SubagentSkillsTotal().Return(i.subTotal).Maybe()
+	tr.EXPECT().MemDropped().Return(i.memDropped).Maybe()
+
+	paint := mocks.NewPainter(t)
+	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + "</>" }).Maybe()
+	paint.EXPECT().Bad(mock.Anything).RunAndReturn(func(s string) string { return "<b>" + s + "</>" }).Maybe()
+	paint.EXPECT().Warn(mock.Anything).RunAndReturn(func(s string) string { return "<w>" + s + "</>" }).Maybe()
+
+	count := 0
+	seg, ok := diagnostics.New(name, diagnostics.Deps{
+		Transcript: func() diagnostics.Transcript { count++; return tr },
+		Paint:      paint,
+		Tokens:     func(n int64) string { return "T" + strconv.FormatInt(n, 10) },
 	})
-	for _, e := range diagnostics.Plugin().Segments {
-		if e.Name == name {
-			return e.New(providers.For(name))
-		}
-	}
-	require.Failf(t, "not provided", "%s", name)
-	return nil
+	require.True(t, ok, name)
+	return seg, &count
 }
 
 func TestRender(t *testing.T) {
@@ -36,45 +53,47 @@ func TestRender(t *testing.T) {
 	tests := []struct {
 		name string
 		seg  string
-		info transcript.Info
+		info info
 		want string
 	}{
-		{"boot", "boot", transcript.Info{Boot: 64506}, "<t>⌂ 64.5k</>"},
-		{"boot hidden at zero", "boot", transcript.Info{}, ""},
-		{"skills is chars over four", "skills", transcript.Info{SkillsChars: 38000}, "<t>⚙ 9.5k</>"},
-		{"skills under four chars", "skills", transcript.Info{SkillsChars: 3}, "<t>⚙ 0</>"},
-		{"skills hidden at zero", "skills", transcript.Info{}, ""},
-		{"stripped skills", "skills_stripped", transcript.Info{SkillsBare: 2, SkillsTotal: 9}, "<b>✗ skills 2/9</>"},
-		{"stripped skills hidden at zero", "skills_stripped", transcript.Info{SkillsTotal: 9}, ""},
-		{"agent skills", "agent_skills", transcript.Info{SubBare: 1, SubTotal: 4}, "<w>✗ agent skills 1/4</>"},
-		{"agent skills hidden at zero", "agent_skills", transcript.Info{SubTotal: 4}, ""},
-		{"mem", "mem", transcript.Info{MemDropped: true}, "<b>✗ mem</>"},
-		{"mem hidden", "mem", transcript.Info{}, ""},
+		{"boot", "boot", info{boot: 64506}, "<t>⌂ T64506</>"},
+		{"boot hidden at zero", "boot", info{}, ""},
+		{"skills is chars over four", "skills", info{skillsChars: 38000}, "<t>⚙ T9500</>"},
+		{"skills under four chars", "skills", info{skillsChars: 3}, "<t>⚙ T0</>"},
+		{"skills hidden at zero", "skills", info{}, ""},
+		{"stripped skills", "skills_stripped", info{skillsBare: 2, skillsTotal: 9}, "<b>✗ skills 2/9</>"},
+		{"stripped skills hidden at zero", "skills_stripped", info{skillsTotal: 9}, ""},
+		{"agent skills", "agent_skills", info{subBare: 1, subTotal: 4}, "<w>✗ agent skills 1/4</>"},
+		{"agent skills hidden at zero", "agent_skills", info{subTotal: 4}, ""},
+		{"mem", "mem", info{memDropped: true}, "<b>✗ mem</>"},
+		{"mem hidden", "mem", info{}, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, build(t, tt.seg, tt.info).Render(&plugin.Session{}))
+			seg, _ := build(t, tt.seg, tt.info)
+			assert.Equal(t, tt.want, seg.Render())
 		})
 	}
 }
 
-func TestProvidesTheUsageGroupSegments(t *testing.T) {
+func TestProvidesFiveSegments(t *testing.T) {
 	t.Parallel()
 
-	entries := diagnostics.Plugin().Segments
-	require.Len(t, entries, 5)
-	for _, e := range entries {
-		seg := build(t, e.Name, transcript.Info{})
-		assert.Equal(t, e.Name, seg.Name())
-		assert.Equal(t, layout.Usage, seg.Group(), e.Name)
+	names := diagnostics.Names()
+	assert.Equal(t, []string{"boot", "skills", "skills_stripped", "agent_skills", "mem"}, names)
+	for _, name := range names {
+		seg, reads := build(t, name, info{})
+		assert.Equal(t, name, seg.Name())
+		assert.NotEmpty(t, seg.Help(), name)
+		assert.Empty(t, seg.Keys(), name)
+		assert.Zero(t, *reads, "%s asked for the transcript before drawing", name)
 	}
 }
 
-func TestEverySegmentHasHelp(t *testing.T) {
+func TestUnknownSegment(t *testing.T) {
 	t.Parallel()
 
-	for _, e := range diagnostics.Plugin().Segments {
-		assert.NotEmpty(t, build(t, e.Name, transcript.Info{}).Help(), e.Name)
-	}
+	_, ok := diagnostics.New("nope", diagnostics.Deps{})
+	assert.False(t, ok)
 }

@@ -38,30 +38,6 @@ func TestWidthFor(t *testing.T) {
 	assert.Equal(t, 200, bar.WidthFor(999, 5000, 5000, 5000), "cap of 200")
 }
 
-func TestElapsedPercent(t *testing.T) {
-	t.Parallel()
-
-	const window = 18000
-	tests := []struct {
-		name          string
-		now, resetsAt int64
-		want          int
-	}{
-		{"halfway", 1000, 1000 + window/2, 50},
-		{"just started", 1000, 1000 + window, 0},
-		{"before the window", 0, 1000 + window, 0},
-		{"after the window is clamped", 5000, 1000, 100},
-		{"rounds down", 1000, 1000 + window - 179, 0},
-		{"one percent", 1000, 1000 + window - 180, 1},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, bar.ElapsedPercent(tt.now, tt.resetsAt, window))
-		})
-	}
-}
-
 // markers uses plain letters so cells can be counted without escape codes.
 var markers = theme.Theme{
 	Good: "<g>", Warn: "<w>", Bad: "<b>", Marker: "<m>", Muted: "<d>", Reset: "</>",

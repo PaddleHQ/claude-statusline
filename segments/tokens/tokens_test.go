@@ -3,19 +3,12 @@ package tokens_test
 import (
 	"testing"
 
-	"github.com/PaddleHQ/claude-statusline/internal/config"
-	"github.com/PaddleHQ/claude-statusline/internal/payload"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
-	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments/tokens"
+	"github.com/PaddleHQ/claude-statusline/segments/tokens/mocks"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
-
-func renderOne(json, cfg string, th theme.Theme) string {
-	providers := plugin.NewProviders(&plugin.Sources{Config: config.New(cfg), Theme: th})
-	return tokens.New(providers.For("tokens")).Render(&plugin.Session{Payload: payload.Parse([]byte(json))})
-}
 
 func TestFormatTokens(t *testing.T) {
 	t.Parallel()
@@ -42,34 +35,52 @@ func TestFormatTokens(t *testing.T) {
 	}
 }
 
-func TestTokensRender(t *testing.T) {
+func build(t *testing.T, in, out *int64) *tokens.Totals {
+	t.Helper()
+
+	sess := mocks.NewSession(t)
+	sess.EXPECT().TotalInput().RunAndReturn(func() (int64, bool) { return value(in) }).Maybe()
+	sess.EXPECT().TotalOutput().RunAndReturn(func() (int64, bool) { return value(out) }).Maybe()
+	paint := mocks.NewPainter(t)
+	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + "</>" }).Maybe()
+	return tokens.New(tokens.Deps{Session: sess, Paint: paint, Separator: " <m>·</> "})
+}
+
+func value(p *int64) (int64, bool) {
+	if p == nil {
+		return 0, false
+	}
+	return *p, true
+}
+
+func TestRender(t *testing.T) {
 	t.Parallel()
 
-	painted := theme.Theme{Text: "<t>", Muted: "<m>", Reset: "</>"}
+	i := func(n int64) *int64 { return &n }
 	tests := []struct {
-		name string
-		json string
-		cfg  string
-		th   theme.Theme
-		want string
+		name    string
+		in, out *int64
+		want    string
 	}{
-		{"both", `{"context_window":{"total_input_tokens":1500,"total_output_tokens":250}}`, "", painted, "<t>↓ 1.5k</> <m>·</> <t>↑ 250</>"},
-		{"custom separator", `{"context_window":{"total_input_tokens":1,"total_output_tokens":2}}`, "separator = |", painted, "<t>↓ 1</> <m>|</> <t>↑ 2</>"},
-		{"input only", `{"context_window":{"total_input_tokens":1500}}`, "", painted, "<t>↓ 1.5k</>"},
-		{"output only", `{"context_window":{"total_output_tokens":7}}`, "", painted, "<t>↑ 7</>"},
-		{"neither hides the segment", `{"context_window":{"used_percentage":5}}`, "", painted, ""},
+		{"both", i(1500), i(250), "<t>↓ 1.5k</> <m>·</> <t>↑ 250</>"},
+		{"input only", i(1500), nil, "<t>↓ 1.5k</>"},
+		{"output only", nil, i(7), "<t>↑ 7</>"},
+		{"zero is shown", i(0), nil, "<t>↓ 0</>"},
+		{"neither hides the segment", nil, nil, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, renderOne(tt.json, tt.cfg, tt.th))
+			assert.Equal(t, tt.want, build(t, tt.in, tt.out).Render())
 		})
 	}
 }
 
-func TestHelp(t *testing.T) {
+func TestNameKeysAndHelp(t *testing.T) {
 	t.Parallel()
 
-	providers := plugin.NewProviders(&plugin.Sources{Config: config.New("")})
-	assert.NotEmpty(t, tokens.New(providers.For("tokens")).Help())
+	seg := build(t, nil, nil)
+	assert.Equal(t, "tokens", seg.Name())
+	assert.Empty(t, seg.Keys())
+	assert.NotEmpty(t, seg.Help())
 }

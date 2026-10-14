@@ -7,7 +7,6 @@ import (
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/hook"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments"
 )
@@ -16,9 +15,9 @@ const docsURL = "https://github.com/PaddleHQ/claude-statusline/blob/main/docs/cu
 
 // helper describes the status line as the user has configured it. It never runs a hook script.
 type helper struct {
-	providers *plugin.Providers
-	hooks     []hook.Hook
-	names     []string
+	env   *segments.Env
+	hooks []hook.Hook
+	names []string
 }
 
 // Help describes the user's status line in plain text: what is shown now, the custom segments and the built-ins left out.
@@ -32,12 +31,12 @@ func Help(getenv func(string) string) string {
 	}
 	th := theme.Load(cfg.String(keyTheme), getenv("HOME"), config.AppDir(getenv))
 	th = th.WithoutColor()
-	providers := plugin.NewProviders(&plugin.Sources{Config: cfg, Theme: th, Home: getenv("HOME"), Columns: defaultColumns})
+	env := segments.NewEnv(&segments.Sources{Config: cfg, Theme: th, Home: getenv("HOME"), Columns: defaultColumns})
 
 	h := &helper{
-		providers: providers,
-		hooks:     hook.Discover(hookDir(getenv)),
-		names:     strings.Fields(providers.Config.String("segments")),
+		env:   env,
+		hooks: hook.Discover(hookDir(getenv)),
+		names: strings.Fields(cfg.String("segments")),
 	}
 	return h.text(path)
 }
@@ -104,25 +103,17 @@ func (h *helper) unlisted() []string {
 		listed[name] = true
 	}
 	var lines []string
-	for _, pl := range segments.All() {
-		for _, e := range pl.Segments {
-			if !listed[e.Name] {
-				lines = append(lines, e.Name+": "+e.New(h.providers.For(e.Name)).Help())
-			}
+	for _, seg := range h.env.All() {
+		if !listed[seg.Name()] {
+			lines = append(lines, seg.Name()+": "+seg.Help())
 		}
 	}
 	return lines
 }
 
-func (h *helper) builtin(name string) (plugin.Segment, bool) {
-	for _, pl := range segments.All() {
-		for _, e := range pl.Segments {
-			if e.Name == name {
-				return e.New(h.providers.For(name)), true
-			}
-		}
-	}
-	return nil, false
+func (h *helper) builtin(name string) (segments.Segment, bool) {
+	seg, _, ok := h.env.Lookup(name)
+	return seg, ok
 }
 
 func hookHelp(h *hook.Hook) string {

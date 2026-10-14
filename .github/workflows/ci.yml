@@ -42,6 +42,11 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Check generated mocks are up to date
+        run: |
+          go generate ./...
+          git diff --exit-code
+
       - name: Test
         run: go test -race ./...
 

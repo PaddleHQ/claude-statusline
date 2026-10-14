@@ -8,13 +8,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/PaddleHQ/claude-statusline/internal/bar"
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments"
-	"github.com/PaddleHQ/claude-statusline/segments/ctx"
-	"github.com/PaddleHQ/claude-statusline/segments/tokens"
 
 	"github.com/tidwall/gjson"
 )
@@ -67,7 +64,7 @@ func Build(input []byte, getenv func(string) string) string {
 	if c := root.Get("columns"); c.Type == gjson.Number && c.Num >= 0 && c.Num < maxPercent {
 		columns = int(c.Num)
 	}
-	r := &renderer{cfg: cfg, th: th, columns: columns}
+	r := &renderer{cfg: cfg, th: th, env: segments.NewEnv(&segments.Sources{Config: cfg, Theme: th, Columns: columns})}
 
 	var out bytes.Buffer
 	enc := json.NewEncoder(&out)
@@ -84,9 +81,9 @@ func Build(input []byte, getenv func(string) string) string {
 }
 
 type renderer struct {
-	cfg     *config.Config
-	th      theme.Theme
-	columns int
+	cfg *config.Config
+	th  theme.Theme
+	env *segments.Env
 }
 
 func (r *renderer) content(task gjson.Result) string {
@@ -131,7 +128,7 @@ func (r *renderer) appendTokens(parts []string, task gjson.Result) []string {
 	if window, ok := number(task.Get("contextWindowSize")); ok && window > 0 {
 		parts = append(parts, r.ctx(count*percentScale/window))
 	}
-	return append(parts, tokens.FormatTokens(int64(math.Min(count, maxPercent*maxPercent))))
+	return append(parts, segments.FormatTokens(int64(math.Min(count, maxPercent*maxPercent))))
 }
 
 func (r *renderer) appendDescription(parts []string, task gjson.Result) []string {
@@ -146,15 +143,7 @@ func (r *renderer) appendDescription(parts []string, task gjson.Result) []string
 }
 
 func (r *renderer) ctx(raw float64) string {
-	section := r.cfg.Section("ctx")
-	params := &bar.Params{
-		Usage:    int(math.Floor(math.Min(math.Max(raw, 0), maxPercent))),
-		Width:    bar.WidthOf(r.columns, section),
-		Warn:     section.Int("warn"),
-		Bad:      section.Int("bad"),
-		NoTarget: true,
-	}
-	return ctx.Draw(r.th, params, params.Fill(r.th))
+	return segments.ContextBar(r.env, math.Floor(math.Min(math.Max(raw, 0), maxPercent)))
 }
 
 // truthy mirrors jq: only null, false and a missing field count as absent.

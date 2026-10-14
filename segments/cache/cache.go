@@ -2,12 +2,8 @@
 package cache
 
 import (
-	_ "embed"
 	"fmt"
 	"strconv"
-
-	"github.com/PaddleHQ/claude-statusline/internal/layout"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
 )
 
 const (
@@ -15,40 +11,64 @@ const (
 	percentScale = 100
 )
 
-//go:embed defaults.conf
-var defaults string
+//go:generate go run github.com/vektra/mockery/v2 --name=Session
 
-// Plugin is the cache plugin.
-func Plugin() *plugin.Plugin {
-	return &plugin.Plugin{Defaults: defaults, Segments: []plugin.Entry{{Name: name, New: New}}}
+// Session is what the segment needs to know about the session.
+type Session interface {
+	// LatestRequest is the token usage of the latest request.
+	LatestRequest() (input, cacheCreation, cacheRead int64)
 }
+
+//go:generate go run github.com/vektra/mockery/v2 --name=Config
+
+// Config reads the segment's settings.
+type Config interface {
+	Int(key string) int
+}
+
+//go:generate go run github.com/vektra/mockery/v2 --name=Painter
+
+// Painter colors text.
+type Painter interface {
+	Text(s string) string
+	Bad(s string) string
+}
+
+// Deps is everything the segment is built from.
+type Deps struct {
+	Session Session
+	Config  Config
+	Paint   Painter
+}
+
+// Cache shows the prompt cache hit rate.
+type Cache struct{ d Deps }
 
 // New builds the cache segment.
-func New(p *plugin.Providers) plugin.Segment { return &cache{p: p} }
+func New(d Deps) *Cache { return &Cache{d: d} }
 
-type cache struct{ p *plugin.Providers }
+// Name is the segment's name in the segments list.
+func (c *Cache) Name() string { return name }
 
-func (c *cache) Name() string { return name }
-
-func (c *cache) Group() layout.Group { return layout.Usage }
-
-func (c *cache) Help() string {
-	return fmt.Sprintf("How much of the latest request's input was read from the prompt cache. Red below %d%%.", c.p.Config.Int("warn"))
+// Help says what the segment shows, for the help command.
+func (c *Cache) Help() string {
+	return fmt.Sprintf("How much of the latest request's input was read from the prompt cache. Red below %d%%.", c.d.Config.Int("warn"))
 }
 
-func (c *cache) Keys() []string { return []string{"warn"} }
+// Keys lists the config keys the segment reads, relative to its section.
+func (c *Cache) Keys() []string { return []string{"warn"} }
 
-func (c *cache) Render(s *plugin.Session) string {
-	th := c.p.Theme
-	u := s.Payload.ContextWindow.Current
-	total := u.Input + u.CacheCreation + u.CacheRead
+// Render returns the segment's text, or "" to hide it.
+func (c *Cache) Render() string {
+	input, creation, read := c.d.Session.LatestRequest()
+	total := input + creation + read
 	if total <= 0 {
 		return ""
 	}
-	pct := u.CacheRead * percentScale / total
-	color := th.Text
-	if pct < int64(c.p.Config.Int("warn")) {
-		color = th.Bad
+	pct := read * percentScale / total
+	text := "⧉ " + strconv.FormatInt(pct, 10) + "%"
+	if pct < int64(c.d.Config.Int("warn")) {
+		return c.d.Paint.Bad(text)
 	}
-	return th.Paint(color, "⧉ "+strconv.FormatInt(pct, 10)+"%")
+	return c.d.Paint.Text(text)
 }

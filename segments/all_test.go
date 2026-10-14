@@ -1,11 +1,16 @@
 package segments_test
 
 import (
+	"go/parser"
+	"go/token"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
+	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/render"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
@@ -13,34 +18,92 @@ import (
 	"github.com/PaddleHQ/claude-statusline/segments"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestEntryNamesMatchTheirSegments(t *testing.T) {
+func newEnv(cfg, payloadJSON string) *segments.Env {
+	return segments.NewEnv(&segments.Sources{
+		Payload: payload.Parse([]byte(payloadJSON)),
+		Config:  config.New(cfg, segments.Defaults()...),
+		Theme:   theme.Load("classic", "", ""),
+		Columns: 999,
+		Home:    "/home/me",
+	})
+}
+
+func TestEveryRegisteredNameIsUniqueAndFindable(t *testing.T) {
 	t.Parallel()
 
-	providers := plugin.NewProviders(&plugin.Sources{Config: config.New("")})
+	env := newEnv("", `{}`)
 	seen := map[string]bool{}
-	for _, pl := range segments.All() {
-		for _, e := range pl.Segments {
-			assert.Equal(t, e.Name, e.New(providers).Name(), "segment listed as %q", e.Name)
-			assert.False(t, seen[e.Name], "%q is provided twice", e.Name)
-			seen[e.Name] = true
-		}
+	for _, seg := range env.All() {
+		assert.False(t, seen[seg.Name()], "%q is provided twice", seg.Name())
+		seen[seg.Name()] = true
+		found, _, ok := env.Lookup(seg.Name())
+		require.True(t, ok, seg.Name())
+		assert.Equal(t, seg.Name(), found.Name())
 	}
+	assert.Len(t, seen, 12)
+	_, _, ok := env.Lookup("bogus")
+	assert.False(t, ok)
 }
 
 func TestEverySegmentHasHelp(t *testing.T) {
 	t.Parallel()
 
-	providers := plugin.NewProviders(&plugin.Sources{Config: config.New("", segments.Defaults()...)})
-	for _, pl := range segments.All() {
-		for _, e := range pl.Segments {
-			assert.NotEmpty(t, e.New(providers.For(e.Name)).Help(), e.Name)
-		}
+	for _, seg := range newEnv("", `{}`).All() {
+		assert.NotEmpty(t, seg.Help(), seg.Name())
 	}
 }
 
-func TestLazyProviders(t *testing.T) {
+func TestLayoutGroups(t *testing.T) {
+	t.Parallel()
+
+	want := map[string]layout.Group{
+		"path": layout.Identity, "model": layout.Identity, "ctx": layout.Identity,
+		"tokens": layout.Usage, "cache": layout.Usage,
+		"boot": layout.Usage, "skills": layout.Usage, "skills_stripped": layout.Usage, "agent_skills": layout.Usage, "mem": layout.Usage,
+		"rate5h": layout.Rates, "rate7d": layout.Rates,
+	}
+	env := newEnv("", `{}`)
+	for name, group := range want {
+		_, got, ok := env.Lookup(name)
+		require.True(t, ok, name)
+		assert.Equal(t, group, got, name)
+	}
+}
+
+func TestPathBranchIsSanitized(t *testing.T) {
+	t.Parallel()
+
+	dir := filepath.Join(t.TempDir(), "hostile")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".git", "HEAD"), []byte("ref: refs/heads/a\x1b[31mb\n"), 0o600))
+
+	env := segments.NewEnv(&segments.Sources{
+		Payload: payload.Parse([]byte(`{"cwd":"` + dir + `"}`)),
+		Config:  config.New("", segments.Defaults()...),
+	})
+	seg, _, ok := env.Lookup("path")
+	require.True(t, ok)
+	assert.Equal(t, dir+" (a[31mb)", seg.Render())
+}
+
+func TestContextBarFillsThePercentageEvenOnAGradientTheme(t *testing.T) {
+	t.Parallel()
+
+	th := theme.Load("gradient", "", "")
+	env := segments.NewEnv(&segments.Sources{
+		Config:  config.New("ctx.width = 4", segments.Defaults()...),
+		Theme:   th,
+		Columns: 999,
+	})
+	got := segments.ContextBar(env, 95)
+	assert.Contains(t, got, "ctx: ")
+	assert.Contains(t, got, th.Bad+"95%")
+}
+
+func TestLazyDependencies(t *testing.T) {
 	t.Parallel()
 
 	const (
@@ -66,19 +129,91 @@ func TestLazyProviders(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			var transcriptReads, rateSyncs int
+			cfg := config.New(tt.cfg, segments.Defaults()...)
+			env := segments.NewEnv(&segments.Sources{
+				Payload:    payload.Parse([]byte(tt.payload)),
+				Config:     cfg,
+				Theme:      theme.Load("classic", "", ""),
+				Transcript: func() transcript.Info { transcriptReads++; return transcript.Info{} },
+				RateLimits: func() ratecache.Limits { rateSyncs++; return ratecache.Limits{} },
+			})
+			env.All()
+			require.Zero(t, transcriptReads+rateSyncs, "building the segments asks for nothing")
 			line := &render.Line{
-				Plugins: segments.All(),
-				Providers: plugin.NewProviders(&plugin.Sources{
-					Config:     config.New(tt.cfg, segments.Defaults()...),
-					Theme:      theme.Load("classic", "", ""),
-					Transcript: func() transcript.Info { transcriptReads++; return transcript.Info{} },
-					RateLimits: func() ratecache.Limits { rateSyncs++; return ratecache.Limits{} },
-				}),
+				Names: strings.Fields(cfg.String("segments")),
+				Lookup: func(name string) (render.Segment, layout.Group, bool) {
+					seg, group, ok := env.Lookup(name)
+					if !ok {
+						return nil, 0, false
+					}
+					return seg, group, true
+				},
+				Separator: env.Separator(),
 			}
-			line.Session = &plugin.Session{Payload: payload.Parse([]byte(tt.payload))}
 			line.Render()
 			assert.Equal(t, tt.wantTranscript, transcriptReads, "transcript reads")
 			assert.Equal(t, tt.wantRates, rateSyncs, "rate cache syncs")
 		})
+	}
+}
+
+func pluginDirs(t *testing.T) []string {
+	t.Helper()
+
+	entries, err := os.ReadDir(".")
+	require.NoError(t, err)
+	var dirs []string
+	for _, e := range entries {
+		if e.IsDir() {
+			dirs = append(dirs, e.Name())
+		}
+	}
+	require.NotEmpty(t, dirs)
+	return dirs
+}
+
+func TestPluginsImportNothingFromInternal(t *testing.T) {
+	t.Parallel()
+
+	for _, dir := range pluginDirs(t) {
+		err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+				return err
+			}
+			file, perr := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
+			require.NoError(t, perr, path)
+			for _, imp := range file.Imports {
+				assert.NotContains(t, imp.Path.Value, "/internal/", "%s imports %s", path, imp.Path.Value)
+			}
+			return nil
+		})
+		require.NoError(t, err)
+	}
+}
+
+func TestEveryPluginReadmeDocumentsItsDefaults(t *testing.T) {
+	t.Parallel()
+
+	for _, dir := range pluginDirs(t) {
+		readme, err := os.ReadFile(filepath.Join(dir, "README.md"))
+		require.NoError(t, err, "%s needs a README.md", dir)
+		defaults, err := os.ReadFile(filepath.Join(dir, "defaults.conf"))
+		if os.IsNotExist(err) {
+			continue
+		}
+		require.NoError(t, err)
+		for line := range strings.SplitSeq(string(defaults), "\n") {
+			key, value, ok := strings.Cut(line, "=")
+			if !ok || strings.HasPrefix(line, "#") {
+				continue
+			}
+			key, value = strings.TrimSpace(key), strings.TrimSpace(value)
+			want := "`" + value + "`"
+			if value == "" {
+				want = "empty"
+			}
+			row := "| `" + key + "` | " + want + " |"
+			assert.Contains(t, string(readme), row, "%s/README.md must list %s with its default", dir, key)
+		}
 	}
 }

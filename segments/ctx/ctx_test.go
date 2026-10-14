@@ -3,55 +3,71 @@ package ctx_test
 import (
 	"testing"
 
-	"github.com/PaddleHQ/claude-statusline/internal/config"
-	"github.com/PaddleHQ/claude-statusline/internal/payload"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
-	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments/ctx"
+	"github.com/PaddleHQ/claude-statusline/segments/ctx/mocks"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
-func renderOne(json, cfg string, th theme.Theme) string {
-	providers := plugin.NewProviders(&plugin.Sources{
-		Config:  config.New(cfg, ctx.Plugin().Defaults),
-		Theme:   th,
-		Columns: 999,
-	})
-	return ctx.New(providers.For("ctx")).Render(&plugin.Session{Payload: payload.Parse([]byte(json))})
+func build(t *testing.T, used float64, reported bool, warn, bad int) (*ctx.Context, *mocks.Meter) {
+	t.Helper()
+
+	sess := mocks.NewSession(t)
+	sess.EXPECT().UsedPercentage().Return(used, reported).Maybe()
+	cfg := mocks.NewConfig(t)
+	cfg.EXPECT().Int("warn").Return(warn).Maybe()
+	cfg.EXPECT().Int("bad").Return(bad).Maybe()
+	paint := mocks.NewPainter(t)
+	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + "</>" }).Maybe()
+	meter := mocks.NewMeter(t)
+	return ctx.New(ctx.Deps{Session: sess, Config: cfg, Paint: paint, Meter: meter}), meter
 }
 
-func TestCtxRender(t *testing.T) {
+func TestRender(t *testing.T) {
 	t.Parallel()
 
-	markers := theme.Theme{Good: "<g>", Warn: "<w>", Bad: "<b>", Muted: "<d>", Reset: "</>", Full: "F", Partials: [7]string{"1", "2", "3", "4", "5", "6", "7"}, Empty: "E"}
 	tests := []struct {
-		name string
-		json string
-		cfg  string
-		want string
+		name      string
+		used      float64
+		wantUsage int
 	}{
-		{"good below warn", `{"context_window":{"used_percentage":49}}`, "ctx.width = 4", "ctx: <g>FF</><d>EE</> 49%"},
-		{"warn at the threshold", `{"context_window":{"used_percentage":50}}`, "ctx.width = 4", "ctx: <w>FF</><d>EE</> 50%"},
-		{"bad at the threshold", `{"context_window":{"used_percentage":90}}`, "ctx.width = 4", "ctx: <b>FFF5</> 90%"},
-		{"custom thresholds", `{"context_window":{"used_percentage":20}}`, "ctx.width = 4\nctx.warn = 10\nctx.bad = 20", "ctx: <b>6</><d>EEE</> 20%"},
-		{"percentage rounds to even", `{"context_window":{"used_percentage":42.5}}`, "ctx.width = 4", "ctx: <g>F5</><d>EE</> 42%"},
-		{"zero is shown", `{"context_window":{"used_percentage":0}}`, "ctx.width = 4", "ctx: <d>EEEE</> 0%"},
-		{"absent hides the segment", `{"context_window":{}}`, "", ""},
+		{"whole number", 49, 49},
+		{"rounds to even down", 42.5, 42},
+		{"rounds to even up", 43.5, 44},
+		{"zero is shown", 0, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, renderOne(tt.json, tt.cfg, markers))
+			seg, meter := build(t, tt.used, true, 50, 90)
+			meter.EXPECT().Usage(tt.wantUsage, 50, 90).Return("BAR").Once()
+			assert.Equal(t, "<t>ctx: </>BAR", seg.Render())
 		})
 	}
 }
 
-func TestHelp(t *testing.T) {
+func TestRenderPassesTheConfiguredThresholds(t *testing.T) {
 	t.Parallel()
 
-	providers := plugin.NewProviders(&plugin.Sources{Config: config.New("ctx.warn = 40\nctx.bad = 80", ctx.Plugin().Defaults)})
-	help := ctx.New(providers.For("ctx")).Help()
-	assert.Contains(t, help, "40%")
-	assert.Contains(t, help, "80%")
+	seg, meter := build(t, 20, true, 10, 20)
+	meter.EXPECT().Usage(20, 10, 20).Return("BAR").Once()
+	assert.Equal(t, "<t>ctx: </>BAR", seg.Render())
+}
+
+func TestAbsentUsageHidesTheSegment(t *testing.T) {
+	t.Parallel()
+
+	seg, _ := build(t, 0, false, 50, 90)
+	assert.Empty(t, seg.Render())
+}
+
+func TestNameKeysAndHelp(t *testing.T) {
+	t.Parallel()
+
+	seg, _ := build(t, 0, false, 40, 80)
+	assert.Equal(t, "ctx", seg.Name())
+	assert.Equal(t, []string{"width", "width_medium", "width_narrow", "warn", "bad"}, seg.Keys())
+	assert.Contains(t, seg.Help(), "40%")
+	assert.Contains(t, seg.Help(), "80%")
 }

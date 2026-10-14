@@ -1,61 +1,86 @@
 // Package path provides the path segment: the working directory, shortened, with the git branch when there is one.
 package path
 
-import (
-	_ "embed"
-	"strings"
-
-	"github.com/PaddleHQ/claude-statusline/internal/gitbranch"
-	"github.com/PaddleHQ/claude-statusline/internal/layout"
-	"github.com/PaddleHQ/claude-statusline/internal/payload"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
-)
+import "strings"
 
 const name = "path"
 
-//go:embed defaults.conf
-var defaults string
+//go:generate go run github.com/vektra/mockery/v2 --name=Session
 
-// Plugin is the path plugin.
-func Plugin() *plugin.Plugin {
-	return &plugin.Plugin{Defaults: defaults, Segments: []plugin.Entry{{Name: name, New: New}}}
+// Session is what the segment needs to know about the session.
+type Session interface {
+	Cwd() string
 }
 
+//go:generate go run github.com/vektra/mockery/v2 --name=Config
+
+// Config reads the segment's settings.
+type Config interface {
+	String(key string) string
+	Bool(key string) bool
+}
+
+//go:generate go run github.com/vektra/mockery/v2 --name=Painter
+
+// Painter colors text.
+type Painter interface {
+	Path(s string) string
+}
+
+//go:generate go run github.com/vektra/mockery/v2 --name=Git
+
+// Git finds the branch of a directory.
+type Git interface {
+	// Branch is the printable branch name, or "" when there is none.
+	Branch(dir string) string
+}
+
+// Deps is everything the segment is built from.
+type Deps struct {
+	Session Session
+	Config  Config
+	Paint   Painter
+	Git     Git
+	Home    string
+}
+
+// Path shows the working directory and its git branch.
+type Path struct{ d Deps }
+
 // New builds the path segment.
-func New(p *plugin.Providers) plugin.Segment { return &path{p: p} }
+func New(d Deps) *Path { return &Path{d: d} }
 
-type path struct{ p *plugin.Providers }
+// Name is the segment's name in the segments list.
+func (p *Path) Name() string { return name }
 
-func (s *path) Name() string { return name }
-
-func (s *path) Group() layout.Group { return layout.Identity }
-
-func (s *path) Help() string {
+// Help says what the segment shows, for the help command.
+func (p *Path) Help() string {
 	help := "The working directory, with your home directory shown as ~"
-	if prefixes := strings.Fields(s.p.Config.String("strip")); len(prefixes) > 0 {
+	if prefixes := strings.Fields(p.d.Config.String("strip")); len(prefixes) > 0 {
 		help += " and the prefixes " + strings.Join(prefixes, " ") + " removed"
 	}
-	if s.p.Config.Bool("branch") {
+	if p.d.Config.Bool("branch") {
 		help += ", followed by the git branch in brackets"
 	}
 	return help + "."
 }
 
-func (s *path) Keys() []string { return []string{"strip", "branch"} }
+// Keys lists the config keys the segment reads, relative to its section.
+func (p *Path) Keys() []string { return []string{"strip", "branch"} }
 
-func (s *path) Render(sess *plugin.Session) string {
-	dir := sess.Payload.Cwd
+// Render returns the segment's text, or "" to hide it.
+func (p *Path) Render() string {
+	dir := p.d.Session.Cwd()
 	if dir == "" {
 		return ""
 	}
-	th := s.p.Theme
-	out := displayPath(dir, s.p.Home, strings.Fields(s.p.Config.String("strip")))
-	if s.p.Config.Bool("branch") {
-		if branch := payload.Sanitize(gitbranch.Read(dir)); branch != "" {
+	out := displayPath(dir, p.d.Home, strings.Fields(p.d.Config.String("strip")))
+	if p.d.Config.Bool("branch") {
+		if branch := p.d.Git.Branch(dir); branch != "" {
 			out += " (" + branch + ")"
 		}
 	}
-	return th.Paint(th.Path, out)
+	return p.d.Paint.Path(out)
 }
 
 // displayPath strips the longest matching prefix, else abbreviates home to ~, else returns dir.

@@ -1,12 +1,12 @@
 package render_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/hook"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
 	"github.com/PaddleHQ/claude-statusline/internal/render"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 
@@ -19,40 +19,38 @@ type stub struct {
 	text  string
 }
 
-func (s *stub) Name() string { return s.name }
+func (s *stub) Render() string { return s.text }
 
-func (s *stub) Group() layout.Group { return s.group }
-
-func (s *stub) Help() string { return "" }
-
-func (s *stub) Keys() []string { return nil }
-
-func (s *stub) Render(*plugin.Session) string { return s.text }
-
-func stubPlugin(segments ...*stub) []*plugin.Plugin {
-	pl := &plugin.Plugin{}
-	for _, s := range segments {
-		pl.Segments = append(pl.Segments, plugin.Entry{Name: s.name, New: func(*plugin.Providers) plugin.Segment { return s }})
+func lookupIn(stubs ...*stub) func(string) (render.Segment, layout.Group, bool) {
+	return func(name string) (render.Segment, layout.Group, bool) {
+		for _, s := range stubs {
+			if s.name == name {
+				return s, s.group, true
+			}
+		}
+		return nil, 0, false
 	}
-	return []*plugin.Plugin{pl}
 }
 
-func standardPlugins() []*plugin.Plugin {
-	return stubPlugin(
-		&stub{"path", layout.Identity, "/srv/app"},
-		&stub{"model", layout.Identity, "Opus"},
-		&stub{"ctx", layout.Identity, "ctx: 42%"},
-		&stub{"tokens", layout.Usage, "↓ 1.5k · ↑ 2.0k"},
-		&stub{"rate5h", layout.Rates, "5h: 45%"},
-		&stub{"empty", layout.Usage, ""},
-	)
+func standardStubs() []*stub {
+	return []*stub{
+		{"path", layout.Identity, "/srv/app"},
+		{"model", layout.Identity, "Opus"},
+		{"ctx", layout.Identity, "ctx: 42%"},
+		{"tokens", layout.Usage, "↓ 1.5k · ↑ 2.0k"},
+		{"rate5h", layout.Rates, "5h: 45%"},
+		{"empty", layout.Usage, ""},
+	}
 }
 
-func newLine(plugins []*plugin.Plugin, cfg string, th theme.Theme, columns int, hooks []hook.Result) *render.Line {
+func newLine(stubs []*stub, cfg string, th theme.Theme, columns int, hooks []hook.Result) *render.Line {
+	c := config.New(cfg)
 	return &render.Line{
-		Plugins:   plugins,
-		Providers: plugin.NewProviders(&plugin.Sources{Config: config.New(cfg), Theme: th, Columns: columns}),
-		Session:   &plugin.Session{},
+		Names:     strings.Fields(c.String("segments")),
+		Lookup:    lookupIn(stubs...),
+		Columns:   columns,
+		Separator: " " + th.Paint(th.Muted, c.String("separator")) + " ",
+		Anchor:    th.Paint(th.Muted, "↳"),
 		Hooks:     hooks,
 	}
 }
@@ -89,7 +87,7 @@ func TestRender(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, newLine(standardPlugins(), tt.cfg, tt.th, 0, nil).Render())
+			assert.Equal(t, tt.want, newLine(standardStubs(), tt.cfg, tt.th, 0, nil).Render())
 		})
 	}
 }
@@ -180,7 +178,7 @@ func TestRenderPlacesHooks(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, newLine(standardPlugins(), tt.cfg, th, 999, tt.hooks).Render())
+			assert.Equal(t, tt.want, newLine(standardStubs(), tt.cfg, th, 999, tt.hooks).Render())
 		})
 	}
 }
@@ -189,30 +187,18 @@ func TestRenderWrapsAroundHooks(t *testing.T) {
 	t.Parallel()
 
 	hooks := []hook.Result{hookResult("a", hook.SlotCtx, "ctx-hook"), hookResult("b", hook.SlotUsage, "usage-hook"), hookResult("c", hook.SlotEnd, "end-hook")}
-	line := newLine(standardPlugins(), "segments = path model tokens", plainClassic(), 40, hooks)
+	line := newLine(standardStubs(), "segments = path model tokens", plainClassic(), 40, hooks)
 	assert.Equal(t, "/srv/app · Opus · ctx-hook\n↓ 1.5k · ↑ 2.0k\nusage-hook · end-hook", line.Render())
 }
 
 func TestRenderPaintsTheContinuationAnchor(t *testing.T) {
 	t.Parallel()
 
-	plugins := stubPlugin(
-		&stub{"path", layout.Identity, "/srv/app"},
-		&stub{"model", layout.Identity, "Opus 4.7 Extended Thinking"},
-		&stub{"ctx", layout.Identity, "ctx: ░░░░░░░░░░ 1%"},
-	)
+	plugins := []*stub{
+		{"path", layout.Identity, "/srv/app"},
+		{"model", layout.Identity, "Opus 4.7 Extended Thinking"},
+		{"ctx", layout.Identity, "ctx: ░░░░░░░░░░ 1%"},
+	}
 	line := newLine(plugins, "segments = path model ctx", theme.Load("classic", "", ""), 50, nil)
 	assert.Contains(t, line.Render(), "\n\033[2m↳\033[0m          ctx: ")
-}
-
-func TestRenderBuildsEachSegmentWithItsOwnConfigSection(t *testing.T) {
-	t.Parallel()
-
-	var scoped []string
-	pl := &plugin.Plugin{Segments: []plugin.Entry{{Name: "x", New: func(p *plugin.Providers) plugin.Segment {
-		scoped = append(scoped, p.Config.String("key"))
-		return &stub{"x", layout.Identity, "x"}
-	}}}}
-	newLine([]*plugin.Plugin{pl}, "segments = x\nx.key = value", plainClassic(), 0, nil).Render()
-	assert.Equal(t, []string{"value"}, scoped)
 }

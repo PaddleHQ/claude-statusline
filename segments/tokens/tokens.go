@@ -4,9 +4,6 @@ package tokens
 import (
 	"fmt"
 	"strings"
-
-	"github.com/PaddleHQ/claude-statusline/internal/layout"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
 )
 
 const (
@@ -16,38 +13,55 @@ const (
 	tenth    = 10
 )
 
-// Plugin is the tokens plugin. It has no settings of its own, so it has no defaults.conf.
-func Plugin() *plugin.Plugin {
-	return &plugin.Plugin{Segments: []plugin.Entry{{Name: name, New: New}}}
+//go:generate go run github.com/vektra/mockery/v2 --name=Session
+
+// Session is what the segment needs to know about the session; a false result means the payload did not report the total.
+type Session interface {
+	TotalInput() (int64, bool)
+	TotalOutput() (int64, bool)
 }
 
+//go:generate go run github.com/vektra/mockery/v2 --name=Painter
+
+// Painter colors text.
+type Painter interface {
+	Text(s string) string
+}
+
+// Deps is everything the segment is built from. Separator is the painted text drawn between the two totals.
+type Deps struct {
+	Session   Session
+	Paint     Painter
+	Separator string
+}
+
+// Totals shows session token totals as "↓ <in> · ↑ <out>".
+type Totals struct{ d Deps }
+
 // New builds the tokens segment.
-func New(p *plugin.Providers) plugin.Segment { return &tokens{p: p} }
+func New(d Deps) *Totals { return &Totals{d: d} }
 
-// tokens shows session token totals as "↓ <in> · ↑ <out>".
-type tokens struct{ p *plugin.Providers }
+// Name is the segment's name in the segments list.
+func (t *Totals) Name() string { return name }
 
-func (t *tokens) Name() string { return name }
-
-func (t *tokens) Group() layout.Group { return layout.Usage }
-
-func (t *tokens) Help() string {
+// Help says what the segment shows, for the help command.
+func (t *Totals) Help() string {
 	return "Session token totals: input after the down arrow, output after the up arrow."
 }
 
-func (t *tokens) Keys() []string { return nil }
+// Keys lists the config keys the segment reads; it has none.
+func (t *Totals) Keys() []string { return nil }
 
-func (t *tokens) Render(s *plugin.Session) string {
-	th := t.p.Theme
-	cw := s.Payload.ContextWindow
+// Render returns the segment's text, or "" to hide it.
+func (t *Totals) Render() string {
 	var parts []string
-	if cw.TotalInput != nil {
-		parts = append(parts, th.Paint(th.Text, "↓ "+FormatTokens(*cw.TotalInput)))
+	if in, ok := t.d.Session.TotalInput(); ok {
+		parts = append(parts, t.d.Paint.Text("↓ "+FormatTokens(in)))
 	}
-	if cw.TotalOutput != nil {
-		parts = append(parts, th.Paint(th.Text, "↑ "+FormatTokens(*cw.TotalOutput)))
+	if out, ok := t.d.Session.TotalOutput(); ok {
+		parts = append(parts, t.d.Paint.Text("↑ "+FormatTokens(out)))
 	}
-	return strings.Join(parts, t.p.Separator())
+	return strings.Join(parts, t.d.Separator)
 }
 
 // FormatTokens abbreviates a count, truncating: 1500 is 1.5k and 1500000 is 1.5M.

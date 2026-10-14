@@ -1,96 +1,130 @@
 // Package diagnostics provides the segments drawn from the session transcript: boot, skills, skills_stripped, agent_skills and mem.
 package diagnostics
 
-import (
-	"strconv"
-
-	"github.com/PaddleHQ/claude-statusline/internal/layout"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
-	"github.com/PaddleHQ/claude-statusline/internal/theme"
-	"github.com/PaddleHQ/claude-statusline/internal/transcript"
-	"github.com/PaddleHQ/claude-statusline/segments/tokens"
-)
+import "strconv"
 
 const charsPerToken = 4
 
-// spec describes one diagnostic: show returns "" when there is nothing to report, and color picks the text color.
+// tokenFn abbreviates a token count.
+type tokenFn = func(n int64) string
+
+//go:generate go run github.com/vektra/mockery/v2 --name=Transcript
+
+// Transcript is what the segments need from the session transcript; every count is zero when the transcript has none.
+type Transcript interface {
+	Boot() int64
+	SkillsChars() int
+	SkillsBare() int
+	SkillsTotal() int
+	SubagentSkillsBare() int
+	SubagentSkillsTotal() int
+	MemDropped() bool
+}
+
+//go:generate go run github.com/vektra/mockery/v2 --name=Painter
+
+// Painter colors text.
+type Painter interface {
+	Text(s string) string
+	Warn(s string) string
+	Bad(s string) string
+}
+
+// Deps is everything a segment is built from. Transcript is a function so that the transcript is only read when a segment is drawn.
+// Tokens abbreviates a token count.
+type Deps struct {
+	Transcript func() Transcript
+	Paint      Painter
+	Tokens     tokenFn
+}
+
+// spec describes one diagnostic: show returns "" when there is nothing to report, and paint picks the text color.
 type spec struct {
 	name  string
 	help  string
-	show  func(transcript.Info) string
-	color func(*theme.Theme) string
+	show  func(t Transcript, tokens tokenFn) string
+	paint func(p Painter, s string) string
 }
 
-func text(th *theme.Theme) string { return th.Text }
-func bad(th *theme.Theme) string  { return th.Bad }
-func warn(th *theme.Theme) string { return th.Warn }
+func text(p Painter, s string) string { return p.Text(s) }
+func bad(p Painter, s string) string  { return p.Bad(s) }
+func warn(p Painter, s string) string { return p.Warn(s) }
 func counts(bare, total int) string {
 	return strconv.Itoa(bare) + "/" + strconv.Itoa(total)
 }
 
 var specs = []spec{
-	{"boot", "The prompt size on the first turn, before you said anything.", func(t transcript.Info) string {
-		if t.Boot <= 0 {
+	{"boot", "The prompt size on the first turn, before you said anything.", func(t Transcript, tokens tokenFn) string {
+		if t.Boot() <= 0 {
 			return ""
 		}
-		return "⌂ " + tokens.FormatTokens(t.Boot)
+		return "⌂ " + tokens(t.Boot())
 	}, text},
-	{"skills", "The size of the always-loaded skill listing, in tokens.", func(t transcript.Info) string {
-		if t.SkillsChars <= 0 {
+	{"skills", "The size of the always-loaded skill listing, in tokens.", func(t Transcript, tokens tokenFn) string {
+		if t.SkillsChars() <= 0 {
 			return ""
 		}
-		return "⚙ " + tokens.FormatTokens(int64(t.SkillsChars/charsPerToken))
+		return "⚙ " + tokens(int64(t.SkillsChars()/charsPerToken))
 	}, text},
-	{"skills_stripped", "Red when skills lost their descriptions to fit the budget; shows how many.", func(t transcript.Info) string {
-		if t.SkillsBare <= 0 {
+	{"skills_stripped", "Red when skills lost their descriptions to fit the budget; shows how many.", func(t Transcript, _ tokenFn) string {
+		if t.SkillsBare() <= 0 {
 			return ""
 		}
-		return "✗ skills " + counts(t.SkillsBare, t.SkillsTotal)
+		return "✗ skills " + counts(t.SkillsBare(), t.SkillsTotal())
 	}, bad},
-	{"agent_skills", "Amber when a subagent lost skill descriptions; shows how many.", func(t transcript.Info) string {
-		if t.SubBare <= 0 {
+	{"agent_skills", "Amber when a subagent lost skill descriptions; shows how many.", func(t Transcript, _ tokenFn) string {
+		if t.SubagentSkillsBare() <= 0 {
 			return ""
 		}
-		return "✗ agent skills " + counts(t.SubBare, t.SubTotal)
+		return "✗ agent skills " + counts(t.SubagentSkillsBare(), t.SubagentSkillsTotal())
 	}, warn},
-	{"mem", "Red when a SessionStart hook output was too large to inject.", func(t transcript.Info) string {
-		if !t.MemDropped {
+	{"mem", "Red when a SessionStart hook output was too large to inject.", func(t Transcript, _ tokenFn) string {
+		if !t.MemDropped() {
 			return ""
 		}
 		return "✗ mem"
 	}, bad},
 }
 
-// Plugin is the diagnostics plugin. It has no settings, so it has no defaults.conf.
-func Plugin() *plugin.Plugin {
-	entries := make([]plugin.Entry, 0, len(specs))
+// Names lists the segments the package provides, which are the names New accepts.
+func Names() []string {
+	names := make([]string, 0, len(specs))
 	for i := range specs {
-		sp := &specs[i]
-		entries = append(entries, plugin.Entry{Name: sp.name, New: func(p *plugin.Providers) plugin.Segment {
-			return &diagnostic{p: p, spec: sp}
-		}})
+		names = append(names, specs[i].name)
 	}
-	return &plugin.Plugin{Segments: entries}
+	return names
 }
 
-// diagnostic is a usage-group segment drawn from the session transcript.
-type diagnostic struct {
-	p    *plugin.Providers
+// Diagnostic is one segment drawn from the session transcript.
+type Diagnostic struct {
+	d    Deps
 	spec *spec
 }
 
-func (d *diagnostic) Name() string { return d.spec.name }
+// New builds the named segment, and reports false when the package does not provide it.
+func New(name string, d Deps) (*Diagnostic, bool) {
+	for i := range specs {
+		if specs[i].name == name {
+			return &Diagnostic{d: d, spec: &specs[i]}, true
+		}
+	}
+	return nil, false
+}
 
-func (d *diagnostic) Group() layout.Group { return layout.Usage }
+// Name is the segment's name in the segments list.
+func (g *Diagnostic) Name() string { return g.spec.name }
 
-func (d *diagnostic) Help() string { return d.spec.help }
+// Help says what the segment shows, for the help command.
+func (g *Diagnostic) Help() string { return g.spec.help }
 
-func (d *diagnostic) Keys() []string { return nil }
+// Keys lists the config keys the segments read; they have none.
+func (g *Diagnostic) Keys() []string { return nil }
 
-func (d *diagnostic) Render(*plugin.Session) string {
-	out := d.spec.show(d.p.Transcript())
+// Render returns the segment's text, or "" to hide it.
+func (g *Diagnostic) Render() string {
+	out := g.spec.show(g.d.Transcript(), g.d.Tokens)
 	if out == "" {
 		return ""
 	}
-	return d.p.Theme.Paint(d.spec.color(&d.p.Theme), out)
+	return g.spec.paint(g.d.Paint, out)
 }

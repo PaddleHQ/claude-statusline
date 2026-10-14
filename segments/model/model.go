@@ -1,18 +1,9 @@
 // Package model provides the model segment: the model's name, and its effort level.
 package model
 
-import (
-	_ "embed"
-	"strings"
-
-	"github.com/PaddleHQ/claude-statusline/internal/layout"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
-)
+import "strings"
 
 const name = "model"
-
-//go:embed defaults.conf
-var defaults string
 
 // families are the model families recognized by a substring of the model id, checked in order.
 var families = []struct{ key, label string }{
@@ -23,38 +14,74 @@ var families = []struct{ key, label string }{
 	{"mythos", "Mythos"},
 }
 
-// Plugin is the model plugin.
-func Plugin() *plugin.Plugin {
-	return &plugin.Plugin{Defaults: defaults, Segments: []plugin.Entry{{Name: name, New: New}}}
+//go:generate go run github.com/vektra/mockery/v2 --name=Session
+
+// Session is what the segment needs to know about the session.
+type Session interface {
+	DisplayName() string
+	ModelID() string
+	EffortLevel() string
+	TranscriptPath() string
 }
 
+//go:generate go run github.com/vektra/mockery/v2 --name=Transcript
+
+// Transcript is what the segment needs from the session transcript.
+type Transcript interface {
+	ActualModel() string
+}
+
+//go:generate go run github.com/vektra/mockery/v2 --name=Config
+
+// Config reads the segment's settings.
+type Config interface {
+	Bool(key string) bool
+}
+
+//go:generate go run github.com/vektra/mockery/v2 --name=Painter
+
+// Painter colors text.
+type Painter interface {
+	Text(s string) string
+}
+
+// Deps is everything the segment is built from. Transcript is a function so that the transcript is only read when the segment needs it.
+type Deps struct {
+	Session    Session
+	Transcript func() Transcript
+	Config     Config
+	Paint      Painter
+}
+
+// Model shows the model in use.
+type Model struct{ d Deps }
+
 // New builds the model segment.
-func New(p *plugin.Providers) plugin.Segment { return &model{p: p} }
+func New(d Deps) *Model { return &Model{d: d} }
 
-type model struct{ p *plugin.Providers }
+// Name is the segment's name in the segments list.
+func (m *Model) Name() string { return name }
 
-func (m *model) Name() string { return name }
-
-func (m *model) Group() layout.Group { return layout.Identity }
-
-func (m *model) Help() string {
+// Help says what the segment shows, for the help command.
+func (m *Model) Help() string {
 	help := "The model in use"
-	if m.p.Config.Bool("effort") {
+	if m.d.Config.Bool("effort") {
 		help += " and its effort level, as in Opus 4.7 [high]"
 	}
 	return help + ". It reads Haiku (skill), for example, while a skill or subagent runs a different model than the session's."
 }
 
-func (m *model) Keys() []string { return []string{"effort"} }
+// Keys lists the config keys the segment reads, relative to its section.
+func (m *Model) Keys() []string { return []string{"effort"} }
 
-func (m *model) Render(s *plugin.Session) string {
-	th := m.p.Theme
-	display := s.Payload.Model.DisplayName
-	level := s.Payload.Effort.Level
+// Render returns the segment's text, or "" to hide it.
+func (m *Model) Render() string {
+	display := m.d.Session.DisplayName()
+	level := m.d.Session.EffortLevel()
 	// A skill or subagent can run a different model than the session's, which the payload does not reflect.
-	if s.Payload.TranscriptPath != "" {
-		if actual, ok := family(m.p.Transcript().ActualModel); ok {
-			if session, _ := family(s.Payload.Model.ID); actual.key != session.key {
+	if m.d.Session.TranscriptPath() != "" {
+		if actual, ok := family(m.d.Transcript().ActualModel()); ok {
+			if session, _ := family(m.d.Session.ModelID()); actual.key != session.key {
 				display, level = actual.label+" (skill)", ""
 			}
 		}
@@ -62,10 +89,10 @@ func (m *model) Render(s *plugin.Session) string {
 	if display == "" {
 		return ""
 	}
-	if level != "" && m.p.Config.Bool("effort") {
+	if level != "" && m.d.Config.Bool("effort") {
 		display += " [" + level + "]"
 	}
-	return th.Paint(th.Text, display)
+	return m.d.Paint.Text(display)
 }
 
 func family(id string) (f struct{ key, label string }, ok bool) {

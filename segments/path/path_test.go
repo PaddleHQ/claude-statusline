@@ -1,34 +1,14 @@
 package path_test
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
-	"github.com/PaddleHQ/claude-statusline/internal/config"
-	"github.com/PaddleHQ/claude-statusline/internal/payload"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
-	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments/path"
+	"github.com/PaddleHQ/claude-statusline/segments/path/mocks"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/mock"
 )
-
-func plainClassic() theme.Theme {
-	classic := theme.Load("classic", "", "")
-	return classic.WithoutColor()
-}
-
-func renderOne(json, cfg string, th theme.Theme) string {
-	providers := plugin.NewProviders(&plugin.Sources{
-		Config:  config.New(cfg, path.Plugin().Defaults),
-		Theme:   th,
-		Columns: 999,
-		Home:    "/home/me",
-	})
-	return path.New(providers.For("path")).Render(&plugin.Session{Payload: payload.Parse([]byte(json))})
-}
 
 func TestDisplayPath(t *testing.T) {
 	t.Parallel()
@@ -66,50 +46,59 @@ func TestDisplayPath(t *testing.T) {
 	}
 }
 
-func TestPathRender(t *testing.T) {
+func build(t *testing.T, cwd, strip string, branch bool, branches map[string]string) *path.Path {
+	t.Helper()
+
+	sess := mocks.NewSession(t)
+	sess.EXPECT().Cwd().Return(cwd).Maybe()
+	cfg := mocks.NewConfig(t)
+	cfg.EXPECT().String("strip").Return(strip).Maybe()
+	cfg.EXPECT().Bool("branch").Return(branch).Maybe()
+	paint := mocks.NewPainter(t)
+	paint.EXPECT().Path(mock.Anything).RunAndReturn(func(s string) string { return "<p>" + s + "</>" }).Maybe()
+	git := mocks.NewGit(t)
+	git.EXPECT().Branch(mock.Anything).RunAndReturn(func(dir string) string { return branches[dir] }).Maybe()
+	return path.New(path.Deps{Session: sess, Config: cfg, Paint: paint, Git: git, Home: "/home/me"})
+}
+
+func TestRender(t *testing.T) {
 	t.Parallel()
 
-	tmp := t.TempDir()
-	repo := filepath.Join(tmp, "repo")
-	require.NoError(t, os.MkdirAll(filepath.Join(repo, ".git"), 0o700))
-	require.NoError(t, os.WriteFile(filepath.Join(repo, ".git", "HEAD"), []byte("ref: refs/heads/main\n"), 0o600))
-	hostile := filepath.Join(tmp, "hostile")
-	require.NoError(t, os.MkdirAll(filepath.Join(hostile, ".git"), 0o700))
-	require.NoError(t, os.WriteFile(filepath.Join(hostile, ".git", "HEAD"), []byte("ref: refs/heads/a\x1b[31mb\n"), 0o600))
-
-	plain := plainClassic()
-	jsonFor := func(dir string) string { return `{"workspace":{"current_dir":"` + dir + `"}}` }
-
+	branches := map[string]string{"/home/me/repo": "main"}
 	tests := []struct {
-		name string
-		json string
-		cfg  string
-		th   theme.Theme
-		want string
+		name   string
+		cwd    string
+		strip  string
+		branch bool
+		want   string
 	}{
-		{"home abbreviated", `{"cwd":"/home/me/x"}`, "", plain, "~/x"},
-		{"branch appended", jsonFor(repo), "path.strip = " + tmp, plain, "repo (main)"},
-		{"branch can be turned off", jsonFor(repo), "path.strip = " + tmp + "\npath.branch = false", plain, "repo"},
-		{"branch is sanitized", jsonFor(hostile), "path.strip = " + tmp, plain, "hostile (a[31mb)"},
-		{"painted with the path color", `{"cwd":"/srv/x"}`, "", theme.Theme{Path: "<p>", Reset: "</p>"}, "<p>/srv/x</p>"},
-		{"no directory hides the segment", `{}`, "", plain, ""},
+		{"home abbreviated", "/home/me/x", "", true, "<p>~/x</>"},
+		{"branch appended", "/home/me/repo", "", true, "<p>~/repo (main)</>"},
+		{"branch can be turned off", "/home/me/repo", "", false, "<p>~/repo</>"},
+		{"strip applies", "/home/me/repo", "~", true, "<p>repo (main)</>"},
+		{"directory without a branch", "/srv/x", "", true, "<p>/srv/x</>"},
+		{"no directory hides the segment", "", "", true, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, renderOne(tt.json, tt.cfg, tt.th))
+			assert.Equal(t, tt.want, build(t, tt.cwd, tt.strip, tt.branch, branches).Render())
 		})
 	}
+}
+
+func TestNameAndKeys(t *testing.T) {
+	t.Parallel()
+
+	seg := build(t, "", "", true, nil)
+	assert.Equal(t, "path", seg.Name())
+	assert.Equal(t, []string{"strip", "branch"}, seg.Keys())
 }
 
 func TestHelp(t *testing.T) {
 	t.Parallel()
 
-	help := func(cfg string) string {
-		providers := plugin.NewProviders(&plugin.Sources{Config: config.New(cfg, path.Plugin().Defaults)})
-		return path.New(providers.For("path")).Help()
-	}
-	assert.Contains(t, help(""), "branch")
-	assert.NotContains(t, help("path.branch = false"), "branch")
-	assert.Contains(t, help("path.strip = ~/code /srv"), "~/code /srv")
+	assert.Contains(t, build(t, "", "", true, nil).Help(), "branch")
+	assert.NotContains(t, build(t, "", "", false, nil).Help(), "branch")
+	assert.Contains(t, build(t, "", "~/code /srv", false, nil).Help(), "~/code /srv")
 }

@@ -5,7 +5,6 @@ import (
 
 	"github.com/PaddleHQ/claude-statusline/internal/hook"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
-	"github.com/PaddleHQ/claude-statusline/internal/plugin"
 )
 
 // items renders the configured segments in order, then places the hooks among them.
@@ -13,25 +12,24 @@ import (
 // A hook named in the segments list renders there, and replaces a built-in of the same name.
 // Every other hook goes to its slot: after the context segment, after the usage group, or at the end.
 func (l *Line) items() []layout.Item {
-	names := strings.Fields(l.Providers.Config.String(keySegments))
-	byName, unplaced := partitionHooks(l.Hooks, names)
+	byName, unplaced := partitionHooks(l.Hooks, l.Names)
 
 	var out []layout.Item
 	ctxAt, modelAt := -1, -1
-	for _, name := range names {
-		builtin, isBuiltin := l.lookup(name)
+	for _, name := range l.Names {
+		builtin, group, isBuiltin := l.Lookup(name)
 		if hooks := byName[name]; len(hooks) > 0 {
-			out = appendNamedHooks(out, hooks, builtin, isBuiltin)
+			out = appendNamedHooks(out, hooks, group, isBuiltin)
 			continue
 		}
 		if !isBuiltin {
 			continue
 		}
-		text := builtin.Render(l.Session)
+		text := builtin.Render()
 		if text == "" {
 			continue
 		}
-		out = append(out, layout.Item{Group: builtin.Group(), Text: text})
+		out = append(out, layout.Item{Group: group, Text: text})
 		switch name {
 		case nameCtx:
 			ctxAt = len(out) - 1
@@ -39,7 +37,7 @@ func (l *Line) items() []layout.Item {
 			modelAt = len(out) - 1
 		}
 	}
-	return place(out, unplaced, ctxAt, modelAt, l.Providers.Separator())
+	return place(out, unplaced, ctxAt, modelAt, l.Separator)
 }
 
 // partitionHooks splits the hooks into those named in the segments list, keyed by name, and the rest.
@@ -59,14 +57,14 @@ func partitionHooks(hooks []hook.Result, names []string) (byName map[string][]ho
 	return byName, unplaced
 }
 
-func appendNamedHooks(out []layout.Item, hooks []hook.Result, builtin plugin.Segment, isBuiltin bool) []layout.Item {
+func appendNamedHooks(out []layout.Item, hooks []hook.Result, builtinGroup layout.Group, isBuiltin bool) []layout.Item {
 	for _, h := range hooks {
 		if h.Text == "" {
 			continue
 		}
 		group := slotGroup(h.Slot)
 		if isBuiltin {
-			group = builtin.Group()
+			group = builtinGroup
 		}
 		out = append(out, layout.Item{Group: group, Text: h.Text})
 	}

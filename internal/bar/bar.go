@@ -51,12 +51,6 @@ func WidthOf(columns int, s Sizes) int {
 	return WidthFor(columns, s.Int("width"), s.Int("width_medium"), s.Int("width_narrow"))
 }
 
-// ElapsedPercent is how much of a window, ending at resetsAt, has passed by now, clamped to 0..100.
-func ElapsedPercent(now, resetsAt, windowSeconds int64) int {
-	elapsed := min(max(now-(resetsAt-windowSeconds), 0), windowSeconds)
-	return int(elapsed * percentScale / windowSeconds)
-}
-
 // Fill is the color for the bar's state: distance from the pace target, or absolute usage without a target.
 func (p *Params) Fill(th theme.Theme) string {
 	if p.NoTarget {
