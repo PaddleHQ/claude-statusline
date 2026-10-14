@@ -1,0 +1,42 @@
+name: Ensure SemVer Label is added
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+env:
+  VALID_SEMVER_LABELS: norelease,release:major,release:minor,release:patch
+
+jobs:
+  check_semver:
+    name: Check SemVer label
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          use-policy-store: true
+          api-key: ${{ secrets.STEPSECURITY_POLICY_STORE_API_KEY }}
+
+      - name: Require exactly one SemVer label
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const valid = process.env.VALID_SEMVER_LABELS.split(',');
+            const labels = await github.paginate(github.rest.issues.listLabelsOnIssue, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const found = labels.map((l) => l.name).filter((n) => valid.includes(n));
+            if (found.length === 0) {
+              core.setFailed('You must add a SemVer label of one of ' + valid.join(', '));
+            } else if (found.length > 1) {
+              core.setFailed('You must only add one SemVer label to this PR');
+            }

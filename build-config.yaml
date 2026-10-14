@@ -1,0 +1,2 @@
+# Minimum total statement coverage (%) the Coverage job requires; raise it when CI suggests a higher value.
+requiredCoverage: 94
