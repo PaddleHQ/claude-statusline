@@ -24,6 +24,7 @@ func newEnv(cfg, payloadJSON string) *segments.Env {
 		Config:  config.New(cfg, segments.Defaults()...),
 		Theme:   theme.Load("classic", "", ""),
 		Columns: 999,
+		Home:    "/home/me",
 	}
 }
 
@@ -39,7 +40,7 @@ func TestEveryRegisteredNameIsUniqueAndFindable(t *testing.T) {
 		require.True(t, ok, seg.Name())
 		assert.Equal(t, seg.Name(), found.Name())
 	}
-	assert.Len(t, seen, 1)
+	assert.Len(t, seen, 5)
 	_, _, ok := env.Lookup("bogus")
 	assert.False(t, ok)
 }
@@ -48,7 +49,11 @@ func TestLayoutGroups(t *testing.T) {
 	t.Parallel()
 
 	want := map[string]layout.Group{
-		"model": layout.Identity,
+		"path":   layout.Identity,
+		"model":  layout.Identity,
+		"ctx":    layout.Identity,
+		"tokens": layout.Usage,
+		"cache":  layout.Usage,
 	}
 	env := newEnv("", `{}`)
 	for name, group := range want {
@@ -56,6 +61,22 @@ func TestLayoutGroups(t *testing.T) {
 		require.True(t, ok, name)
 		assert.Equal(t, group, got, name)
 	}
+}
+
+func TestPathBranchIsSanitized(t *testing.T) {
+	t.Parallel()
+
+	dir := filepath.Join(t.TempDir(), "hostile")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".git", "HEAD"), []byte("ref: refs/heads/a\x1b[31mb\n"), 0o600))
+
+	env := &segments.Env{
+		Payload: payload.Parse([]byte(`{"cwd":"` + dir + `"}`)),
+		Config:  config.New("", segments.Defaults()...),
+	}
+	seg, _, ok := env.Lookup("path")
+	require.True(t, ok)
+	assert.Equal(t, dir+" (a[31mb)", seg.Render())
 }
 
 func pluginDirs(t *testing.T) []string {

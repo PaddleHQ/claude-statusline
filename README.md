@@ -1,6 +1,6 @@
 # claude-statusline
 
-An open-source status line for Claude Code, written in Go. It is at an early stage: for now it shows the model and its effort level, for example `Opus 4.7 [high]`. Anything unexpected gives a blank line rather than an error.
+An open-source status line for Claude Code, written in Go. It is at an early stage: for now it shows the working directory and git branch, model, context usage, token counts and prompt-cache hit rate. It wraps onto further rows when the terminal is narrow, and anything unexpected gives a blank line rather than an error.
 
 ## Install
 
@@ -60,10 +60,10 @@ Configuration is optional. Your settings live in `~/.claude/claude-statusline/co
 
 ```
 theme = gradient
-segments = model
+segments = path model ctx tokens cache
 ```
 
-`theme` picks the colours (`classic`, `gradient` or the path to a theme file), `segments` chooses what to show and in what order, and `separator` is the glyph drawn between segments. Each segment has settings of its own, listed in the README in its folder under `segments/`, for example [model](segments/model/README.md).
+`theme` picks the colours and bar glyphs (`classic`, `gradient` or the path to a theme file), `segments` chooses what to show and in what order, and `separator` is the glyph drawn between segments. Each segment has settings of its own, listed in the README in its folder under `segments/`, for example [model](segments/model/README.md).
 
 ## Try it
 
