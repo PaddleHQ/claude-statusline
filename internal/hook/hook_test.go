@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/PaddleHQ/claude-statusline/internal/hook"
 
@@ -511,4 +512,30 @@ func TestHeaderTTLDoesNotOverflow(t *testing.T) {
 	hooks := hook.Discover(dir)
 	require.Len(t, hooks, 1)
 	assert.Positive(t, int64(hooks[0].TTL))
+}
+
+func TestDiscoverCapsHelp(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		char string
+	}{
+		{name: "ascii", char: "a"},
+		{name: "multi-byte runes are not split", char: "é"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			dir := t.TempDir()
+			script(t, dir, "x.sh", "#!/bin/sh\n# statusline-help: "+strings.Repeat(tt.char, 300)+"\n", 0o700)
+
+			hooks := hook.Discover(dir)
+
+			require.Len(t, hooks, 1)
+			assert.Len(t, []rune(hooks[0].Help), 200)
+			assert.True(t, utf8.ValidString(hooks[0].Help))
+		})
+	}
 }

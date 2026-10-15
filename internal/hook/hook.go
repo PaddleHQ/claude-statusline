@@ -35,6 +35,8 @@ const (
 
 const (
 	headerLines = 20
+	// maxHelpRunes bounds the help text, which the help command relays to the model.
+	maxHelpRunes = 200
 	// headerBytes bounds how much of a script is read to find its directives.
 	headerBytes = 64 * 1024
 	// outputBytes bounds how much of a hook's output is kept.
@@ -173,12 +175,13 @@ func (h *Hook) applyHelp(line string) bool {
 	if m == nil {
 		return false
 	}
-	h.Help = strings.Map(func(r rune) rune {
+	help := []rune(strings.Map(func(r rune) rune {
 		if r < 0x20 || (r >= 0x7f && r <= 0x9f) {
 			return -1
 		}
 		return r
-	}, m[1])
+	}, m[1]))
+	h.Help = string(help[:min(len(help), maxHelpRunes)])
 	return true
 }
 
