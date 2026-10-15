@@ -134,7 +134,8 @@ func runHooks(input []byte, p payload.Payload, cfg *config.Config, at time.Time,
 }
 
 func hookDir(getenv func(string) string) string {
-	if dir := getenv("STATUSLINE_HOOK_DIR"); dir != "" {
+	// A relative path would resolve against the repository Claude Code is running in, which the user does not control.
+	if dir := getenv("STATUSLINE_HOOK_DIR"); filepath.IsAbs(dir) {
 		return dir
 	}
 	if configDir := config.Dir(getenv); configDir != "" {

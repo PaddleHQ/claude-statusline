@@ -20,6 +20,7 @@ var (
 	errNoHome            = errors.New("no home directory")
 	errNoBase            = errors.New("relative theme path without a base directory")
 	errTooLarge          = errors.New("too large")
+	errNotRegular        = errors.New("not a regular file")
 	errGlyph             = errors.New("a printable glyph")
 	errPartialsPrintable = errors.New("bar.partials must be printable glyphs")
 	errPartialsCount     = errors.New("bar.partials must hold")
@@ -135,6 +136,14 @@ func themePath(value, home, base string) (string, error) {
 }
 
 func readLimited(path string) ([]byte, error) {
+	// A FIFO or device would block the open, and a status line must never hang.
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("open theme file: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("theme file %q is %w", path, errNotRegular)
+	}
 	f, err := os.Open(path) //nolint:gosec // G304: opening the theme file the user configured is the feature
 	if err != nil {
 		return nil, fmt.Errorf("open theme file: %w", err)

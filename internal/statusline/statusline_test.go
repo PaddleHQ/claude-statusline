@@ -277,3 +277,15 @@ func TestBuildSnapshot(t *testing.T) {
 		}
 	})
 }
+
+// Not parallel: t.Chdir changes the working directory of the whole process.
+func TestBuildIgnoresRelativeHookDir(t *testing.T) {
+	tmp := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(tmp, "rel"), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "rel", "x.sh"), []byte("#!/bin/sh\nprintf PWNED\n"), 0o700)) //nolint:gosec // test hook must be executable
+	t.Chdir(tmp)
+
+	got := statusline.Build([]byte(`{"session_id":"s1"}`), env(map[string]string{"CLAUDE_CONFIG_DIR": t.TempDir(), "STATUSLINE_HOOK_DIR": "rel", "NO_COLOR": "1"}))
+
+	assert.NotContains(t, got, "PWNED")
+}
