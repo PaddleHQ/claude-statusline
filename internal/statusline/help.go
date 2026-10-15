@@ -125,8 +125,18 @@ func hookHelp(h *hook.Hook) string {
 
 func writeList(b *strings.Builder, lines []string) {
 	for _, l := range lines {
-		b.WriteString("  " + l + "\n")
+		b.WriteString("  " + plain(l) + "\n")
 	}
+}
+
+// plain drops control characters so a hook filename or config value cannot inject terminal escapes.
+func plain(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 0x20 || (r >= 0x7f && r <= 0x9f) {
+			return -1
+		}
+		return r
+	}, s)
 }
 
 func configFooter(path string) string {
@@ -134,9 +144,9 @@ func configFooter(path string) string {
 	case path == "":
 		return "Config file: none (no Claude config directory found), so the defaults apply.\n"
 	case fileExists(path):
-		return "Config file: " + path + "\n"
+		return "Config file: " + plain(path) + "\n"
 	default:
-		return fmt.Sprintf("Config file: %s (not created yet, so the defaults apply)\n", path)
+		return fmt.Sprintf("Config file: %s (not created yet, so the defaults apply)\n", plain(path))
 	}
 }
 
