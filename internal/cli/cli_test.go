@@ -72,3 +72,24 @@ func TestExecute(t *testing.T) {
 		})
 	}
 }
+
+func TestEventFlag(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"reads installed", []string{"--event=installed"}, "installed"},
+		{"reads updated", []string{"--event=updated"}, "updated"},
+		{"defaults to current when missing", nil, "current"},
+		{"treats unknown values as current", []string{"--event=bogus"}, "current"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, cli.EventFlag(tt.args))
+		})
+	}
+}
