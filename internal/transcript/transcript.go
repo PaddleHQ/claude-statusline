@@ -6,6 +6,7 @@ package transcript
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -72,6 +73,8 @@ func (i *Info) SubagentSkillCounts() (bare, total int) { return i.SubBare, i.Sub
 func (i *Info) MemoryDropped() bool { return i.MemDropped }
 
 // source is the part of a file the reader needs.
+var errNotRegular = errors.New("not a regular file")
+
 type source interface {
 	io.Reader
 	io.ReaderAt
@@ -84,6 +87,14 @@ type reader struct {
 }
 
 func openFile(path string) (source, error) {
+	// A FIFO or device would block the open, and a status line must never hang.
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("open transcript: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("open transcript: %w", errNotRegular)
+	}
 	f, err := os.Open(path) //nolint:gosec // G304: reading the transcript path Claude Code passed is the feature
 	if err != nil {
 		return nil, fmt.Errorf("open transcript: %w", err)

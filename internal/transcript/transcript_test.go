@@ -5,7 +5,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/transcript"
 
@@ -344,4 +346,21 @@ func TestInfoAnswersTheSegmentsQuestions(t *testing.T) {
 	bare, total = info.SubagentSkillCounts()
 	assert.Equal(t, []int{3, 4}, []int{bare, total})
 	assert.True(t, info.MemoryDropped())
+}
+
+func TestReadDoesNotBlockOnFIFO(t *testing.T) {
+	t.Parallel()
+
+	fifo := filepath.Join(t.TempDir(), "transcript.jsonl")
+	require.NoError(t, syscall.Mkfifo(fifo, 0o600))
+
+	got := make(chan transcript.Info, 1)
+	go func() { got <- transcript.Read(fifo) }()
+
+	select {
+	case info := <-got:
+		assert.Equal(t, transcript.Info{}, info)
+	case <-time.After(2 * time.Second):
+		require.FailNow(t, "Read blocked on a FIFO")
+	}
 }

@@ -4,7 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/gitbranch"
 
@@ -72,4 +74,26 @@ func TestReaderStripsControlCharacters(t *testing.T) {
 	dir := t.TempDir()
 	write(t, filepath.Join(dir, ".git", "HEAD"), "ref: refs/heads/a\x1b[31mb\n")
 	assert.Equal(t, "a[31mb", (&gitbranch.Reader{}).Branch(dir))
+}
+
+func TestReadDoesNotBlockOnFIFO(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	store := filepath.Join(tmp, "store")
+	require.NoError(t, os.Mkdir(store, 0o750))
+	require.NoError(t, syscall.Mkfifo(filepath.Join(store, "HEAD"), 0o600))
+	repo := filepath.Join(tmp, "repo")
+	require.NoError(t, os.Mkdir(repo, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(repo, ".git"), []byte("gitdir: "+store+"\n"), 0o600))
+
+	got := make(chan string, 1)
+	go func() { got <- gitbranch.Read(repo) }()
+
+	select {
+	case branch := <-got:
+		assert.Empty(t, branch)
+	case <-time.After(2 * time.Second):
+		require.FailNow(t, "Read blocked on a FIFO")
+	}
 }
