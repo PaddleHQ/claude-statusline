@@ -69,8 +69,11 @@ const (
 )
 
 func apply(c config) string {
-	sentinel := filepath.Join(c.dir, "claude-statusline", ".bootstrapped")
-	if exists(sentinel) {
+	appDir := filepath.Join(c.dir, "claude-statusline")
+	mainSentinel := filepath.Join(appDir, ".bootstrapped")
+	subSentinel := filepath.Join(appDir, ".bootstrapped-subagent")
+	wantMain, wantSub := !exists(mainSentinel), !exists(subSentinel)
+	if !wantMain && !wantSub {
 		return upToDateMessage(c)
 	}
 
@@ -83,17 +86,18 @@ func apply(c config) string {
 		return invalidMessage(c, settings)
 	}
 
-	status, out := wire(data, c.bin)
-	if status == skipped || !gjson.ValidBytes(out) {
+	subCommand := shellWord(c.bin) + " subagent"
+	out, status, sub, ok := wireBoth(c, data, subCommand, wantMain, wantSub)
+	if !ok {
 		return ""
 	}
 	if !bytes.Equal(out, data) && !backUpAndWrite(settings, data, out, mode) {
 		return ""
 	}
-	if touch(sentinel) != nil {
+	if !touchSentinels(map[string]bool{mainSentinel: wantMain, subSentinel: wantSub}) {
 		return ""
 	}
-	return message(c, settings, status)
+	return message(c, settings, subCommand, status, sub)
 }
 
 func upToDateMessage(c config) string {
@@ -109,6 +113,20 @@ func invalidMessage(c config, settings string) string {
 	}
 	return "claude-statusline v" + c.version + " installed, but " + settings +
 		" is not valid JSON so it was left alone. It will retry next session."
+}
+
+func wireBoth(c config, data []byte, subCommand string, wantMain, wantSub bool) (out []byte, status, sub outcome, ok bool) {
+	out = data
+	if wantMain {
+		status, out = wire(out, "statusLine", c.bin, `{"type":"command","command":%s,"refreshInterval":60}`)
+	}
+	if wantSub {
+		sub, out = wire(out, "subagentStatusLine", subCommand, `{"type":"command","command":%s}`)
+	}
+	if (wantMain && status == skipped) || (wantSub && sub == skipped) || !gjson.ValidBytes(out) {
+		return nil, status, sub, false
+	}
+	return out, status, sub, true
 }
 
 // readSettings returns the settings file, creating an empty one when it is missing, and the mode to write it back with.
@@ -138,9 +156,18 @@ func backUpAndWrite(settings string, before, after []byte, mode os.FileMode) boo
 	return writeAtomic(settings, after, mode) == nil
 }
 
-// wire adds the statusLine entry unless the file already has one, reporting which of the two happened.
-func wire(data []byte, command string) (result outcome, out []byte) {
-	if existing := gjson.GetBytes(data, "statusLine"); existing.Exists() {
+func touchSentinels(want map[string]bool) bool {
+	for sentinel, wanted := range want {
+		if wanted && touch(sentinel) != nil {
+			return false
+		}
+	}
+	return true
+}
+
+// wire adds the key unless the file already has it, reporting which of the two happened.
+func wire(data []byte, key, command, entryFormat string) (result outcome, out []byte) {
+	if existing := gjson.GetBytes(data, key); existing.Exists() {
 		if existing.Get("command").String() == command {
 			return ours, data
 		}
@@ -150,19 +177,28 @@ func wire(data []byte, command string) (result outcome, out []byte) {
 	if err != nil {
 		return skipped, data
 	}
-	out, ok := insertMember(data, "statusLine", []byte(`{"type":"command","command":`+string(quoted)+`,"refreshInterval":60}`))
+	out, ok := insertMember(data, key, []byte(strings.Replace(entryFormat, "%s", string(quoted), 1)))
 	if !ok {
 		return skipped, data
 	}
 	return inserted, out
 }
 
-func message(c config, settings string, status outcome) string {
+func message(c config, settings, subCommand string, status, sub outcome) string {
 	lead := "claude-statusline v" + c.version
 	sentences := statusSentences(c, lead, settings, status)
+	sentences = subSentences(sentences, lead, settings, subCommand, status, sub)
+
+	var added []string
 	if status == inserted {
-		sentences = append(sentences, "Your previous settings are backed up at "+settings+
-			".bak. To disable it, remove the statusLine block from settings.json.")
+		added = append(added, "statusLine")
+	}
+	if sub == inserted {
+		added = append(added, "subagentStatusLine")
+	}
+	if len(added) > 0 {
+		sentences = append(sentences, "Your previous settings are backed up at "+settings+".bak. To disable it, remove the "+
+			strings.Join(added, " and ")+" block from settings.json.")
 	}
 	return strings.Join(sentences, " ")
 }
@@ -186,9 +222,44 @@ func statusSentences(c config, lead, settings string, status outcome) []string {
 	return nil
 }
 
+func subSentences(sentences []string, lead, settings, subCommand string, status, sub outcome) []string {
+	switch sub {
+	case inserted:
+		if status == inserted {
+			return append(sentences, "It also styles the subagent rows.")
+		}
+		return append(sentences, "claude-statusline now also styles the subagent rows.")
+	case other:
+		note := "You already have a subagentStatusLine so it was left unchanged. To switch, set subagentStatusLine.command in " +
+			settings + " to " + subCommand + "."
+		if len(sentences) == 0 {
+			note = lead + ": " + note
+		}
+		return append(sentences, note)
+	default:
+		return sentences
+	}
+}
+
 func exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// shellWord quotes a path for the shell only when it has characters the shell would split or expand.
+func shellWord(s string) string {
+	if !strings.ContainsFunc(s, needsQuoting) {
+		return s
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+func needsQuoting(r rune) bool {
+	switch {
+	case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', strings.ContainsRune("/._-+@:", r):
+		return false
+	}
+	return true
 }
 
 func touch(path string) error {

@@ -3,6 +3,7 @@ package featuretest
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -144,6 +145,37 @@ func (w *world) renderStatusLine(ctx context.Context) {
 	t := godog.T(ctx)
 	assert.NotRegexp(t, controlChars, w.screen, "output contains a control character other than newline and escape")
 	assert.NoFileExists(t, filepath.Join(w.tmp, "pwned"), "a config value was executed")
+}
+
+func (w *world) renderSubagentRows(ctx context.Context) error {
+	var out bytes.Buffer
+	w.suite.Execute([]string{"subagent"}, strings.NewReader(w.session), &out, w.getenv)
+
+	var rows, styledRows, contents []string
+	for line := range strings.SplitSeq(strings.TrimSuffix(out.String(), "\n"), "\n") {
+		if line == "" {
+			continue
+		}
+		var row struct {
+			ID      json.RawMessage `json:"id"`
+			Content string          `json:"content"`
+		}
+		if err := json.Unmarshal([]byte(line), &row); err != nil {
+			return fmt.Errorf("output line %q is not a row: %w", line, err)
+		}
+		contents = append(contents, row.Content)
+		rows = append(rows, string(row.ID)+`\t`+escapeESC(row.Content))
+		styledRows = append(styledRows, string(row.ID)+`\t`+row.Content)
+	}
+
+	w.ran = true
+	w.screen = strings.Join(contents, "\n")
+	w.out = strings.Join(rows, "\n")
+	w.styled = strings.Join(styledRows, "\n")
+	t := godog.T(ctx)
+	assert.NotRegexp(t, controlChars, w.screen, "content contains a control character other than newline and escape")
+	assert.NoFileExists(t, filepath.Join(w.tmp, "usage-latest.json"), "the subagent command must not write the usage snapshot")
+	return nil
 }
 
 func (w *world) checkRawOutput(want string) error {

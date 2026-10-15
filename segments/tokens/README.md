@@ -12,7 +12,7 @@ None, so the package has no `defaults.conf`.
 - A painter for the text colour.
 - The painted separator to put between the two totals.
 
-The package also exports `FormatTokens`, a pure helper that abbreviates a count.
+The package also exports `FormatTokens`, a pure helper that abbreviates a count. The composition root hands it to the diagnostics plugin.
 
 ## Layout group
 

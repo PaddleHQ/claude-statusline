@@ -14,8 +14,10 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
+	"github.com/PaddleHQ/claude-statusline/internal/transcript"
 	"github.com/PaddleHQ/claude-statusline/segments/cache"
 	"github.com/PaddleHQ/claude-statusline/segments/ctx"
+	"github.com/PaddleHQ/claude-statusline/segments/diagnostics"
 	"github.com/PaddleHQ/claude-statusline/segments/model"
 	"github.com/PaddleHQ/claude-statusline/segments/path"
 	"github.com/PaddleHQ/claude-statusline/segments/rate"
@@ -36,8 +38,8 @@ func Defaults() []string {
 	return []string{path.Defaults, model.Defaults, ctx.Defaults, cache.Defaults, rate.Defaults}
 }
 
-// Env is one render's world, from which the segments are built. RateLimits is called at most once per render,
-// and only if a segment asks; it may be nil.
+// Env is one render's world, from which the segments are built. Transcript and RateLimits are called at most once per render,
+// and only if a segment asks; either may be nil.
 type Env struct {
 	Payload    payload.Payload
 	Config     *config.Config
@@ -45,13 +47,16 @@ type Env struct {
 	Now        time.Time
 	Columns    int
 	Home       string
+	Transcript func() transcript.Info
 	RateLimits func() ratecache.Limits
 
+	info   func() *transcript.Info
 	limits func() *ratecache.Limits
 }
 
 // NewEnv returns the environment for one render.
 func NewEnv(e Env) *Env {
+	e.info = once(e.Transcript)
 	e.limits = once(e.RateLimits)
 	return &e
 }
@@ -111,12 +116,19 @@ func (e *Env) registrations() []registration {
 			Limits: func() rate.Limits { return e.limits() },
 		}
 	}
-	return []registration{
+	names := diagnostics.Names()
+	regs := make([]registration, 0, 7+len(names))
+	regs = append(regs, []registration{
 		{"path", layout.Identity, func(cfg *config.Section) Segment {
 			return path.New(path.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Git: &gitbranch.Reader{}, Home: e.Home})
 		}},
 		{"model", layout.Identity, func(cfg *config.Section) Segment {
-			return model.New(model.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme})
+			return model.New(model.Deps{
+				Session:    &e.Payload,
+				Transcript: func() model.Transcript { return e.info() },
+				Config:     cfg,
+				Paint:      &e.Theme,
+			})
 		}},
 		{"ctx", layout.Identity, func(cfg *config.Section) Segment {
 			return ctx.New(ctx.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Meter: meter(cfg)})
@@ -129,5 +141,16 @@ func (e *Env) registrations() []registration {
 		}},
 		{"rate5h", layout.Rates, func(cfg *config.Section) Segment { return rate.NewFiveHour(rates(cfg)) }},
 		{"rate7d", layout.Rates, func(cfg *config.Section) Segment { return rate.NewSevenDay(rates(cfg)) }},
+	}...)
+	for _, name := range names {
+		regs = append(regs, registration{name, layout.Usage, func(*config.Section) Segment {
+			d, _ := diagnostics.New(name, diagnostics.Deps{
+				Transcript: func() diagnostics.Transcript { return e.info() },
+				Paint:      &e.Theme,
+				Tokens:     tokens.FormatTokens,
+			})
+			return d
+		}})
 	}
+	return regs
 }

@@ -16,19 +16,21 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | Path | What it is |
 |---|---|
 | `main.go` | A few lines of wiring: it holds the build stamps and hands them, the arguments and the standard streams to `internal/cli`. It has no test, so that its wiring does not count against coverage. |
-| `internal/cli` | Picks the command from the arguments (`--version`, `setup`, or the status line itself) and reads stdin. It never reports an error, because a blank status line is better than a broken one. |
-| `internal/statusline` | Builds the line: loads config, saves the snapshot, merges rate limits and renders. Also lists every config key the code reads. |
+| `internal/cli` | Picks the command from the arguments (`--version`, `setup`, `subagent`, or the status line itself) and reads stdin. It never reports an error, because a blank status line is better than a broken one. |
+| `internal/statusline` | Builds the line: loads config, saves the snapshot, merges rate limits, reads the transcript and renders. Also lists every config key the code reads. |
 | `segments/` | One folder per plugin, each providing the segments it names and owning their `defaults.conf`, README, tests and generated mocks. A plugin declares the interfaces it needs and imports nothing from `internal/`. `segments/all.go` is the composition root: the single list of plugins, and the environment that hands them the internal types, which satisfy the plugins' interfaces directly. |
 | `internal/render` | Renders the configured segments in order. |
 | `internal/layout` | Joins rendered segments into one row, or wraps them into groups when the terminal is too narrow. |
 | `internal/config` | Layers your config file over the defaults embedded in the binary: its own `defaults.conf` for the global keys, and each plugin's. |
 | `internal/payload` | Decodes the session JSON from Claude Code and strips control characters from its strings. |
+| `internal/transcript` | Reads the few facts the line takes from the session transcript. |
 | `internal/ratecache` | Shares rate-limit readings between sessions through a small cache file. |
 | `internal/gitbranch` | Finds the branch by reading `.git` files, without running `git`. |
 | `internal/bar` | Draws a usage bar with an optional pace marker. |
 | `internal/theme` | Loads themes from YAML, compiles colour specs, and provides the colour-free variant used for `NO_COLOR`. It reads the built-in themes from `themes/`. |
 | `themes` | The built-in themes: one YAML file each, embedded in the binary by a tiny package that only exports them. |
 | `internal/snapshot` | Saves the latest payload for other tools. |
+| `internal/subagent` | Renders the rows of Claude Code's agent panel. |
 | `internal/setup` | Adds `statusLine` and `subagentStatusLine` to `settings.json` once, backing the file up first. |
 | `hooks/` | The plugin's `SessionStart` hook: `hooks.json` and `bootstrap.sh`, which installs the latest release, and `bootstrap_test.sh`, its shell tests. |
 | `features/` | The Gherkin feature files: readable examples of the whole line. `features_test.go` runs them. |
@@ -74,13 +76,14 @@ There are three layers. Put a test in the lowest one that can show the behaviour
 
 - `tokens` abbreviating 999 as `999`, 1000 as `1.0k` and 1500000 as `1.5M`.
 - `cache` turning red below `cache.warn`, and hiding when the counts add up to zero.
+- `model` showing `Haiku (skill)` when the transcript says a different family ran.
 
-**2. Provider unit tests**, in `internal/*` (and `segments/render_test.go` for the composition root). They cover the shared machinery that the plugins sit on: config layering and validation, theme loading, fallback and colour specs, the rate-limit cache's freshness rules, layout and wrapping, setup, the snapshot and the bars. They use real files in a temporary directory, never your `HOME`. For example:
+**2. Provider unit tests**, in `internal/*` (and `segments/render_test.go` for the composition root). They cover the shared machinery that the plugins sit on: config layering and validation, theme loading, fallback and colour specs, the rate-limit cache's freshness rules, the transcript's bounded reads, layout and wrapping, setup, the snapshot and the bars. They use real files in a temporary directory, never your `HOME`. For example:
 
 - a theme file with an unknown colour name falls back to `classic` (`internal/theme`).
 - a reading ten points below the cached one in the same window is stale, and eleven is a reset (`internal/ratecache`).
 
-**3. Gherkin features**, in `features/`. They show the overall shape of the line in examples a reader can follow: the default line, segments dropped or reordered, wrapping at a few widths, each theme applied once, `NO_COLOR`, and one example for each plugin so that every feature file still documents its segment. For example:
+**3. Gherkin features**, in `features/`. They show the overall shape of the line in examples a reader can follow: the default line, segments dropped or reordered, wrapping at a few widths, each theme applied once, `NO_COLOR`, a couple of subagent rows, and one example for each plugin so that every feature file still documents its segment. For example:
 
 - the default line with a full payload.
 - the line wrapping at 80 and 40 columns, with a continuation arrow.
@@ -101,7 +104,7 @@ go tool cover -func cover.filtered.out | tail -n 1
 
 ### Fuzzing
 
-The status line runs on every render and reads input it does not control: the session JSON, the rate-limit cache, and your config and theme files. Each of those parsers has a native Go fuzz target (`FuzzParse` and so on, in the `fuzz_test.go` of its package, or beside the unit tests for `layout.Width` and `tokens.FormatTokens`). A target checks properties rather than only that nothing panics: payload strings hold no control characters, a colour spec compiles to colour sequences only, and so on.
+The status line runs on every render and reads input it does not control: the session JSON, the transcript, the rate-limit cache, and your config and theme files. Each of those parsers has a native Go fuzz target (`FuzzParse`, `FuzzRead` and so on, in the `fuzz_test.go` of its package, or beside the unit tests for `layout.Width` and `tokens.FormatTokens`). A target checks properties rather than only that nothing panics: payload strings hold no control characters, a colour spec compiles to colour sequences only, a transcript read stays within its byte bounds, and so on.
 
 `go test ./...` runs every target on its seed inputs, so they are ordinary tests in CI. To let the fuzzer search for new inputs, run one target at a time:
 
@@ -161,17 +164,18 @@ A step that takes text ends in a colon and is followed by a `"""` block. The tex
 | `Given the session:` | The session JSON that Claude Code sends on standard input. It may be empty or invalid. |
 | `Given the config:` | Writes the user's config file. |
 | `Given the environment variable "NAME" is "value"` | Sets one environment variable for the run. |
-| `Given the file "path":` | Creates a file at `path` under the temporary home directory, with the block as its content and a final newline. Directories are created as needed. |
+| `Given the file "path":` | Creates a file at `path` under the temporary home directory, with the block as its content and a final newline. Directories are created as needed. A transcript is any file the session names. |
 | `Given the directory "path"` | Creates an empty directory. |
 | `Given the rate-limit cache:` | Seeds the shared rate-limit cache file before the run. |
 | `When the status line renders` | Runs the status line. |
 | `When the status line renders at <n> columns` | The same, with the terminal `<n>` columns wide. |
+| `When the subagent rows render` | Runs the `subagent` command. |
 | `Then the output is:` | The output with its colours and styles, written as rows of text with a style line under each; see [Expected output](#expected-output). |
 | `Then the text is:` | The output with every colour and style removed. Use it when the scenario has no colour at all. |
 | `Then the raw output is:` | The exact bytes, with each escape byte written as `\e`. Use it only when the bytes are the point. |
 | `Then the rate-limit cache is:` | The cache file's content after the run, compared ignoring surrounding whitespace. |
 
-In every block, `@TMP@` stands for the scenario's temporary directory, which is also `HOME` and `CLAUDE_CONFIG_DIR`, so tests never touch your real Claude Code state. In a `Given the session:` block, write the JSON indented, with the keys in the order the payload has them. An empty output is an empty block. A line break is only the separator between lines, so the block has no trailing newline unless you add an empty last line.
+In every block, `@TMP@` stands for the scenario's temporary directory, which is also `HOME` and `CLAUDE_CONFIG_DIR`, so tests never touch your real Claude Code state. For `the subagent rows render`, every row of the output is the task id, `\t` for the tab, then the row content, and `\t` counts as two columns. In a `Given the session:` block, write the JSON indented, with the keys in the order the payload has them. An empty output is an empty block. A line break is only the separator between lines, so the block has no trailing newline unless you add an empty last line.
 
 #### Expected output
 
