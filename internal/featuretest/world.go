@@ -92,6 +92,14 @@ func (w *world) writeConfig(text string) error {
 	return w.writeFile(filepath.Join("claude-statusline", "config"), text, filePerm)
 }
 
+func (w *world) writeCache(text string) error {
+	return w.writeFile(w.cachePath(), text, filePerm)
+}
+
+func (w *world) cachePath() string {
+	return filepath.Join("claude-statusline", "cache", "ratelimits")
+}
+
 // writeFile creates a file under the temporary directory holding text and a final newline.
 func (w *world) writeFile(rel, text string, perm os.FileMode) error {
 	path, err := w.path(rel)
@@ -193,6 +201,11 @@ func trimRows(text string) string {
 		lines[i] = strings.TrimRight(line, " ")
 	}
 	return strings.Join(lines, "\n")
+}
+
+func (w *world) checkCache(want string) error {
+	got, _ := os.ReadFile(filepath.Join(w.tmp, w.cachePath()))
+	return compare("rate-limit cache", strings.TrimSpace(want), strings.TrimSpace(string(got)))
 }
 
 func escapeESC(text string) string {

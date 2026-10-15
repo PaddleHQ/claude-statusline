@@ -88,6 +88,9 @@ func (s *Suite) initialize(sc *godog.ScenarioContext) {
 		return worldOf(ctx).writeFile(path, doc.Content, filePerm)
 	})
 	sc.Step(`^the directory "([^"]+)"$`, func(ctx context.Context, path string) error { return worldOf(ctx).makeDir(path) })
+	sc.Step(`^the rate-limit cache:$`, func(ctx context.Context, doc *godog.DocString) error {
+		return worldOf(ctx).writeCache(doc.Content)
+	})
 
 	sc.Step(`^the status line renders$`, func(ctx context.Context) { worldOf(ctx).renderStatusLine(ctx) })
 	sc.Step(`^the status line renders at (\d+) columns$`, func(ctx context.Context, columns string) {
@@ -103,5 +106,8 @@ func (s *Suite) initialize(sc *godog.ScenarioContext) {
 	})
 	sc.Step(`^the raw output is:$`, func(ctx context.Context, doc *godog.DocString) error {
 		return worldOf(ctx).checkRawOutput(doc.Content)
+	})
+	sc.Step(`^the rate-limit cache is:$`, func(ctx context.Context, doc *godog.DocString) error {
+		return worldOf(ctx).checkCache(doc.Content)
 	})
 }

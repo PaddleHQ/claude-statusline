@@ -1,3 +1,6 @@
 package statusline
 
-var Columns = columns
+var (
+	Now     = now
+	Columns = columns
+)

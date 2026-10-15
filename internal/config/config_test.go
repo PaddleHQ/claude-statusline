@@ -16,7 +16,7 @@ func TestDefaultsParse(t *testing.T) {
 	t.Parallel()
 
 	c := config.New("")
-	assert.Equal(t, "path model ctx tokens cache", c.String("segments"))
+	assert.Equal(t, "path model ctx tokens cache rate5h rate7d", c.String("segments"))
 	assert.Equal(t, "·", c.String("separator"))
 	assert.Equal(t, "classic", c.String("theme"))
 }
@@ -26,7 +26,7 @@ func TestDefaultKeys(t *testing.T) {
 
 	keys := config.DefaultKeys()
 	slices.Sort(keys)
-	want := []string{"segments", "separator", "theme"}
+	want := []string{"segments", "separator", "snapshot.enabled", "snapshot.path", "theme"}
 	assert.Equal(t, want, keys)
 }
 
