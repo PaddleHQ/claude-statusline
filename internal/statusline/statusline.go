@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
+	"github.com/PaddleHQ/claude-statusline/internal/hook"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
@@ -20,6 +21,8 @@ import (
 
 const (
 	keyTheme       = "theme"
+	keyHookTTL     = "hooks.ttl"
+	keyHookTimeout = "hooks.timeout"
 	keySnapEnabled = "snapshot.enabled"
 	keySnapPath    = "snapshot.path"
 	defaultColumns = 999
@@ -27,7 +30,7 @@ const (
 
 // Keys lists every config key the status line reads, for checking against defaults.conf.
 func Keys() []string {
-	keys := append(render.Keys(), keyTheme, keySnapEnabled, keySnapPath)
+	keys := append(render.Keys(), keyTheme, keyHookTTL, keyHookTimeout, keySnapEnabled, keySnapPath)
 	for _, seg := range segments.NewEnv(segments.Env{Config: config.New("")}).All() {
 		for _, k := range seg.Keys() {
 			keys = append(keys, seg.Name()+"."+k)
@@ -75,6 +78,7 @@ func Build(input []byte, getenv func(string) string) string {
 		Columns:   env.Columns,
 		Separator: env.Separator(),
 		Anchor:    th.Paint(th.Muted, "↳"),
+		Hooks:     runHooks(input, p, cfg, at, getenv),
 	}
 	return line.Render()
 }
@@ -104,6 +108,46 @@ func saveSnapshot(input []byte, cfg *config.Config, getenv func(string) string) 
 		path = filepath.Join(dir, snapshot.FileName)
 	}
 	_ = snapshot.New(path).Write(input)
+}
+
+// runHooks runs the scripts in the hook directory; STATUSLINE_HOOK_TTL and STATUSLINE_HOOK_TIMEOUT override the config.
+func runHooks(input []byte, p payload.Payload, cfg *config.Config, at time.Time, getenv func(string) string) []hook.Result {
+	configDir := config.Dir(getenv)
+	hooks := hook.Discover(hookDir(getenv))
+	if len(hooks) == 0 {
+		return nil
+	}
+	opts := &hook.Options{
+		Input:      input,
+		Session:    p.SessionID,
+		Now:        at,
+		Timeout:    seconds(getenv("STATUSLINE_HOOK_TIMEOUT"), cfg.Int(keyHookTimeout)),
+		DefaultTTL: seconds(getenv("STATUSLINE_HOOK_TTL"), cfg.Int(keyHookTTL)),
+	}
+	if opts.Timeout <= 0 {
+		opts.Timeout = time.Duration(cfg.Int(keyHookTimeout)) * time.Second
+	}
+	if configDir != "" {
+		opts.CacheDir = filepath.Join(configDir, "claude-statusline", "cache", "hooks")
+	}
+	return opts.Run(hooks)
+}
+
+func hookDir(getenv func(string) string) string {
+	if dir := getenv("STATUSLINE_HOOK_DIR"); dir != "" {
+		return dir
+	}
+	if configDir := config.Dir(getenv); configDir != "" {
+		return filepath.Join(configDir, "statusline.d")
+	}
+	return ""
+}
+
+func seconds(override string, fallback int) time.Duration {
+	if n, ok := config.ParseNumber(override); ok {
+		return time.Duration(n) * time.Second
+	}
+	return time.Duration(fallback) * time.Second
 }
 
 func cachePath(getenv func(string) string) string {

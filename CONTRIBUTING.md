@@ -17,14 +17,15 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 |---|---|
 | `main.go` | A few lines of wiring: it holds the build stamps and hands them, the arguments and the standard streams to `internal/cli`. It has no test, so that its wiring does not count against coverage. |
 | `internal/cli` | Picks the command from the arguments (`--version`, `setup`, `subagent`, or the status line itself) and reads stdin. It never reports an error, because a blank status line is better than a broken one. |
-| `internal/statusline` | Builds the line: loads config, saves the snapshot, merges rate limits, reads the transcript and renders. Also lists every config key the code reads. |
+| `internal/statusline` | Builds the line: loads config, saves the snapshot, merges rate limits, reads the transcript, runs hooks and renders. Also lists every config key the code reads. |
 | `segments/` | One folder per plugin, each providing the segments it names and owning their `defaults.conf`, README, tests and generated mocks. A plugin declares the interfaces it needs and imports nothing from `internal/`. `segments/all.go` is the composition root: the single list of plugins, and the environment that hands them the internal types, which satisfy the plugins' interfaces directly. |
-| `internal/render` | Renders the configured segments in order. |
+| `internal/render` | Renders the configured segments in order, and places custom segments among them. |
 | `internal/layout` | Joins rendered segments into one row, or wraps them into groups when the terminal is too narrow. |
 | `internal/config` | Layers your config file over the defaults embedded in the binary: its own `defaults.conf` for the global keys, and each plugin's. |
 | `internal/payload` | Decodes the session JSON from Claude Code and strips control characters from its strings. |
 | `internal/transcript` | Reads the few facts the line takes from the session transcript. |
 | `internal/ratecache` | Shares rate-limit readings between sessions through a small cache file. |
+| `internal/hook` | Runs custom segment scripts with a timeout and a per-session cache, and sanitises their output. |
 | `internal/gitbranch` | Finds the branch by reading `.git` files, without running `git`. |
 | `internal/bar` | Draws a usage bar with an optional pace marker. |
 | `internal/theme` | Loads themes from YAML, compiles colour specs, and provides the colour-free variant used for `NO_COLOR`. It reads the built-in themes from `themes/`. |
@@ -78,15 +79,17 @@ There are three layers. Put a test in the lowest one that can show the behaviour
 - `cache` turning red below `cache.warn`, and hiding when the counts add up to zero.
 - `model` showing `Haiku (skill)` when the transcript says a different family ran.
 
-**2. Provider unit tests**, in `internal/*` (and `segments/render_test.go` for the composition root). They cover the shared machinery that the plugins sit on: config layering and validation, theme loading, fallback and colour specs, the rate-limit cache's freshness rules, the transcript's bounded reads, layout and wrapping, setup, the snapshot and the bars. They use real files in a temporary directory, never your `HOME`. For example:
+**2. Provider unit tests**, in `internal/*` (and `segments/render_test.go` for the composition root). They cover the shared machinery that the plugins sit on: config layering and validation, theme loading, fallback and colour specs, the rate-limit cache's freshness rules, the transcript's bounded reads, the hook contract (output, time to live, timeout, placement), layout and wrapping, setup, the snapshot and the bars. They use real files in a temporary directory, never your `HOME`. For example:
 
 - a theme file with an unknown colour name falls back to `classic` (`internal/theme`).
 - a reading ten points below the cached one in the same window is stale, and eleven is a reset (`internal/ratecache`).
+- a hook with a `statusline-ttl: 300` header is not run again for 299 seconds (`internal/hook`).
 
-**3. Gherkin features**, in `features/`. They show the overall shape of the line in examples a reader can follow: the default line, segments dropped or reordered, wrapping at a few widths, each theme applied once, `NO_COLOR`, a couple of subagent rows, and one example for each plugin so that every feature file still documents its segment. For example:
+**3. Gherkin features**, in `features/`. They show the overall shape of the line in examples a reader can follow: the default line, segments dropped or reordered, wrapping at a few widths, a hook placed in a slot and a hook replacing a built-in, each theme applied once, `NO_COLOR`, a couple of subagent rows, and one example for each plugin so that every feature file still documents its segment. For example:
 
 - the default line with a full payload.
 - the line wrapping at 80 and 40 columns, with a continuation arrow.
+- a hook in the `usage` slot, and a hook named `model` replacing the built-in.
 
 Ask of a new test: is it about one plugin's output (layer 1), about how the program's parts combine or what a shared part does with its input (layer 2), or would a reader learn from seeing the whole line (layer 3)? A feature scenario that pins a colour threshold, a boundary value or an error fallback belongs in a unit test instead. The relevant unit tests also have to exist before a scenario is deleted, so that no behaviour is pinned only by a scenario that was removed.
 
@@ -104,15 +107,15 @@ go tool cover -func cover.filtered.out | tail -n 1
 
 ### Fuzzing
 
-The status line runs on every render and reads input it does not control: the session JSON, the transcript, the rate-limit cache, and your config and theme files. Each of those parsers has a native Go fuzz target (`FuzzParse`, `FuzzRead` and so on, in the `fuzz_test.go` of its package, or beside the unit tests for `layout.Width` and `tokens.FormatTokens`). A target checks properties rather than only that nothing panics: payload strings hold no control characters, a colour spec compiles to colour sequences only, a transcript read stays within its byte bounds, and so on.
+The status line runs on every render and reads input it does not control: the session JSON, the transcript, the rate-limit cache, your config and theme files, and the output and header comments of hook scripts. Each of those parsers has a native Go fuzz target (`FuzzParse`, `FuzzSanitize`, `FuzzRead` and so on, in the `fuzz_test.go` of its package, or beside the unit tests for `layout.Width` and `tokens.FormatTokens`). A target checks properties rather than only that nothing panics: payload strings hold no control characters, a colour spec compiles to colour sequences only, sanitised hook output keeps nothing but colour escapes, a transcript read stays within its byte bounds, and so on.
 
 `go test ./...` runs every target on its seed inputs, so they are ordinary tests in CI. To let the fuzzer search for new inputs, run one target at a time:
 
 ```sh
-go test -run='^$' -fuzz='^FuzzParse$' -fuzztime=60s ./internal/payload
+go test -run='^$' -fuzz='^FuzzSanitize$' -fuzztime=60s ./internal/hook
 ```
 
-The "Weekly fuzz" workflow does the same for every target on a schedule, and can be started by hand from the Actions tab. When a run fails, download the `crashers-*` artefact: it holds the new input as `testdata/fuzz/<Target>/<id>`. Copy it into the same path in your checkout, run `go test -run='FuzzParse/<id>' ./internal/payload` to reproduce it, and fix the code (or the property, if the property was wrong). Commit the input file with the fix, so it stays as a regression test.
+The "Weekly fuzz" workflow does the same for every target on a schedule, and can be started by hand from the Actions tab. When a run fails, download the `crashers-*` artefact: it holds the new input as `testdata/fuzz/<Target>/<id>`. Copy it into the same path in your checkout, run `go test -run='FuzzSanitize/<id>' ./internal/hook` to reproduce it, and fix the code (or the property, if the property was wrong). Commit the input file with the fix, so it stays as a regression test.
 
 ### Mocks
 
@@ -126,7 +129,7 @@ CI runs the same command and fails if it changes anything, so a stale mock canno
 
 ### Feature tests
 
-The feature tests are [Gherkin](https://cucumber.io/docs/gherkin/) files under `features/`, run by [godog](https://github.com/cucumber/godog). Each file covers one topic (`wrapping.feature`, `rate_bars.feature`, and so on), and each scenario shows one example, named after what it shows. They keep to the composition and the readable examples; see the layers above for what belongs in a unit test instead. This one is in `features/path_and_branch.feature`:
+The feature tests are [Gherkin](https://cucumber.io/docs/gherkin/) files under `features/`, run by [godog](https://github.com/cucumber/godog). Each file covers one topic (`hooks.feature`, `wrapping.feature`, `rate_bars.feature`, and so on), and each scenario shows one example, named after what it shows. They keep to the composition and the readable examples; see the layers above for what belongs in a unit test instead. This one is in `features/path_and_branch.feature`:
 
 ```gherkin
 Scenario: The branch is found by walking up from a nested working directory to the repository's .git
@@ -164,7 +167,8 @@ A step that takes text ends in a colon and is followed by a `"""` block. The tex
 | `Given the session:` | The session JSON that Claude Code sends on standard input. It may be empty or invalid. |
 | `Given the config:` | Writes the user's config file. |
 | `Given the environment variable "NAME" is "value"` | Sets one environment variable for the run. |
-| `Given the file "path":` | Creates a file at `path` under the temporary home directory, with the block as its content and a final newline. Directories are created as needed. A transcript is any file the session names. |
+| `Given the file "path":` | Creates a file at `path` under the temporary home directory, with the block as its content and a final newline. Directories are created as needed. Custom segment scripts live in `statusline.d/`, and a transcript is any file the session names. |
+| `Given the executable file "path":` | The same, but executable, which custom segment scripts need. |
 | `Given the directory "path"` | Creates an empty directory. |
 | `Given the rate-limit cache:` | Seeds the shared rate-limit cache file before the run. |
 | `When the status line renders` | Runs the status line. |
@@ -223,7 +227,7 @@ There is no update flag. When the output differs, the failure prints the expecte
 
 Pick the step by what the scenario is about. Most scenarios use `Then the output is:`. A scenario with no colour, such as one that sets `NO_COLOR` or an empty output, uses `Then the text is:`. `Then the raw output is:` is for the few scenarios where the exact bytes are the point, for example one that checks how escape sequences or control characters in input are passed on or removed.
 
-Every scenario starts with the fixed time (`STATUSLINE_NOW`) and a 200 column terminal, set by the `Background` of the feature files that render the status line. A scenario's own steps override them. Whatever the command prints, the run also fails if the output holds a control character other than newline and escape, or if a config value was executed.
+Every scenario starts with the fixed time (`STATUSLINE_NOW`) and a 200 column terminal, set by the `Background` of the feature files that render the status line, and a 30 second hook timeout, which the harness sets for all of them. A scenario's own steps override them. Whatever the command prints, the run also fails if the output holds a control character other than newline and escape, or if a config value was executed.
 
 There are no domain-specific steps. Where a scenario would repeat itself for several values, that is usually a sign the cases belong in a table-driven unit test; if a feature does need the same steps with different values, a `Scenario Outline` substitutes the `<placeholders>` of its `Examples` table into them. Add a domain step only if the scenario would otherwise be unreadable, and document it in the table above.
 
@@ -237,8 +241,8 @@ Run one scenario by its name (spaces become underscores), a whole feature by its
 
 ```sh
 go test ./features -run 'TestFeatures/Usage_of_75'   # one scenario, matched by a prefix of its name
-go test ./features -feature.tags=@wrapping              # every scenario in features/wrapping.feature
-go test ./features -feature.tags=@rate_bars,@wrapping   # a comma means or, && means and, ~ means not
+go test ./features -feature.tags=@hooks              # every scenario in features/hooks.feature
+go test ./features -feature.tags=@hooks,@wrapping   # a comma means or, && means and, ~ means not
 go test ./...                                   # everything
 ```
 
@@ -265,11 +269,15 @@ Built-in themes are YAML files in the top-level `themes/` directory, embedded in
 
 A segment is a plugin: a package under `segments/` that owns its code, its `defaults.conf` and its tests, plus an entry in `segments/all.go`. A segment should be hidden, not wrong, when its data is missing.
 
+### Custom segment output
+
+Scripts in the hook directory are user code, so their output is treated as untrusted. `internal/hook` strips control characters from it and keeps only colour sequences, so a script cannot move the cursor or redraw the terminal. If you change that path, keep the rule and extend its tests. The same applies to strings taken from the session payload, which `internal/payload` sanitises.
+
 ### Go style
 
 - Methods on a struct use pointer receivers, never value receivers, so that a type has one consistent method set.
 - Every receiver is named, with a short name taken from the type (`func (m *model) Keys()`, never `func (*model) Keys()`).
-- Behaviour that operates on a struct's data is a method on that struct, so it is found by looking at the type rather than by searching the package for a free function. Constructors stay functions (`New`, `Load`, `Parse`, `Open`: anything that builds and returns a value for the caller to use), and so do stateless helpers with no natural owning type, such as `payload.Sanitize`, `tokens.FormatTokens` and the colour-spec parser. Do not force a helper onto a type just to avoid a package-level function.
+- Behaviour that operates on a struct's data is a method on that struct, so it is found by looking at the type rather than by searching the package for a free function. Constructors stay functions (`New`, `Load`, `Parse`, `Open`, `Discover`: anything that builds and returns a value for the caller to use), and so do stateless helpers with no natural owning type, such as `payload.Sanitize`, `tokens.FormatTokens` and the colour-spec parser. Do not force a helper onto a type just to avoid a package-level function.
 
 ### Comments and language
 

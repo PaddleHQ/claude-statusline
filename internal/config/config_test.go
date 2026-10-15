@@ -26,7 +26,7 @@ func TestDefaultKeys(t *testing.T) {
 
 	keys := config.DefaultKeys()
 	slices.Sort(keys)
-	want := []string{"segments", "separator", "snapshot.enabled", "snapshot.path", "theme"}
+	want := []string{"hooks.timeout", "hooks.ttl", "segments", "separator", "snapshot.enabled", "snapshot.path", "theme"}
 	assert.Equal(t, want, keys)
 }
 
