@@ -27,6 +27,11 @@ jobs:
       matrix:
         include:
           - {package: ./internal/payload, target: FuzzParse}
+          - {package: ./internal/config, target: FuzzParse}
+          - {package: ./internal/config, target: FuzzParseNumber}
+          - {package: ./internal/theme, target: FuzzParseColor}
+          - {package: ./internal/theme, target: FuzzOpen}
+          - {package: ./internal/layout, target: FuzzWidth}
     steps:
       - name: Harden the runner
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
