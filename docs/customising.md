@@ -78,7 +78,7 @@ The `rate5h` and `rate7d` segments draw your 5 hour and 7 day usage as a bar fol
 
 ## Custom segments
 
-Any executable file in `~/.claude/statusline.d/` (or `$STATUSLINE_HOOK_DIR`; under `$CLAUDE_CONFIG_DIR` if you set it) becomes a segment. Files are run in filename order; names that start with `.`, files that are not executable and directories are ignored. Hooks run concurrently, so the slowest one sets the delay, not the sum.
+Any executable file in `~/.claude/statusline.d/` (or `$STATUSLINE_HOOK_DIR`, which must be an absolute path and is ignored otherwise; under `$CLAUDE_CONFIG_DIR` if you set it) becomes a segment. Files are run in filename order; names that start with `.`, files that are not executable and directories are ignored. Hooks run concurrently, so the slowest one sets the delay, not the sum.
 
 A hook is any script that reads the session JSON on stdin (and may ignore it) and prints one line. For example, `~/.claude/statusline.d/10-backup.sh`:
 

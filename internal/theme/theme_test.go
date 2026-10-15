@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/themes"
@@ -322,4 +324,24 @@ func TestRolePaintersWrapInTheRoleColor(t *testing.T) {
 	assert.Equal(t, d.Paint(d.PathColor, "x"), d.Path("x"))
 	plain := d.WithoutColor()
 	assert.Equal(t, "x", plain.Bad("x"))
+}
+
+func TestOpenRejectsFIFO(t *testing.T) {
+	t.Parallel()
+
+	fifo := filepath.Join(t.TempDir(), "theme.yaml")
+	require.NoError(t, syscall.Mkfifo(fifo, 0o600))
+
+	got := make(chan error, 1)
+	go func() {
+		_, err := theme.Open(fifo, "", "")
+		got <- err
+	}()
+
+	select {
+	case err := <-got:
+		assert.Error(t, err)
+	case <-time.After(2 * time.Second):
+		require.FailNow(t, "Open blocked on a FIFO")
+	}
 }
