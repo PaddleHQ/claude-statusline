@@ -1,12 +1,15 @@
 package statusline_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/PaddleHQ/claude-statusline/internal/statusline"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestHelp pins what the help command lists: the segments shown, the custom segments and how each is described,
@@ -166,4 +169,23 @@ Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/cust
 			assert.NotContains(t, got, "\033", "help is plain text")
 		})
 	}
+}
+
+func TestHelpStripsTerminalEscapes(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	hooks := filepath.Join(dir, "hooks")
+	require.NoError(t, os.Mkdir(hooks, 0o750))
+	name := "b\x1b[31mRED.sh"
+	require.NoError(t, os.WriteFile(filepath.Join(hooks, name), []byte("#!/bin/sh\n"), 0o700)) //nolint:gosec // test hook must be executable
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config"), []byte("path.strip = \x1b]0;pwn\x07/x\n"), 0o600))
+
+	got := statusline.Help(func(k string) string {
+		return map[string]string{"STATUSLINE_HOOK_DIR": hooks, "CLAUDE_CONFIG_DIR": dir}[k]
+	})
+
+	assert.NotContains(t, got, "\x1b")
+	assert.NotContains(t, got, "\x07")
+	assert.Contains(t, got, "RED.sh")
 }
