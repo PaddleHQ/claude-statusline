@@ -20,6 +20,7 @@ func TestDefaultsParse(t *testing.T) {
 	assert.Equal(t, []string{"path", "model", "ctx", "tokens", "cache", "boot", "skills", "skills_stripped", "agent_skills", "mem", "rate5h", "rate7d"}, c.Strings("segments"))
 	assert.Equal(t, "·", c.String("separator"))
 	assert.Equal(t, "classic", c.String("theme"))
+	assert.Equal(t, 60, c.Int("hooks.ttl"))
 	assert.True(t, c.Bool("snapshot.enabled"))
 }
 
@@ -28,7 +29,7 @@ func TestDefaultKeys(t *testing.T) {
 
 	keys := config.DefaultKeys()
 	slices.Sort(keys)
-	want := []string{"segments", "separator", "snapshot.enabled", "snapshot.path", "theme"}
+	want := []string{"hooks.timeout", "hooks.ttl", "segments", "separator", "snapshot.enabled", "snapshot.path", "theme"}
 	assert.Equal(t, want, keys)
 }
 

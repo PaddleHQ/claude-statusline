@@ -31,6 +31,8 @@ jobs:
           - {package: ./internal/config, target: FuzzParseNumber}
           - {package: ./internal/theme, target: FuzzParseColor}
           - {package: ./internal/theme, target: FuzzOpen}
+          - {package: ./internal/hook, target: FuzzSanitize}
+          - {package: ./internal/hook, target: FuzzHeader}
           - {package: ./internal/transcript, target: FuzzRead}
           - {package: ./internal/ratecache, target: FuzzLoad}
           - {package: ./internal/layout, target: FuzzWidth}

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
+	"github.com/PaddleHQ/claude-statusline/internal/hook"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/render"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
@@ -41,7 +42,7 @@ func standardStubs() []*stub {
 	}
 }
 
-func newLine(stubs []*stub, cfg string, th theme.Theme, columns int) *render.Line {
+func newLine(stubs []*stub, cfg string, th theme.Theme, columns int, hooks []hook.Result) *render.Line {
 	c := config.New(cfg)
 	return &render.Line{
 		Names:     c.Strings("segments"),
@@ -49,7 +50,17 @@ func newLine(stubs []*stub, cfg string, th theme.Theme, columns int) *render.Lin
 		Columns:   columns,
 		Separator: " " + th.Paint(th.Muted, c.String("separator")) + " ",
 		Anchor:    th.Paint(th.Muted, "↳"),
+		Hooks:     hooks,
 	}
+}
+
+func plainClassic() theme.Theme {
+	classic := theme.Load("classic", "", "")
+	return classic.WithoutColor()
+}
+
+func hookResult(name string, slot hook.Slot, text string) hook.Result {
+	return hook.Result{File: name + ".sh", Name: name, Slot: slot, Text: text}
 }
 
 func TestRender(t *testing.T) {
@@ -75,9 +86,108 @@ func TestRender(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, newLine(standardStubs(), tt.cfg, tt.th, 0).Render())
+			assert.Equal(t, tt.want, newLine(standardStubs(), tt.cfg, tt.th, 0, nil).Render())
 		})
 	}
+}
+
+func TestRenderPlacesHooks(t *testing.T) {
+	t.Parallel()
+
+	th := plainClassic()
+	tests := []struct {
+		name  string
+		cfg   string
+		hooks []hook.Result
+		want  string
+	}{
+		{
+			"ctx slot goes after the context segment",
+			"segments: [path, model, ctx, tokens]",
+			[]hook.Result{hookResult("a", hook.SlotCtx, "A")},
+			"/srv/app · Opus · ctx: 42% · A · ↓ 1.5k · ↑ 2.0k",
+		},
+		{
+			"ctx slot goes after the model without a context segment",
+			"segments: [path, model, tokens]",
+			[]hook.Result{hookResult("a", hook.SlotCtx, "A")},
+			"/srv/app · Opus · A · ↓ 1.5k · ↑ 2.0k",
+		},
+		{
+			"ctx slot with no model goes after the last identity segment",
+			"segments: [tokens, path]",
+			[]hook.Result{hookResult("a", hook.SlotCtx, "A")},
+			"↓ 1.5k · ↑ 2.0k · /srv/app · A",
+		},
+		{
+			"ctx slot alone is the whole line",
+			"segments: [tokens]",
+			[]hook.Result{hookResult("a", hook.SlotCtx, "A")},
+			"A · ↓ 1.5k · ↑ 2.0k",
+		},
+		{
+			"usage slot goes after tokens and before the rates",
+			"segments: [model, tokens, rate5h]",
+			[]hook.Result{hookResult("a", hook.SlotUsage, "U")},
+			"Opus · ↓ 1.5k · ↑ 2.0k · U · 5h: 45%",
+		},
+		{
+			"end slot goes last",
+			"segments: [model, tokens]",
+			[]hook.Result{hookResult("a", hook.SlotEnd, "E")},
+			"Opus · ↓ 1.5k · ↑ 2.0k · E",
+		},
+		{
+			"hooks in one slot keep filename order",
+			"segments: [model]",
+			[]hook.Result{hookResult("a", hook.SlotEnd, "E1"), hookResult("b", hook.SlotEnd, "E2")},
+			"Opus · E1 · E2",
+		},
+		{
+			"a hook named in the segments list renders there",
+			"segments: [backup, path, model]",
+			[]hook.Result{hookResult("backup", hook.SlotEnd, "B")},
+			"B · /srv/app · Opus",
+		},
+		{
+			"a hook replaces the built-in of the same name",
+			"segments: [path, model, tokens]",
+			[]hook.Result{hookResult("model", hook.SlotCtx, "custom")},
+			"/srv/app · custom · ↓ 1.5k · ↑ 2.0k",
+		},
+		{
+			"a hook with nothing to show replaces the built-in with nothing",
+			"segments: [path, model]",
+			[]hook.Result{hookResult("model", hook.SlotCtx, "")},
+			"/srv/app",
+		},
+		{
+			"a hook named like a built-in that is not listed goes to its slot",
+			"segments: [path]",
+			[]hook.Result{hookResult("model", hook.SlotEnd, "custom")},
+			"/srv/app · custom",
+		},
+		{
+			"empty hooks are dropped",
+			"segments: [path]",
+			[]hook.Result{hookResult("a", hook.SlotCtx, ""), hookResult("b", hook.SlotEnd, "")},
+			"/srv/app",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, newLine(standardStubs(), tt.cfg, th, 999, tt.hooks).Render())
+		})
+	}
+}
+
+func TestRenderWrapsAroundHooks(t *testing.T) {
+	t.Parallel()
+
+	hooks := []hook.Result{hookResult("a", hook.SlotCtx, "ctx-hook"), hookResult("b", hook.SlotUsage, "usage-hook"), hookResult("c", hook.SlotEnd, "end-hook")}
+	line := newLine(standardStubs(), "segments: [path, model, tokens]", plainClassic(), 40, hooks)
+	assert.Equal(t, "/srv/app · Opus · ctx-hook\n↓ 1.5k · ↑ 2.0k\nusage-hook · end-hook", line.Render())
 }
 
 func TestRenderPaintsTheContinuationAnchor(t *testing.T) {
@@ -88,6 +198,6 @@ func TestRenderPaintsTheContinuationAnchor(t *testing.T) {
 		{"model", layout.Identity, "Opus 4.7 Extended Thinking"},
 		{"ctx", layout.Identity, "ctx: ░░░░░░░░░░ 1%"},
 	}
-	line := newLine(plugins, "segments: [path, model, ctx]", theme.Load("classic", "", ""), 50)
+	line := newLine(plugins, "segments: [path, model, ctx]", theme.Load("classic", "", ""), 50, nil)
 	assert.Contains(t, line.Render(), "\n\033[2m↳\033[0m          ctx: ")
 }
