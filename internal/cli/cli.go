@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
@@ -68,7 +69,11 @@ func (a *App) Execute(args []string, stdin io.Reader, stdout io.Writer, getenv f
 func (a *App) manage(args []string, stdout io.Writer, loc setup.Locations) bool {
 	switch args[0] {
 	case "setup":
-		setup.Run(stdout, eventFlag(args[1:]), a.build.Version, loc)
+		event := eventFlag(args[1:])
+		if !slices.ContainsFunc(args[1:], func(a string) bool { return strings.HasPrefix(a, "--event=") }) {
+			event = setup.EventManual
+		}
+		setup.Run(stdout, event, a.build.Version, loc)
 	case "uninstall":
 		setup.Uninstall(stdout, loc)
 	default:
@@ -104,7 +109,7 @@ func withStateDir(getenv func(string) string, exe string) func(string) string {
 }
 
 func locations(exe string, getenv func(string) string) setup.Locations {
-	return setup.Locations{ConfigDir: config.Dir(getenv), StateDir: config.StateDir(getenv), Bin: exe}
+	return setup.Locations{ConfigDir: config.Dir(getenv), StateDir: config.StateDir(getenv), Bin: exe, Home: getenv("HOME")}
 }
 
 func eventFlag(args []string) string {

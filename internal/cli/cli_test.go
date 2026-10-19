@@ -221,3 +221,25 @@ func TestExecuteSetupAndUninstall(t *testing.T) {
 	assert.False(t, gjson.GetBytes(got, "subagentStatusLine").Exists())
 	assert.FileExists(t, filepath.Join(dir, "claude-statusline", "config.yaml"))
 }
+
+func TestExecuteSetupAfterUninstall(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "plugins", "data", "statusline-claude-statusline", "bin", "claude-statusline")
+	settings := filepath.Join(dir, "settings.json")
+	require.NoError(t, os.WriteFile(settings, []byte(`{"statusLine":{"type":"command","command":"`+exe+`"}}`), 0o600))
+	app := appAt(exe)
+	var out bytes.Buffer
+
+	app.Execute([]string{"uninstall"}, strings.NewReader(""), &out, envFor(dir))
+	app.Execute([]string{"setup", "--event=current"}, strings.NewReader(""), &out, envFor(dir))
+	got, err := os.ReadFile(settings)
+	require.NoError(t, err)
+	assert.False(t, gjson.GetBytes(got, "statusLine").Exists(), "a session must not add the line back")
+
+	app.Execute([]string{"setup"}, strings.NewReader(""), &out, envFor(dir))
+	got, err = os.ReadFile(settings)
+	require.NoError(t, err)
+	assert.Equal(t, exe, gjson.GetBytes(got, "statusLine.command").String())
+}

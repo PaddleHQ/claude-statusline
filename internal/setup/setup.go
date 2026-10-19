@@ -23,6 +23,8 @@ const (
 	EventInstalled = "installed"
 	EventUpdated   = "updated"
 	EventCurrent   = "current"
+	// EventManual is a setup run by the user, which adds absent lines even when an earlier run or uninstall left a marker.
+	EventManual = "manual"
 )
 
 const (
@@ -46,6 +48,8 @@ type Locations struct {
 	StateDir string
 	// Bin is the running binary, with symlinks resolved.
 	Bin string
+	// Home is the user's home directory, which a leading ~ or $HOME in a command stands for.
+	Home string
 }
 
 type config struct {
@@ -125,7 +129,7 @@ func (c *config) classify(key, command string) claim {
 		wantArgs = []string{subagentArg}
 		script = subagentScript
 	}
-	path, args := filepath.Clean(words[0]), words[1:]
+	path, args := filepath.Clean(c.expand(words[0])), words[1:]
 	if len(args) == 0 || slices.Equal(args, []string{subagentArg}) {
 		switch {
 		case path == filepath.Clean(c.Bin) && slices.Equal(args, wantArgs):
@@ -134,10 +138,36 @@ func (c *config) classify(key, command string) claim {
 			return ownedBinary
 		}
 	}
-	if filepath.Base(words[len(words)-1]) == script {
+	if runsScript(words, script) {
 		return ownedScript
 	}
 	return foreign
+}
+
+func (c *config) expand(word string) string {
+	for _, p := range []struct{ prefix, value string }{
+		{"~", c.Home},
+		{"$HOME", c.Home},
+		{"${HOME}", c.Home},
+		{"$CLAUDE_CONFIG_DIR", c.ConfigDir},
+		{"${CLAUDE_CONFIG_DIR}", c.ConfigDir},
+	} {
+		if rest, ok := strings.CutPrefix(word, p.prefix+"/"); ok && p.value != "" {
+			return filepath.Join(p.value, rest)
+		}
+	}
+	return word
+}
+
+// runsScript reports whether the command is the script itself, alone or as the only argument of a plain shell.
+func runsScript(words []string, script string) bool {
+	switch len(words) {
+	case 1:
+		return filepath.Base(words[0]) == script
+	case 2:
+		return slices.Contains([]string{"sh", "bash", "zsh", "dash"}, filepath.Base(words[0])) && filepath.Base(words[1]) == script
+	}
+	return false
 }
 
 func isBinaryClaim(cl claim) bool {
@@ -155,6 +185,9 @@ func (c *config) sentinel(name string) string {
 // wanted reports whether the line may be added when it is absent: not if an earlier run already did, since the user
 // may have removed it since.
 func (c *config) wanted(name string) bool {
+	if c.event == EventManual {
+		return true
+	}
 	if exists(c.sentinel(name)) {
 		return false
 	}
@@ -163,8 +196,9 @@ func (c *config) wanted(name string) bool {
 
 func apply(c config) string {
 	settings := filepath.Join(c.ConfigDir, "settings.json")
+	target := resolveSymlinks(settings)
 	wantMain, wantSub := c.wanted(mainSentinelName), c.wanted(subSentinelName)
-	data, mode, ok := readSettings(settings, wantMain || wantSub)
+	data, mode, ok := readSettings(target, wantMain || wantSub)
 	if !ok {
 		return ""
 	}
@@ -176,7 +210,7 @@ func apply(c config) string {
 	if !ok {
 		return ""
 	}
-	if !bytes.Equal(out, data) && !backUpAndWrite(settings, data, out, mode) {
+	if !bytes.Equal(out, data) && !backUpAndWrite(target, data, out, mode) {
 		return ""
 	}
 	if !c.touchSentinels() {
@@ -187,7 +221,7 @@ func apply(c config) string {
 }
 
 func invalidMessage(c config, settings string) string {
-	if c.event != EventInstalled {
+	if c.event != EventInstalled && c.event != EventManual {
 		return ""
 	}
 	return fmt.Sprintf("claude-statusline v%s installed, but %s is not valid JSON so it was left alone. It will retry next session.",
@@ -227,6 +261,13 @@ func readSettings(settings string, create bool) (data []byte, mode os.FileMode, 
 	return data, mode, true
 }
 
+func resolveSymlinks(path string) string {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return resolved
+	}
+	return path
+}
+
 func backUpAndWrite(settings string, before, after []byte, mode os.FileMode) bool {
 	if err := writeAtomic(settings+".bak", before, mode); err != nil {
 		return false
@@ -248,25 +289,17 @@ func (c *config) touchSentinels() bool {
 func (c *config) wire(data []byte, key, command, entryFormat string, wantNew bool) (result outcome, out []byte) {
 	existing := gjson.GetBytes(data, key)
 	if !existing.Exists() {
-		if !wantNew {
-			return declined, data
-		}
-		quoted, err := json.Marshal(command)
-		if err != nil {
-			return skipped, data
-		}
-		out, ok := insertMember(data, key, []byte(strings.Replace(entryFormat, "%s", string(quoted), 1)))
-		if !ok {
-			return skipped, data
-		}
-		return inserted, out
+		return insertEntry(data, key, command, entryFormat, wantNew)
 	}
 
 	cmd := existing.Get("command")
-	switch c.classify(key, cmd.String()) {
+	switch cl := c.classify(key, cmd.String()); cl {
 	case current:
 		return ours, data
 	case ownedBinary, ownedScript:
+		if cl == ownedScript && !c.mayTakeOverScript() {
+			return other, data
+		}
 		out, ok := replaceString(data, cmd, command)
 		if !ok {
 			return skipped, data
@@ -275,6 +308,25 @@ func (c *config) wire(data []byte, key, command, entryFormat string, wantNew boo
 	default:
 		return other, data
 	}
+}
+
+func insertEntry(data []byte, key, command, entryFormat string, wantNew bool) (result outcome, out []byte) {
+	if !wantNew {
+		return declined, data
+	}
+	quoted, err := json.Marshal(command)
+	if err != nil {
+		return skipped, data
+	}
+	out, ok := insertMember(data, key, []byte(strings.Replace(entryFormat, "%s", string(quoted), 1)))
+	if !ok {
+		return skipped, data
+	}
+	return inserted, out
+}
+
+func (c *config) mayTakeOverScript() bool {
+	return c.event == EventInstalled || c.event == EventUpdated || c.event == EventManual
 }
 
 func replaceString(data []byte, value gjson.Result, text string) ([]byte, bool) {
@@ -293,7 +345,7 @@ func replaceString(data []byte, value gjson.Result, text string) ([]byte, bool) 
 // The user's config.yaml stays.
 func (c *config) migrate(settings []byte) {
 	legacy := c.legacyDir()
-	if c.StateDir == legacy || !exists(legacy) {
+	if c.StateDir == legacy || !exists(legacy) || c.pointsIntoLegacy(settings) {
 		return
 	}
 	for _, bin := range c.legacyBins() {
@@ -310,6 +362,18 @@ func (c *config) migrate(settings []byte) {
 		}
 	}
 	_ = os.Remove(legacy)
+}
+
+// pointsIntoLegacy reports whether a status line command mentions an install's bin directory in any form, other than
+// the current binary.
+func (c *config) pointsIntoLegacy(settings []byte) bool {
+	for _, key := range []string{keyStatus, keySub} {
+		cmd := gjson.GetBytes(settings, key+".command").String()
+		if strings.Contains(cmd, binName+"/bin/") && c.classify(key, cmd) != current {
+			return true
+		}
+	}
+	return false
 }
 
 func message(c config, settings string, status, sub outcome) string {
@@ -383,7 +447,8 @@ func Uninstall(w io.Writer, loc Locations) {
 	}
 	c := config{Locations: loc}
 	settings := filepath.Join(c.ConfigDir, "settings.json")
-	data, err := os.ReadFile(settings) //nolint:gosec // G304: settings.json inside the Claude config directory is the file this command edits
+	target := resolveSymlinks(settings)
+	data, err := os.ReadFile(target) //nolint:gosec // G304: settings.json inside the Claude config directory is the file this command edits
 	var lines []string
 	switch {
 	case os.IsNotExist(err):
@@ -391,19 +456,19 @@ func Uninstall(w io.Writer, loc Locations) {
 	case err != nil || !gjson.ValidBytes(data) || !gjson.ParseBytes(data).IsObject():
 		lines = append(lines, fmt.Sprintf("%s could not be read as a JSON object, so it was left alone.", settings))
 	default:
-		lines = append(lines, c.uninstallSettings(settings, data)...)
+		lines = append(lines, c.uninstallSettings(settings, target, data)...)
 	}
 	if c.StateDir != "" {
-		_ = os.Remove(c.sentinel(mainSentinelName))
-		_ = os.Remove(c.sentinel(subSentinelName))
+		c.touchSentinels()
 	}
 	lines = append(lines,
+		"The lines will not be added back. To turn the status line on again, run claude-statusline setup.",
 		"Your config.yaml, your statusline.d hooks and usage-latest.json were left in place.",
 		"Next, run /plugin uninstall statusline@claude-statusline to remove the plugin and the binary it installed.")
 	_, _ = fmt.Fprintln(w, strings.Join(lines, "\n"))
 }
 
-func (c *config) uninstallSettings(settings string, data []byte) []string {
+func (c *config) uninstallSettings(settings, target string, data []byte) []string {
 	var lines, removed []string
 	out := data
 	for _, key := range []string{keyStatus, keySub} {
@@ -425,10 +490,10 @@ func (c *config) uninstallSettings(settings string, data []byte) []string {
 	}
 	if len(removed) > 0 {
 		mode := os.FileMode(0o600)
-		if fi, err := os.Stat(settings); err == nil {
+		if fi, err := os.Stat(target); err == nil {
 			mode = fi.Mode().Perm()
 		}
-		if gjson.ValidBytes(out) && backUpAndWrite(settings, data, out, mode) {
+		if gjson.ValidBytes(out) && backUpAndWrite(target, data, out, mode) {
 			lines = append([]string{fmt.Sprintf("Removed %s from %s. The previous file is backed up at %s.bak.",
 				strings.Join(removed, " and "), settings, settings)}, lines...)
 		} else {
