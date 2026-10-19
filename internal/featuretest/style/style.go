@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mattn/go-runewidth"
+	"github.com/PaddleHQ/claude-statusline/internal/layout"
 )
 
 const (
@@ -45,7 +45,6 @@ var builtins = map[rune]Style{
 var (
 	builtinChars = reverseBuiltins()
 	legendChars  = legendAlphabet()
-	columns      = columnCondition()
 )
 
 // Style is the set of SGR attributes in effect for one cell. FG and BG hold a color name such as "red" or
@@ -70,12 +69,6 @@ type Row []Cell
 
 // Block is the rows of an output.
 type Block []Row
-
-func columnCondition() *runewidth.Condition {
-	c := runewidth.NewCondition()
-	c.EastAsianWidth = false
-	return c
-}
 
 func reverseBuiltins() map[Style]rune {
 	m := make(map[Style]rune, len(builtins))
@@ -154,7 +147,7 @@ func (r Row) trimmed() Row {
 }
 
 func (r Row) appendRune(c rune, s Style) (Row, error) {
-	w := columns.RuneWidth(c)
+	w := layout.RuneWidth(c)
 	if w == 0 {
 		if len(r) == 0 {
 			return nil, fmt.Errorf("%w: the zero-width character %U starts a row", errUnsupported, c)

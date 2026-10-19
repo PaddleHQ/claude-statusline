@@ -70,7 +70,14 @@ The `path` segment shows the working directory (`workspace.current_dir`, else `c
 
 The branch comes from reading `.git` files, never from running `git`. The status line walks up from the directory to the first `.git`; if that is a file (a worktree or submodule) it follows its `gitdir:` pointer. A branch shows as `(main)` and a detached HEAD as the first seven characters of the commit. If the files cannot be read, the branch is left out.
 
-To collapse the long path of a git worktree, list where your worktrees live in `path.worktrees`, for example `worktrees: [.claude/worktrees, .worktrees]` (`.claude/worktrees` is where Claude Code puts its own). A relative entry is taken from the main repository's root. A session inside a linked worktree whose root sits under one of the entries shows the main repository's name instead of the path up to the worktree root, and keeps what follows it: `app (fix)` in `/home/you/app/.worktrees/fix`, and `app/pkg/sub (fix)` in its `pkg/sub`. The branch gets the theme's `worktree` colour, and `path.emoji` adds the theme's worktree glyph (`glyphs.worktree`, 🌳 in the built-in themes). `path.strip` is ignored for a worktree. A worktree outside the listed directories, and the main repository itself, are shown as usual. Matching is lexical, so the working directory has to be spelled with the same case as the directories git recorded. An absolute entry is compared with the working directory as Claude Code spells it, so write it the same way (for example `/tmp/...`, not `/private/tmp/...`); a relative entry matches in either spelling. A relative entry needs the main repository's root in that spelling, and when it cannot be worked out, the worktree is shown as usual; an absolute entry still collapses.
+To collapse the long path of a git worktree, list where your worktrees live in `path.worktrees`, for example `worktrees: [.claude/worktrees, .worktrees]` (`.claude/worktrees` is where Claude Code puts its own). A session inside a linked worktree whose root sits under one of the entries shows the main repository's name instead of the path up to the worktree root, and keeps what follows it: `app (fix)` in `/home/you/app/.worktrees/fix`, and `app/pkg/sub (fix)` in its `pkg/sub`. The branch gets the theme's `worktree` colour, and `path.emoji` adds the theme's worktree glyph (`glyphs.worktree`, 🌳 in the built-in themes). `path.strip` is ignored for a worktree. A worktree outside the listed directories, and the main repository itself, are shown as usual.
+
+How entries are matched:
+
+- A relative entry is taken from the main repository's root.
+- Matching is lexical, so the working directory has to be spelled with the same case as the directories git recorded.
+- An absolute entry is compared with the working directory as Claude Code spells it, so write it the same way (for example `/tmp/...`, not `/private/tmp/...`); a relative entry matches in either spelling.
+- A relative entry needs the main repository's root in that spelling, and when it cannot be worked out, the worktree is shown as usual; an absolute entry still collapses.
 
 ### Context, tokens and cache
 
@@ -185,7 +192,7 @@ Point `theme` at a YAML file. A value that contains `/` or starts with `~` is a 
 theme: "~/.config/claude-statusline/ocean.yaml"
 ```
 
-To write one, copy a built-in theme and edit it: [`classic.yaml`](../themes/classic.yaml) for solid bars or [`gradient.yaml`](../themes/gradient.yaml) for gradient ones. Both are commented, and the file you point `theme` at must be complete: every field below is required, except `colors.branch`, `colors.worktree` and the `glyphs` section, and except `bar.empty_color` and `bar.marker_color`, which a `gradient` bar can leave out, and a theme does not inherit from another.
+To write one, copy a built-in theme and edit it: [`classic.yaml`](../themes/classic.yaml) for solid bars or [`gradient.yaml`](../themes/gradient.yaml) for gradient ones. Both are commented, and the file you point `theme` at must be complete: every field below is required, with two exceptions. `colors.branch`, `colors.worktree` and the `glyphs` section can be left out, and so can `bar.empty_color` and `bar.marker_color` in a `gradient` bar. A theme does not inherit from another.
 
 ```yaml
 colors:

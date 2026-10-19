@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/PaddleHQ/claude-statusline/internal/layout"
 )
 
 var legendLine = regexp.MustCompile(`^(\S) = (.+)$`)
@@ -112,7 +114,7 @@ func parseRow(text, styles string, legend map[rune]Style, used map[rune]bool) (R
 		col int
 	)
 	for _, r := range text {
-		w := columns.RuneWidth(r)
+		w := layout.RuneWidth(r)
 		if w == 0 {
 			var err error
 			if row, err = row.appendRune(r, Style{}); err != nil {

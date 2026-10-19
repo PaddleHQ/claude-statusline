@@ -47,18 +47,45 @@ func TestDisplayPath(t *testing.T) {
 	}
 }
 
+// checkout is what the git reader reports for the working directory.
+type checkout struct {
+	branch, root, mainRoot, project string
+}
+
 type setup struct {
 	cwd       string
 	strip     []string
 	branch    bool
 	worktrees []string
 	emoji     bool
-	// checkout is what the reader reports for cwd: branch, worktree root, main root, project.
-	checkout [4]string
+	checkout  checkout
 }
 
-// build expects one git read when wantGit is set: Checkout when worktrees are listed, else Branch.
-func build(t *testing.T, s setup, wantGit bool) *path.Path {
+// build lets the git reader be called either way, so a test of what is drawn does not restate when git is read.
+func build(t *testing.T, s setup) *path.Path {
+	t.Helper()
+
+	git := mocks.NewGit(t)
+	git.EXPECT().Checkout(s.cwd).Return(s.checkout.branch, s.checkout.root, s.checkout.mainRoot, s.checkout.project).Maybe()
+	git.EXPECT().Branch(s.cwd).Return(s.checkout.branch).Maybe()
+	return newPath(t, s, git)
+}
+
+// buildStrict expects exactly one git read when wantGit is set: Checkout when worktrees are listed, else Branch.
+func buildStrict(t *testing.T, s setup, wantGit bool) *path.Path {
+	t.Helper()
+
+	git := mocks.NewGit(t)
+	switch {
+	case wantGit && len(s.worktrees) > 0:
+		git.EXPECT().Checkout(s.cwd).Return(s.checkout.branch, s.checkout.root, s.checkout.mainRoot, s.checkout.project).Once()
+	case wantGit:
+		git.EXPECT().Branch(s.cwd).Return(s.checkout.branch).Once()
+	}
+	return newPath(t, s, git)
+}
+
+func newPath(t *testing.T, s setup, git *mocks.Git) *path.Path {
 	t.Helper()
 
 	sess := mocks.NewSession(t)
@@ -73,13 +100,6 @@ func build(t *testing.T, s setup, wantGit bool) *path.Path {
 	paint.EXPECT().Branch(mock.Anything).RunAndReturn(func(s string) string { return "<b>" + s + "</>" }).Maybe()
 	paint.EXPECT().Worktree(mock.Anything).RunAndReturn(func(s string) string { return "<w>" + s + "</>" }).Maybe()
 	paint.EXPECT().Glyphs().Return("B", "W").Maybe()
-	git := mocks.NewGit(t)
-	switch {
-	case wantGit && len(s.worktrees) > 0:
-		git.EXPECT().Checkout(s.cwd).Return(s.checkout[0], s.checkout[1], s.checkout[2], s.checkout[3]).Once()
-	case wantGit:
-		git.EXPECT().Branch(s.cwd).Return(s.checkout[0]).Once()
-	}
 	return path.New(path.Deps{Session: sess, Config: cfg, Paint: paint, Git: git, Home: "/home/me"})
 }
 
@@ -90,17 +110,17 @@ func TestRender(t *testing.T) {
 		repo = "/home/me/repo"
 		wt   = "/home/me/repo/.worktrees/wt"
 	)
-	wtCheckout := [4]string{"feat", wt, repo, "repo"}
+	wtCheckout := checkout{branch: "feat", root: wt, mainRoot: repo, project: "repo"}
 	tests := []struct {
 		name string
 		s    setup
 		want string
 	}{
 		{"home abbreviated", setup{cwd: "/home/me/x", branch: true}, "<p>~/x</>"},
-		{"regular repository", setup{cwd: repo, branch: true, checkout: [4]string{"main"}}, "<p>~/repo (</><b>main</><p>)</>"},
-		{"regular repository with emoji", setup{cwd: repo, branch: true, emoji: true, checkout: [4]string{"main"}}, "<p>~/repo (</><b>B main</><p>)</>"},
+		{"regular repository", setup{cwd: repo, branch: true, checkout: checkout{branch: "main"}}, "<p>~/repo (</><b>main</><p>)</>"},
+		{"regular repository with emoji", setup{cwd: repo, branch: true, emoji: true, checkout: checkout{branch: "main"}}, "<p>~/repo (</><b>B main</><p>)</>"},
 		{"branch can be turned off", setup{cwd: repo}, "<p>~/repo</>"},
-		{"strip applies", setup{cwd: repo, strip: []string{"~"}, branch: true, checkout: [4]string{"main"}}, "<p>repo (</><b>main</><p>)</>"},
+		{"strip applies", setup{cwd: repo, strip: []string{"~"}, branch: true, checkout: checkout{branch: "main"}}, "<p>repo (</><b>main</><p>)</>"},
 		{"directory without a branch", setup{cwd: "/srv/x", branch: true}, "<p>/srv/x</>"},
 		{"no directory hides the segment", setup{branch: true}, ""},
 
@@ -108,10 +128,10 @@ func TestRender(t *testing.T) {
 		{"worktree with emoji", setup{cwd: wt, branch: true, emoji: true, worktrees: []string{".worktrees"}, checkout: wtCheckout}, "<p>repo (</><w>W feat</><p>)</>"},
 		{"worktree subdirectory keeps what follows the root", setup{cwd: wt + "/pkg/sub", branch: true, worktrees: []string{".worktrees"}, checkout: wtCheckout}, "<p>repo/pkg/sub (</><w>feat</><p>)</>"},
 		{"strip is ignored for a worktree", setup{cwd: wt, branch: true, strip: []string{"~"}, worktrees: []string{".worktrees"}, checkout: wtCheckout}, "<p>repo (</><w>feat</><p>)</>"},
-		{"worktree without a branch name", setup{cwd: wt, branch: true, worktrees: []string{".worktrees"}, checkout: [4]string{"", wt, repo, "repo"}}, "<p>repo</>"},
+		{"worktree without a branch name", setup{cwd: wt, branch: true, worktrees: []string{".worktrees"}, checkout: checkout{branch: "", root: wt, mainRoot: repo, project: "repo"}}, "<p>repo</>"},
 		{"branch off shows the project alone", setup{cwd: wt, emoji: true, worktrees: []string{".worktrees"}, checkout: wtCheckout}, "<p>repo</>"},
-		{"absolute entry without a main root", setup{cwd: wt, branch: true, worktrees: []string{"/home/me/repo/.worktrees"}, checkout: [4]string{"feat", wt, "", "repo"}}, "<p>repo (</><w>feat</><p>)</>"},
-		{"relative entry without a main root", setup{cwd: wt, branch: true, worktrees: []string{"home"}, checkout: [4]string{"feat", wt, "", "repo"}}, "<p>~/repo/.worktrees/wt (</><b>feat</><p>)</>"},
+		{"absolute entry without a main root", setup{cwd: wt, branch: true, worktrees: []string{"/home/me/repo/.worktrees"}, checkout: checkout{branch: "feat", root: wt, mainRoot: "", project: "repo"}}, "<p>repo (</><w>feat</><p>)</>"},
+		{"relative entry without a main root", setup{cwd: wt, branch: true, worktrees: []string{"home"}, checkout: checkout{branch: "feat", root: wt, mainRoot: "", project: "repo"}}, "<p>~/repo/.worktrees/wt (</><b>feat</><p>)</>"},
 		{"tilde entry", setup{cwd: wt, branch: true, worktrees: []string{"~/repo/.worktrees"}, checkout: wtCheckout}, "<p>repo (</><w>feat</><p>)</>"},
 		{"tilde user entry is relative", setup{cwd: wt, branch: true, worktrees: []string{"~me/repo/.worktrees"}, checkout: wtCheckout}, "<p>~/repo/.worktrees/wt (</><b>feat</><p>)</>"},
 		{"entry that cleans to the main root", setup{cwd: wt, branch: true, worktrees: []string{"./"}, checkout: wtCheckout}, "<p>repo (</><w>feat</><p>)</>"},
@@ -119,20 +139,19 @@ func TestRender(t *testing.T) {
 		{"entry with dot segments", setup{cwd: wt, branch: true, worktrees: []string{"a/../.worktrees"}, checkout: wtCheckout}, "<p>repo (</><w>feat</><p>)</>"},
 		{"root entry is ignored", setup{cwd: wt, branch: true, worktrees: []string{"/"}, checkout: wtCheckout}, "<p>~/repo/.worktrees/wt (</><b>feat</><p>)</>"},
 		{"any listed entry may match", setup{cwd: wt, branch: true, worktrees: []string{".claude/worktrees", ".worktrees"}, checkout: wtCheckout}, "<p>repo (</><w>feat</><p>)</>"},
-		{"worktrees listed with branch off in a regular repository", setup{cwd: repo, worktrees: []string{".worktrees"}, checkout: [4]string{"main"}}, "<p>~/repo</>"},
+		{"worktrees listed with branch off in a regular repository", setup{cwd: repo, worktrees: []string{".worktrees"}, checkout: checkout{branch: "main"}}, "<p>~/repo</>"},
 		{"working directory with a trailing slash", setup{cwd: wt + "/", branch: true, worktrees: []string{".worktrees"}, checkout: wtCheckout}, "<p>repo (</><w>feat</><p>)</>"},
 		{"working directory with a dot segment", setup{cwd: "/home/me/repo/.worktrees/./wt", branch: true, worktrees: []string{".worktrees"}, checkout: wtCheckout}, "<p>repo (</><w>feat</><p>)</>"},
-		{"main repository itself is regular", setup{cwd: repo, branch: true, worktrees: []string{".worktrees"}, checkout: [4]string{"main"}}, "<p>~/repo (</><b>main</><p>)</>"},
-		{"root equal to the entry is regular", setup{cwd: "/home/me/repo/.worktrees", branch: true, worktrees: []string{".worktrees"}, checkout: [4]string{"feat", "/home/me/repo/.worktrees", repo, "repo"}}, "<p>~/repo/.worktrees (</><b>feat</><p>)</>"},
-		{"sibling named with the entry as a prefix is regular", setup{cwd: repo + "/.worktrees-old/wt", branch: true, worktrees: []string{".worktrees"}, checkout: [4]string{"feat", repo + "/.worktrees-old/wt", repo, "repo"}}, "<p>~/repo/.worktrees-old/wt (</><b>feat</><p>)</>"},
+		{"main repository itself is regular", setup{cwd: repo, branch: true, worktrees: []string{".worktrees"}, checkout: checkout{branch: "main"}}, "<p>~/repo (</><b>main</><p>)</>"},
+		{"root equal to the entry is regular", setup{cwd: "/home/me/repo/.worktrees", branch: true, worktrees: []string{".worktrees"}, checkout: checkout{branch: "feat", root: "/home/me/repo/.worktrees", mainRoot: repo, project: "repo"}}, "<p>~/repo/.worktrees (</><b>feat</><p>)</>"},
+		{"sibling named with the entry as a prefix is regular", setup{cwd: repo + "/.worktrees-old/wt", branch: true, worktrees: []string{".worktrees"}, checkout: checkout{branch: "feat", root: repo + "/.worktrees-old/wt", mainRoot: repo, project: "repo"}}, "<p>~/repo/.worktrees-old/wt (</><b>feat</><p>)</>"},
 		{"directory outside the reported root is regular", setup{cwd: wt + "x", branch: true, worktrees: []string{".worktrees"}, checkout: wtCheckout}, "<p>~/repo/.worktrees/wtx (</><b>feat</><p>)</>"},
-		{"worktree without a project is regular", setup{cwd: wt, branch: true, worktrees: []string{".worktrees"}, checkout: [4]string{"feat", wt, repo, ""}}, "<p>~/repo/.worktrees/wt (</><b>feat</><p>)</>"},
+		{"worktree without a project is regular", setup{cwd: wt, branch: true, worktrees: []string{".worktrees"}, checkout: checkout{branch: "feat", root: wt, mainRoot: repo, project: ""}}, "<p>~/repo/.worktrees/wt (</><b>feat</><p>)</>"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			wantGit := tt.s.cwd != "" && (tt.s.branch || len(tt.s.worktrees) > 0)
-			assert.Equal(t, tt.want, build(t, tt.s, wantGit).Render())
+			assert.Equal(t, tt.want, build(t, tt.s).Render())
 		})
 	}
 }
@@ -147,14 +166,14 @@ func TestGitReadsOnlyWhatIsNeeded(t *testing.T) {
 		wantGit bool
 		want    string
 	}{
-		{"without worktrees only the branch is read", setup{cwd: "/home/me/repo", branch: true, checkout: [4]string{"main"}}, true, "<p>~/repo (</><b>main</><p>)</>"},
-		{"with worktrees only the checkout is read", setup{cwd: "/home/me/repo", branch: true, worktrees: []string{".worktrees"}, checkout: [4]string{"main"}}, true, "<p>~/repo (</><b>main</><p>)</>"},
-		{"with neither nothing is read", setup{cwd: "/home/me/repo", checkout: [4]string{"main"}}, false, "<p>~/repo</>"},
+		{"without worktrees only the branch is read", setup{cwd: "/home/me/repo", branch: true, checkout: checkout{branch: "main"}}, true, "<p>~/repo (</><b>main</><p>)</>"},
+		{"with worktrees only the checkout is read", setup{cwd: "/home/me/repo", branch: true, worktrees: []string{".worktrees"}, checkout: checkout{branch: "main"}}, true, "<p>~/repo (</><b>main</><p>)</>"},
+		{"with neither nothing is read", setup{cwd: "/home/me/repo", checkout: checkout{branch: "main"}}, false, "<p>~/repo</>"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, build(t, tt.s, tt.wantGit).Render())
+			assert.Equal(t, tt.want, buildStrict(t, tt.s, tt.wantGit).Render())
 		})
 	}
 }
@@ -162,7 +181,7 @@ func TestGitReadsOnlyWhatIsNeeded(t *testing.T) {
 func TestNameAndKeys(t *testing.T) {
 	t.Parallel()
 
-	seg := build(t, setup{branch: true}, false)
+	seg := build(t, setup{branch: true})
 	assert.Equal(t, "path", seg.Name())
 	assert.Equal(t, []string{"strip", "branch", "worktrees", "emoji"}, seg.Keys())
 }
@@ -170,9 +189,9 @@ func TestNameAndKeys(t *testing.T) {
 func TestHelp(t *testing.T) {
 	t.Parallel()
 
-	assert.Contains(t, build(t, setup{branch: true}, false).Help(), "branch")
-	assert.NotContains(t, build(t, setup{}, false).Help(), "branch")
-	assert.Contains(t, build(t, setup{strip: []string{"~/code", "/my srv"}}, false).Help(), "~/code, /my srv")
-	assert.Contains(t, build(t, setup{worktrees: []string{".worktrees", "~/wt"}}, false).Help(), "under .worktrees, ~/wt")
-	assert.NotContains(t, build(t, setup{}, false).Help(), "worktree")
+	assert.Contains(t, build(t, setup{branch: true}).Help(), "branch")
+	assert.NotContains(t, build(t, setup{}).Help(), "branch")
+	assert.Contains(t, build(t, setup{strip: []string{"~/code", "/my srv"}}).Help(), "~/code, /my srv")
+	assert.Contains(t, build(t, setup{worktrees: []string{".worktrees", "~/wt"}}).Help(), "under .worktrees, ~/wt")
+	assert.NotContains(t, build(t, setup{}).Help(), "worktree")
 }

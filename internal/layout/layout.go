@@ -48,6 +48,11 @@ var columns = func() *runewidth.Condition {
 	return c
 }()
 
+// RuneWidth is the number of columns r occupies, by the same rule Width uses, so the feature tests count as the line does.
+func RuneWidth(r rune) int {
+	return columns.RuneWidth(r)
+}
+
 // Width is the number of columns s occupies once color sequences are removed, counting wide characters as two.
 func Width(s string) int {
 	return columns.StringWidth(sgr.ReplaceAllString(s, ""))
