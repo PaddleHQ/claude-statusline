@@ -157,7 +157,7 @@ separator: "|"`,
 "b"\tb · Haiku 4.5
 "c"\tc · Newfamily 7
 "d"\td · Opus 4
-"e"\te · 3-5-sonnet
+"e"\te · 3-5-sonnet-20241022
 "f"\tf · gpt-x
 "g"\tg · opus-4-7[1m]
 "h"\th · opus-4-7-latest

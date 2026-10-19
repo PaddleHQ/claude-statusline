@@ -185,10 +185,10 @@ func number(r gjson.Result) (float64, bool) {
 	return r.Num, true
 }
 
-// shortModel turns claude-opus-4-7-20251001 into Opus 4.7, and leaves an id it cannot parse as it is minus the claude- prefix.
+// shortModel turns claude-opus-4-7-20251001 into Opus 4.7, and shows an id it cannot parse as it is minus the claude- prefix.
 func shortModel(id string) string {
-	id = dateSuffix.ReplaceAllString(payload.Sanitize(id), "")
-	if m := modelID.FindStringSubmatch(id); m != nil {
+	id = payload.Sanitize(id)
+	if m := modelID.FindStringSubmatch(dateSuffix.ReplaceAllString(id, "")); m != nil {
 		words := strings.Split(m[1], "-")
 		for i, w := range words {
 			words[i] = strings.ToUpper(w[:1]) + w[1:]
