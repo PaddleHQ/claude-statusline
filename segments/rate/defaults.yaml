@@ -1,0 +1,31 @@
+rate5h:
+  # Text shown before the 5 hour bar.
+  label: 5h
+  # Bar width in cells on a wide terminal (160 columns or more).
+  width: 20
+  # Bar width below 160 columns.
+  width_medium: 14
+  # Bar width below 120 columns.
+  width_narrow: 10
+  # Pace deviation, in percentage points, beyond which the fill turns amber.
+  warn: 20
+  # Pace deviation, in percentage points, beyond which the fill turns red.
+  bad: 40
+  # Usage percentage at or above which the fill is always red.
+  hard_cap: 95
+
+rate7d:
+  # Text shown before the 7 day bar.
+  label: 7d
+  # Bar width in cells on a wide terminal (160 columns or more).
+  width: 20
+  # Bar width below 160 columns.
+  width_medium: 14
+  # Bar width below 120 columns.
+  width_narrow: 10
+  # Pace deviation, in percentage points, beyond which the fill turns amber.
+  warn: 10
+  # Pace deviation, in percentage points, beyond which the fill turns red.
+  bad: 20
+  # Usage percentage at or above which the fill is always red.
+  hard_cap: 95
