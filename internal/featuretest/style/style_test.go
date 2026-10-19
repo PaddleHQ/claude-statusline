@@ -70,6 +70,11 @@ func TestDecodeFormat(t *testing.T) {
 			want: "a\u200bb\n",
 		},
 		{
+			name: "an emoji selector makes the character before it wide",
+			raw:  "a\033[31m❤️\033[0mz",
+			want: "a❤️z\n r_",
+		},
+		{
 			name: "no output has no rows",
 			raw:  "",
 			want: "",
@@ -108,6 +113,7 @@ func TestDecodeRejects(t *testing.T) {
 		{"an extended color with no mode", "\033[38ma", "SGR parameter 38"},
 		{"a non numeric parameter", "\033[1:2ma", "SGR parameter \"1:2\""},
 		{"a zero-width character first", "\u200ba", "zero-width"},
+		{"an emoji selector first", "\ufe0fa", "zero-width"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -118,6 +124,20 @@ func TestDecodeRejects(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.want)
 		})
 	}
+}
+
+func TestParseCountsAnEmojiSelectorAsWide(t *testing.T) {
+	t.Parallel()
+
+	decoded, err := style.Decode("a\033[31m❤️\033[0mz")
+	require.NoError(t, err)
+	parsed, err := style.Parse("a❤️z\n r_")
+	require.NoError(t, err)
+	assert.True(t, decoded.Equal(parsed))
+
+	_, err = style.Parse("a❤️z\n r")
+	require.Error(t, err, "the second column of the wide cell needs its continuation")
+	assert.Contains(t, err.Error(), "wide character")
 }
 
 func TestParseMatchesDecode(t *testing.T) {

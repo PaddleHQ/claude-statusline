@@ -146,13 +146,23 @@ func (r Row) trimmed() Row {
 	return r[:end]
 }
 
+func (r Row) lastWidth() int {
+	if len(r) == 0 {
+		return 0
+	}
+	return r[len(r)-1].Width
+}
+
 func (r Row) appendRune(c rune, s Style) (Row, error) {
 	w := layout.RuneWidth(c)
 	if w == 0 {
 		if len(r) == 0 {
 			return nil, fmt.Errorf("%w: the zero-width character %U starts a row", errUnsupported, c)
 		}
-		r[len(r)-1].Text += string(c)
+		last := &r[len(r)-1]
+		last.Text += string(c)
+		// A selector can widen the cell, and layout.Width owns that rule.
+		last.Width = min(layout.Width(last.Text), wideColumns)
 		return r, nil
 	}
 	return append(r, Cell{Text: string(c), Width: min(w, wideColumns), Style: s}), nil
