@@ -29,3 +29,43 @@ Feature: Path and git branch
       """
       ~/repo/pkg/sub (main)
       """
+
+  Scenario: A worktree under a configured directory shows the project name with the worktree emoji and colour
+    Given the session:
+      """json
+      {
+        "cwd": "@TMP@/repo/.worktrees/statusline_cost"
+      }
+      """
+    And the config:
+      """
+      segments: [path]
+      path:
+        worktrees: [.worktrees]
+        emoji: true
+      """
+    And the file "repo/.git/HEAD":
+      """
+      ref: refs/heads/main
+      """
+    And the file "repo/.git/worktrees/statusline_cost/HEAD":
+      """
+      ref: refs/heads/statusline_cost
+      """
+    And the file "repo/.git/worktrees/statusline_cost/commondir":
+      """
+      ../..
+      """
+    And the file "repo/.worktrees/statusline_cost/.git":
+      """
+      gitdir: @TMP@/repo/.git/worktrees/statusline_cost
+      """
+    When the status line renders
+    Then the output is:
+      """
+      repo (🌳 statusline_cost)
+      1111113_33333333333333331
+
+      1 = bold 256:33
+      3 = bold 256:208
+      """
