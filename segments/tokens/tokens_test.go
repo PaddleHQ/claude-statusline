@@ -83,12 +83,13 @@ func TestRender(t *testing.T) {
 	}
 }
 
-func TestNameAndKeys(t *testing.T) {
+func TestNameKeysAndHelp(t *testing.T) {
 	t.Parallel()
 
 	seg := build(t, nil, nil)
 	assert.Equal(t, "tokens", seg.Name())
 	assert.Empty(t, seg.Keys())
+	assert.NotEmpty(t, seg.Help())
 }
 
 func FuzzFormatTokens(f *testing.F) {

@@ -63,10 +63,12 @@ func TestAbsentUsageHidesTheSegment(t *testing.T) {
 	assert.Empty(t, seg.Render())
 }
 
-func TestNameAndKeys(t *testing.T) {
+func TestNameKeysAndHelp(t *testing.T) {
 	t.Parallel()
 
 	seg, _ := build(t, 0, false, 40, 80)
 	assert.Equal(t, "ctx", seg.Name())
 	assert.Equal(t, []string{"width", "width_medium", "width_narrow", "warn", "bad"}, seg.Keys())
+	assert.Contains(t, seg.Help(), "40%")
+	assert.Contains(t, seg.Help(), "80%")
 }

@@ -32,6 +32,9 @@ type Suite struct {
 	// Tags selects scenarios the way godog does: a comma is or, && is and and ~ is not, as in "@hooks && ~@screenshot".
 	// Empty runs all.
 	Tags string
+	// Screenshot receives the terminal text of a scenario whose Then step saves it as a screenshot. Without
+	// it, such a step fails.
+	Screenshot func(name, screen string)
 
 	ran int
 }
@@ -101,6 +104,7 @@ func (s *Suite) initialize(sc *godog.ScenarioContext) {
 		worldOf(ctx).renderStatusLine(ctx)
 	})
 	sc.Step(`^the subagent rows render$`, func(ctx context.Context) error { return worldOf(ctx).renderSubagentRows(ctx) })
+	sc.Step(`^help runs$`, func(ctx context.Context) { worldOf(ctx).renderHelp(ctx) })
 
 	sc.Step(`^the output is:$`, func(ctx context.Context, doc *godog.DocString) error {
 		return worldOf(ctx).checkOutput(doc.Content)
@@ -113,5 +117,8 @@ func (s *Suite) initialize(sc *godog.ScenarioContext) {
 	})
 	sc.Step(`^the rate-limit cache is:$`, func(ctx context.Context, doc *godog.DocString) error {
 		return worldOf(ctx).checkCache(doc.Content)
+	})
+	sc.Step(`^the output is saved as the screenshot "([^"]+)"$`, func(ctx context.Context, name string) error {
+		return worldOf(ctx).saveScreenshot(name)
 	})
 }

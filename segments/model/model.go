@@ -70,6 +70,15 @@ func New(d Deps) *Model { return &Model{d: d} }
 // Name is the segment's name in the segments list.
 func (m *Model) Name() string { return name }
 
+// Help says what the segment shows, for the help command.
+func (m *Model) Help() string {
+	help := "The model in use"
+	if m.d.Config.Bool("effort") {
+		help += " and its effort level, as in Opus 4.7 [high]"
+	}
+	return help + ". It reads Haiku (skill), for example, while a skill or subagent runs a different model than the session's."
+}
+
 // Keys lists the config keys the segment reads, relative to its section.
 func (m *Model) Keys() []string { return []string{"effort"} }
 

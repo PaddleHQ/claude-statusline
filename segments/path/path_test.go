@@ -95,3 +95,11 @@ func TestNameAndKeys(t *testing.T) {
 	assert.Equal(t, "path", seg.Name())
 	assert.Equal(t, []string{"strip", "branch"}, seg.Keys())
 }
+
+func TestHelp(t *testing.T) {
+	t.Parallel()
+
+	assert.Contains(t, build(t, "", nil, true, nil).Help(), "branch")
+	assert.NotContains(t, build(t, "", nil, false, nil).Help(), "branch")
+	assert.Contains(t, build(t, "", []string{"~/code", "/my srv"}, false, nil).Help(), "~/code, /my srv")
+}
