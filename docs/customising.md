@@ -42,7 +42,7 @@ A setting you leave out keeps its default, including the other keys of a segment
 | `hooks.ttl` | `60` | Seconds a custom segment's result is reused before its script runs again. |
 | `hooks.timeout` | `2` | Seconds a custom segment's script may run before it is killed. |
 | `snapshot.enabled` | `true` | Save the latest session payload for other tools to read (`true` or `false`). |
-| `snapshot.path` | empty | Where to save it; empty means `usage-latest.json` in your Claude config directory. |
+| `snapshot.path` | empty | Where to save it; empty means `usage-latest.json` in your Claude config directory. A relative path is taken from the `claude-statusline` directory inside it. |
 
 Set `NO_COLOR` to any non-empty value to turn colour and styling off; see [NO_COLOR](how_it_works.md#no_color).
 
@@ -117,7 +117,7 @@ A hook's name is its filename without a leading `NN-` and without its extension,
 - If the name is in `segments`, the hook is drawn there: `segments: [backup, path, model, ctx, tokens, cache, rate5h, rate7d]` puts it first.
 - If the name is a built-in segment that is in `segments` (`model`, say), the hook replaces the built-in.
 - Any other hook goes to its slot, chosen by a comment in the first 20 lines of the script: `# statusline-slot: ctx` (the default) draws it straight after `ctx`, or after `model` when there is no `ctx`; `usage` draws it after `tokens` and `cache`; `end` draws it last. Any other slot name means `ctx`, so a typo shows up on the line.
-- A comment `# statusline-help: <text>` in the first 20 lines is the description that `/statusline:help` and `claude-statusline help` show for the hook. Without one, the help says "custom segment from" and the file name. Help only reads the script's header; it never runs it.
+- A comment `# statusline-help: <text>` in the first 20 lines is the description that `/statusline:help` and `claude-statusline help` show for the hook. The text is cut at 200 characters. Without one, the help says "custom segment from" and the file name. Help only reads the script's header; it never runs it.
 
 ### Timeouts and caching
 

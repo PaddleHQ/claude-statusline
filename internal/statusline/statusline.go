@@ -105,6 +105,13 @@ func saveSnapshot(input []byte, cfg *config.Config, getenv func(string) string) 
 			return
 		}
 		path = filepath.Join(dir, snapshot.FileName)
+	} else if !filepath.IsAbs(path) {
+		// The working directory is the repository Claude Code runs in, not a place for the user's own files.
+		dir := config.AppDir(getenv)
+		if dir == "" {
+			return
+		}
+		path = filepath.Join(dir, path)
 	}
 	_ = snapshot.New(path).Write(input)
 }

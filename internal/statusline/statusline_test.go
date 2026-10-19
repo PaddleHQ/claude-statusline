@@ -298,3 +298,17 @@ func TestBuildIgnoresRelativeHookDir(t *testing.T) {
 
 	assert.NotContains(t, got, "PWNED")
 }
+
+// Not parallel: t.Chdir changes the working directory of the whole process.
+func TestBuildResolvesRelativeSnapshotPath(t *testing.T) {
+	work := t.TempDir()
+	t.Chdir(work)
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "claude-statusline"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "claude-statusline", "config.yaml"), []byte("snapshot:\n  path: latest.json\n"), 0o600))
+
+	statusline.Build([]byte(`{"model":{"display_name":"Opus"}}`), env(map[string]string{"CLAUDE_CONFIG_DIR": dir}))
+
+	assert.FileExists(t, filepath.Join(dir, "claude-statusline", "latest.json"))
+	assert.NoFileExists(t, filepath.Join(work, "latest.json"))
+}
