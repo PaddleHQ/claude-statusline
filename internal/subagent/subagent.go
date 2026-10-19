@@ -30,7 +30,8 @@ const (
 
 var (
 	dateSuffix = regexp.MustCompile(`-\d{8}$`)
-	// A modern id is claude-<family words>-<major>[-<minor>...], so new models need no table entry.
+	// A modern id is claude-<family words>-<major>[-<minor>...], so new models need no table entry. The model segment keeps its own
+	// family table because it only needs to tell families apart, not to name them.
 	modelID = regexp.MustCompile(`^claude-([a-z]+(?:-[a-z]+)*)-(\d+(?:-\d+)*)$`)
 	ctxKeys = []string{"ctx.width", "ctx.width_medium", "ctx.width_narrow", "ctx.warn", "ctx.bad"}
 )
@@ -123,7 +124,7 @@ func (r *renderer) appendModel(parts []string, task gjson.Result) []string {
 		return parts
 	}
 	th := r.th
-	part := th.Paint(th.TextColor, shortModel(model.String()))
+	part := th.Paint(th.TextColor, modelLabel(model.String()))
 	if effort := scalar(task.Get("effort")); effort != nil {
 		part += th.Paint(th.Muted, " ["+*effort+"]")
 	}
@@ -185,17 +186,16 @@ func number(r gjson.Result) (float64, bool) {
 	return r.Num, true
 }
 
-// shortModel turns claude-opus-4-7-20251001 into Opus 4.7, and shows an id it cannot parse as it is minus the claude- prefix.
-func shortModel(id string) string {
+// modelLabel turns claude-opus-4-7-20251001 into Opus 4.7, and shows an id it cannot parse as it is minus the claude- prefix.
+func modelLabel(id string) string {
 	id = payload.Sanitize(id)
-	if m := modelID.FindStringSubmatch(dateSuffix.ReplaceAllString(id, "")); m != nil {
-		words := strings.Split(m[1], "-")
-		for i, w := range words {
-			words[i] = strings.ToUpper(w[:1]) + w[1:]
-		}
-		id = strings.Join(words, " ") + " " + strings.ReplaceAll(m[2], "-", ".")
-	} else {
-		id = strings.TrimPrefix(id, "claude-")
+	m := modelID.FindStringSubmatch(dateSuffix.ReplaceAllString(id, ""))
+	if m == nil {
+		return strings.TrimPrefix(id, "claude-")
 	}
-	return id
+	words := strings.Split(m[1], "-")
+	for i, w := range words {
+		words[i] = strings.ToUpper(w[:1]) + w[1:]
+	}
+	return strings.Join(words, " ") + " " + strings.ReplaceAll(m[2], "-", ".")
 }

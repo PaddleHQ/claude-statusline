@@ -150,19 +150,46 @@ separator: "|"`,
 			want:    `"t1"\t\e[1mreviewer\e[0m \e[2m·\e[0m Sonnet 4.5 \e[2m·\e[0m ctx: \e[33m████▌\e[0m\e[2m░\e[0m \e[33m75%\e[0m \e[2m·\e[0m 150.0k \e[2m·\e[0m \e[2mNarrow panel\e[0m`,
 		},
 		{
-			name:    `A model id is read as family and version, so an unlisted family or a date suffix needs no table entry`,
-			session: `{"tasks":[{"id":"a","name":"a","model":"claude-opus-5-5"},{"id":"b","name":"b","model":"claude-haiku-4-5-20251001"},{"id":"c","name":"c","model":"claude-newfamily-7"},{"id":"d","name":"d","model":"claude-opus-4-20250514"},{"id":"e","name":"e","model":"claude-3-5-sonnet-20241022"},{"id":"f","name":"f","model":"gpt-x"},{"id":"g","name":"g","model":"claude-opus-4-7[1m]"},{"id":"h","name":"h","model":"claude-opus-4-7-latest"},{"id":"i","name":"i","model":"claude-sonic-hedgehog-3-1"},{"id":"j","name":"j","model":"claude-opus-4-7\u0000"}]}`,
+			name:    `A model id is shown as its family and version`,
+			session: `{"tasks":[{"id":"t","name":"t","model":"claude-opus-5-5"}]}`,
 			env:     map[string]string{`NO_COLOR`: `1`},
-			want: `"a"\ta · Opus 5.5
-"b"\tb · Haiku 4.5
-"c"\tc · Newfamily 7
-"d"\td · Opus 4
-"e"\te · 3-5-sonnet-20241022
-"f"\tf · gpt-x
-"g"\tg · opus-4-7[1m]
-"h"\th · opus-4-7-latest
-"i"\ti · Sonic Hedgehog 3.1
-"j"\tj · Opus 4.7`,
+			want:    `"t"\tt · Opus 5.5`,
+		},
+		{
+			name:    `A date suffix is dropped from a model id`,
+			session: `{"tasks":[{"id":"t","name":"t","model":"claude-haiku-4-5-20251001"}]}`,
+			env:     map[string]string{`NO_COLOR`: `1`},
+			want:    `"t"\tt · Haiku 4.5`,
+		},
+		{
+			name:    `A model id with a major version only has no dot`,
+			session: `{"tasks":[{"id":"t","name":"t","model":"claude-opus-4-20250514"}]}`,
+			env:     map[string]string{`NO_COLOR`: `1`},
+			want:    `"t"\tt · Opus 4`,
+		},
+		{
+			name:    `A family nobody listed is capitalised word by word`,
+			session: `{"tasks":[{"id":"t","name":"t","model":"claude-sonic-hedgehog-3-1"}]}`,
+			env:     map[string]string{`NO_COLOR`: `1`},
+			want:    `"t"\tt · Sonic Hedgehog 3.1`,
+		},
+		{
+			name:    `A model id the parser does not recognize is shown unchanged minus the claude- prefix`,
+			session: `{"tasks":[{"id":"t","name":"t","model":"claude-3-5-sonnet-20241022"}]}`,
+			env:     map[string]string{`NO_COLOR`: `1`},
+			want:    `"t"\tt · 3-5-sonnet-20241022`,
+		},
+		{
+			name:    `A suffix after the version keeps the id unparsed`,
+			session: `{"tasks":[{"id":"t","name":"t","model":"claude-opus-4-7[1m]"}]}`,
+			env:     map[string]string{`NO_COLOR`: `1`},
+			want:    `"t"\tt · opus-4-7[1m]`,
+		},
+		{
+			name:    `A control character in a model id is removed before it is parsed`,
+			session: `{"tasks":[{"id":"t","name":"t","model":"claude-opus-4-7\u0000"}]}`,
+			env:     map[string]string{`NO_COLOR`: `1`},
+			want:    `"t"\tt · Opus 4.7`,
 		},
 		{
 			name:    `NO_COLOR removes every color from agent rows`,
