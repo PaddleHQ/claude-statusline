@@ -1,5 +1,5 @@
 # Segments to render, in order.
-segments: [model]
+segments: [path, model, ctx, tokens, cache]
 
 # Glyph drawn between segments.
 separator: "·"

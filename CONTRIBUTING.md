@@ -23,6 +23,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `internal/layout` | Joins rendered segments into one row, or wraps them into groups when the terminal is too narrow. |
 | `internal/config` | Layers your config file over the defaults embedded in the binary: its own `defaults.yaml` for the global keys, and each plugin's. |
 | `internal/payload` | Decodes the session JSON from Claude Code and strips control characters from its strings. |
+| `internal/gitbranch` | Finds the branch by reading `.git` files, without running `git`. |
 | `internal/bar` | Draws a usage bar with an optional pace marker. |
 | `internal/theme` | Loads themes from YAML, compiles colour specs, and provides the colour-free variant used for `NO_COLOR`. It reads the built-in themes from `themes/`. |
 | `themes` | The built-in themes: one YAML file each, embedded in the binary by a tiny package that only exports them. |
@@ -69,9 +70,10 @@ There are three layers. Put a test in the lowest one that can show the behaviour
 
 **1. Plugin unit tests**, in `segments/<plugin>/*_test.go`, with [mockery](#mocks) mocks. They cover every edge of what one plugin draws: how it formats, where its thresholds and colours change, what it does when data is missing, and how each config variant changes it. A plugin test never builds a payload or a theme; the mocks stand in for them. For example:
 
-- `model` leaving out the effort level when `model.effort` is `false`.
+- `tokens` abbreviating 999 as `999`, 1000 as `1.0k` and 1500000 as `1.5M`.
+- `cache` turning red below `cache.warn`, and hiding when the counts add up to zero.
 
-**2. Provider unit tests**, in `internal/*` (and `segments/all_test.go` for the composition root). They cover the shared machinery that the plugins sit on: config layering and validation, theme loading, fallback and colour specs, layout and wrapping, setup and the bars. They use real files in a temporary directory, never your `HOME`. For example:
+**2. Provider unit tests**, in `internal/*` (and `segments/render_test.go` for the composition root). They cover the shared machinery that the plugins sit on: config layering and validation, theme loading, fallback and colour specs, layout and wrapping, setup and the bars. They use real files in a temporary directory, never your `HOME`. For example:
 
 - a theme file with an unknown colour name falls back to `classic` (`internal/theme`).
 
@@ -95,7 +97,7 @@ go tool cover -func cover.filtered.out | tail -n 1
 
 ### Fuzzing
 
-The status line runs on every render and reads input it does not control: the session JSON, and your config and theme files. Each of those parsers has a native Go fuzz target (`FuzzParse` and so on, in the `fuzz_test.go` of its package, or beside the unit tests for `layout.Width`). A target checks properties rather than only that nothing panics: payload strings hold no control characters and a colour spec compiles to colour sequences only.
+The status line runs on every render and reads input it does not control: the session JSON, and your config and theme files. Each of those parsers has a native Go fuzz target (`FuzzParse` and so on, in the `fuzz_test.go` of its package, or beside the unit tests for `layout.Width` and `tokens.FormatTokens`). A target checks properties rather than only that nothing panics: payload strings hold no control characters and a colour spec compiles to colour sequences only.
 
 `go test ./...` runs every target on its seed inputs, so they are ordinary tests in CI. To let the fuzzer search for new inputs, run one target at a time:
 
@@ -117,30 +119,30 @@ CI runs the same command and fails if it changes anything, so a stale mock canno
 
 ### Feature tests
 
-The feature tests are [Gherkin](https://cucumber.io/docs/gherkin/) files under `features/`, run by [godog](https://github.com/cucumber/godog). Each file covers one topic (`config.feature`, `model_and_effort.feature`, and so on), and each scenario shows one example, named after what it shows. They keep to the composition and the readable examples; see the layers above for what belongs in a unit test instead. This one is in `features/model_and_effort.feature`:
+The feature tests are [Gherkin](https://cucumber.io/docs/gherkin/) files under `features/`, run by [godog](https://github.com/cucumber/godog). Each file covers one topic (`config.feature`, `model_and_effort.feature`, and so on), and each scenario shows one example, named after what it shows. They keep to the composition and the readable examples; see the layers above for what belongs in a unit test instead. This one is in `features/path_and_branch.feature`:
 
 ```gherkin
-Scenario: model.effort = false hides the effort level after the model name
+Scenario: The branch is found by walking up from a nested working directory to the repository's .git
   Given the session:
     """json
     {
-      "model": {
-        "display_name": "Opus 4.7"
-      },
-      "effort": {
-        "level": "high"
-      }
+      "cwd": "@TMP@/repo/pkg/sub"
     }
     """
   And the config:
     """
-    model:
-      effort: false
+    segments: [path]
     """
+  And the environment variable "NO_COLOR" is "1"
+  And the file "repo/.git/HEAD":
+    """
+    ref: refs/heads/main
+    """
+  And the directory "repo/pkg/sub"
   When the status line renders
   Then the text is:
     """
-    Opus 4.7
+    ~/repo/pkg/sub (main)
     """
 ```
 
@@ -187,10 +189,16 @@ The style character says which styles were in effect when that column was printe
 Everything else needs a legend: true colours, 256 colour palette entries, backgrounds, the other bright colours, black and anything combined, such as bold yellow. The legend follows the rows after one empty line, and has a line for each style in the form `<character> = <style>`. The character is a digit or a letter that is not built in, and a built-in character cannot be redefined. The style is one or more of `bold`, `dim`, a colour (`red`, `bright-red` and so on, `#rrggbb`, or `256:n` for a palette entry) and the same prefixed with `bg:` for a background, separated by spaces:
 
 ```text
-Opus 4.7 [high] · Opus 4.7 [high]
-                1
+ctx: ▰▰▰▰▰▰▱▱▱▱ 62%
+     1234567777 yyy
 
-1 = 256:244
+1 = #94e2ad
+2 = #aae2ad
+3 = #c0e2ad
+4 = #d7e2ae
+5 = #ede2ae
+6 = #f9d9af
+7 = #4a4a4a
 ```
 
 Some more rules:
@@ -251,7 +259,7 @@ A segment is a plugin: a package under `segments/` that owns its code, its `defa
 
 - Methods on a struct use pointer receivers, never value receivers, so that a type has one consistent method set.
 - Every receiver is named, with a short name taken from the type (`func (m *model) Keys()`, never `func (*model) Keys()`).
-- Behaviour that operates on a struct's data is a method on that struct, so it is found by looking at the type rather than by searching the package for a free function. Constructors stay functions (`New`, `Load`, `Parse`, `Open`: anything that builds and returns a value for the caller to use), and so do stateless helpers with no natural owning type, such as `payload.Sanitize` and the colour-spec parser. Do not force a helper onto a type just to avoid a package-level function.
+- Behaviour that operates on a struct's data is a method on that struct, so it is found by looking at the type rather than by searching the package for a free function. Constructors stay functions (`New`, `Load`, `Parse`, `Open`: anything that builds and returns a value for the caller to use), and so do stateless helpers with no natural owning type, such as `payload.Sanitize`, `tokens.FormatTokens` and the colour-spec parser. Do not force a helper onto a type just to avoid a package-level function.
 
 ### Comments and language
 

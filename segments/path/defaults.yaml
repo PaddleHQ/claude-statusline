@@ -1,0 +1,5 @@
+path:
+  # Directory prefixes to strip from the path, as a list; a leading ~ means your home directory.
+  strip: []
+  # Show the git branch after the path (true or false).
+  branch: true

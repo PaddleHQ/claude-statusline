@@ -44,6 +44,7 @@ func Build(input []byte, getenv func(string) string) string {
 		Config:  cfg,
 		Theme:   th,
 		Columns: columns(getenv),
+		Home:    getenv("HOME"),
 	}
 	line := &render.Line{
 		Names:     cfg.Strings("segments"),
