@@ -144,7 +144,7 @@ At 80 columns the same line as at the top of the README wraps into three rows:
 
 ## Subagent rows
 
-Claude Code's agent panel lists the subagents you have running. `claude-statusline subagent` is a `subagentStatusLine` command that draws each row as the agent's name (or its task kind when it has no name), its model without the `claude-` prefix and date suffix, the reasoning effort, a context bar with the percentage of the model's context window used, the token count and the task description:
+Claude Code's agent panel lists the subagents you have running. `claude-statusline subagent` is a `subagentStatusLine` command that draws each row as the agent's name (or its task kind when it has no name), its model as a family and version (`Opus 4.7`, with any date suffix dropped, or the id without its `claude-` prefix when it is not in that form), the reasoning effort, a context bar with the percentage of the model's context window used, the token count and the task description:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/subagent-dark.svg">
