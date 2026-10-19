@@ -192,6 +192,18 @@ separator: "|"`,
 			want:    `"t"\tt · Opus 4.7`,
 		},
 		{
+			name:    `A bare model alias is shown as it is`,
+			session: `{"tasks":[{"id":"t","name":"t","model":"sonnet"}]}`,
+			env:     map[string]string{`NO_COLOR`: `1`},
+			want:    `"t"\tt · sonnet`,
+		},
+		{
+			name:    `A cloud provider model id is shown as it is`,
+			session: `{"tasks":[{"id":"t","name":"t","model":"us.anthropic.claude-sonnet-4-5-20250929-v1:0"}]}`,
+			env:     map[string]string{`NO_COLOR`: `1`},
+			want:    `"t"\tt · us.anthropic.claude-sonnet-4-5-20250929-v1:0`,
+		},
+		{
 			name:    `NO_COLOR removes every color from agent rows`,
 			session: `{"tasks":[{"id":"t1","name":"reviewer","type":"local_agent","description":"Plain text only","model":"claude-sonnet-4-5","effort":"high","contextWindowSize":200000,"tokenCount":150000}]}`,
 			env:     map[string]string{`NO_COLOR`: `1`},
