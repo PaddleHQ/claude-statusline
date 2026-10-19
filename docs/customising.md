@@ -18,7 +18,7 @@ ctx: {warn: 60, bad: 85}
 
 Lists are YAML lists, `true` and `false` are YAML booleans, numbers are whole numbers and everything else is a string. Quote a string that YAML would otherwise read as something else, such as a separator of `|` or a path starting with `~`. The file is parsed, never executed, so values are always plain text.
 
-A setting you leave out keeps its default, including the other keys of a segment you only partly set. If the file is not valid YAML (or is not a mapping), the whole file is ignored and the defaults apply. A key the status line does not know, a value of the wrong type (such as `width: wide`), an empty string or list, a string with control characters, or a number that is negative or has more than 12 digits is ignored on its own, and that one key falls back to its default while the rest of the file still applies. The status line never prints an error.
+A setting you leave out keeps its default, including the other keys of a segment you only partly set. If the file is not valid YAML (or is not a mapping), the whole file is ignored and the defaults apply, and the status line shows a [red row](#mistakes-in-the-config-file) above the line to say so. A key the status line does not know, a value of the wrong type (such as `width: wide`), an empty string or list, a string with control characters, or a number that is negative or has more than 12 digits is ignored on its own, and that one key falls back to its default while the rest of the file still applies. None of these shows the row, but `config-check` lists the keys it does not know.
 
 [`internal/config/defaults.yaml`](../internal/config/defaults.yaml) documents the global keys with a comment and their default values, and each segment's own `defaults.yaml` under [`segments/`](../segments) does the same for the keys in its section. In the table, `section.key` means `key` inside the `section` mapping. The current keys are:
 
@@ -45,6 +45,41 @@ A setting you leave out keeps its default, including the other keys of a segment
 | `hooks.timeout` | `2` | Seconds a custom segment's script may run before it is killed. |
 | `snapshot.enabled` | `true` | Save the latest session payload for other tools to read (`true` or `false`). |
 | `snapshot.path` | empty | Where to save it; empty means `usage-latest.json` in your Claude config directory. A relative path is taken from the `claude-statusline` directory inside it. |
+
+### Starting from the defaults
+
+`claude-statusline config` prints every setting with its default and its explanation, all commented out. Redirect it to your config file, then open the file:
+
+```sh
+claude-statusline config > ~/.claude/claude-statusline/config.yaml
+```
+
+Every line starts with `# `, so an editor's toggle-comment command on a selected block turns the settings into live ones and leaves the explanations commented. A setting inside a section needs the section header uncommented as well (`hooks:` above `ttl: 60`), or the key lands at the top level and is ignored. Delete the settings you do not change: a setting you leave in the file keeps its current default even when a later release changes it. An untouched copy changes nothing. `config` reads no environment or config, so it prints the same text everywhere. Plugin users, who may not have `claude-statusline` on their `PATH`, can use the binary under `claude-statusline/bin/` in the Claude config directory.
+
+### Mistakes in the config file
+
+When `config.yaml` exists but cannot be used, the status line draws one red row above the normal line, which is drawn from the defaults:
+
+```text
+~/.claude/claude-statusline/config.yaml:12 did not find expected key · run /statusline:config-check
+```
+
+The file cannot be used when it is not valid YAML (a duplicate key counts), when its top level is not a mapping, when it is larger than 1 MiB, or when it cannot be read or is not a regular file. A missing file, an empty file and a file with only comments are fine. The row is never wrapped. On a narrow terminal it is trimmed from the path first, then the hint, then the reason. The agent panel rows never show it.
+
+Run `/statusline:config-check` in Claude Code, or `claude-statusline config-check` in a terminal, for the full report. It starts with `Config file:` and the path, then says one of:
+
+- `Parsed without errors.`
+- `Does not exist, so the defaults apply.`
+- the line, the parser's reason, and the lines around it, with `>` marking the line the parser named.
+
+After a good parse it also lists the settings it does not know, such as a key you uncommented without its section header:
+
+```text
+Unknown settings (ignored):
+  ttl
+```
+
+Unknown settings never show the red row. The command exits with status 1 only when the config cannot be used. A line number is where the parser noticed the problem, which is not always where the mistake is: a missing `]` on one line can be reported on a later one, and a bad indent can be reported on the line before it.
 
 Set `NO_COLOR` to any non-empty value to turn colour and styling off; see [NO_COLOR](how_it_works.md#no_color).
 
