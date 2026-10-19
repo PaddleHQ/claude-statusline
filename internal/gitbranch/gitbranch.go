@@ -23,6 +23,24 @@ type Reader struct{}
 // Branch returns the branch checked out in dir, as Read does, with control characters removed.
 func (g *Reader) Branch(dir string) string { return payload.Sanitize(Read(dir)) }
 
+// Checkout returns the branch in dir and, when dir is inside a linked worktree, the
+// worktree's root, the main repository's root and the project name. Both roots are in
+// dir's spelling; mainRoot is "" when git's spelling cannot be matched to it, and the
+// project name then comes from git's spelling. Every result is safe to print.
+func (g *Reader) Checkout(dir string) (branch, worktreeRoot, mainRoot, project string) {
+	branch = g.Branch(dir)
+	root, main, ok := linked(dir)
+	if !ok {
+		return branch, "", "", ""
+	}
+	mainRoot = reconcile(root, main)
+	project = filepath.Base(main)
+	if mainRoot != "" {
+		project = filepath.Base(mainRoot)
+	}
+	return branch, payload.Sanitize(root), payload.Sanitize(mainRoot), payload.Sanitize(project)
+}
+
 // Read returns the branch checked out in dir or any parent, the first seven characters
 // of the commit when HEAD is detached, or "" when there is no readable repository.
 func Read(dir string) string {

@@ -1,3 +1,6 @@
 package gitbranch
 
-var Linked = linked
+var (
+	Linked    = linked
+	Reconcile = reconcile
+)
