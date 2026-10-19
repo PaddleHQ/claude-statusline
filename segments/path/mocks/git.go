@@ -17,48 +17,72 @@ func (_m *Git) EXPECT() *Git_Expecter {
 	return &Git_Expecter{mock: &_m.Mock}
 }
 
-// Branch provides a mock function with given fields: dir
-func (_m *Git) Branch(dir string) string {
+// Checkout provides a mock function with given fields: dir
+func (_m *Git) Checkout(dir string) (string, string, string, string) {
 	ret := _m.Called(dir)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Branch")
+		panic("no return value specified for Checkout")
 	}
 
 	var r0 string
+	var r1 string
+	var r2 string
+	var r3 string
+	if rf, ok := ret.Get(0).(func(string) (string, string, string, string)); ok {
+		return rf(dir)
+	}
 	if rf, ok := ret.Get(0).(func(string) string); ok {
 		r0 = rf(dir)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(string) string); ok {
+		r1 = rf(dir)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(string) string); ok {
+		r2 = rf(dir)
+	} else {
+		r2 = ret.Get(2).(string)
+	}
+
+	if rf, ok := ret.Get(3).(func(string) string); ok {
+		r3 = rf(dir)
+	} else {
+		r3 = ret.Get(3).(string)
+	}
+
+	return r0, r1, r2, r3
 }
 
-// Git_Branch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Branch'
-type Git_Branch_Call struct {
+// Git_Checkout_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Checkout'
+type Git_Checkout_Call struct {
 	*mock.Call
 }
 
-// Branch is a helper method to define mock.On call
+// Checkout is a helper method to define mock.On call
 //   - dir string
-func (_e *Git_Expecter) Branch(dir interface{}) *Git_Branch_Call {
-	return &Git_Branch_Call{Call: _e.mock.On("Branch", dir)}
+func (_e *Git_Expecter) Checkout(dir interface{}) *Git_Checkout_Call {
+	return &Git_Checkout_Call{Call: _e.mock.On("Checkout", dir)}
 }
 
-func (_c *Git_Branch_Call) Run(run func(dir string)) *Git_Branch_Call {
+func (_c *Git_Checkout_Call) Run(run func(dir string)) *Git_Checkout_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(string))
 	})
 	return _c
 }
 
-func (_c *Git_Branch_Call) Return(_a0 string) *Git_Branch_Call {
-	_c.Call.Return(_a0)
+func (_c *Git_Checkout_Call) Return(branch string, worktreeRoot string, mainRoot string, project string) *Git_Checkout_Call {
+	_c.Call.Return(branch, worktreeRoot, mainRoot, project)
 	return _c
 }
 
-func (_c *Git_Branch_Call) RunAndReturn(run func(string) string) *Git_Branch_Call {
+func (_c *Git_Checkout_Call) RunAndReturn(run func(string) (string, string, string, string)) *Git_Checkout_Call {
 	_c.Call.Return(run)
 	return _c
 }

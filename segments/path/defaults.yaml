@@ -3,3 +3,7 @@ path:
   strip: []
   # Show the git branch after the path (true or false).
   branch: true
+  # Directories that hold git worktrees, as a list; relative entries are relative to the main repository and a leading ~ means your home directory. Empty means off.
+  worktrees: []
+  # Show the theme's emoji before the branch (true or false).
+  emoji: false
