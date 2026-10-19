@@ -16,8 +16,8 @@ const name = "model"
 
 var (
 	dateSuffix = regexp.MustCompile(`-\d{8}$`)
-	// A modern id is claude-<family words>-<major>[-<minor>...], so new models need no table entry.
-	modelID = regexp.MustCompile(`^claude-([a-z]+(?:-[a-z]+)*)-(\d+(?:-\d+)*)$`)
+	// A modern id is claude-<family words>[-<major>[-<minor>...]], so new models need no table entry.
+	modelID = regexp.MustCompile(`^claude-([a-z]+(?:-[a-z]+)*)(?:-(\d+(?:-\d+)*))?$`)
 )
 
 // families name the aliases and ids that modelID cannot parse, by a substring of the id, checked in order.
@@ -128,7 +128,11 @@ func parse(id string) (label, family string, ok bool) {
 	for i, w := range words {
 		words[i] = strings.ToUpper(w[:1]) + w[1:]
 	}
-	return strings.Join(words, " ") + " " + strings.ReplaceAll(m[2], "-", "."), m[1], true
+	label = strings.Join(words, " ")
+	if m[2] != "" {
+		label += " " + strings.ReplaceAll(m[2], "-", ".")
+	}
+	return label, m[1], true
 }
 
 // identify gives the label to show and the family to compare, from a parsed id or else the families table.
