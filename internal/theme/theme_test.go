@@ -21,17 +21,21 @@ func TestLoadClassic(t *testing.T) {
 
 	got := theme.Load("classic", "", "")
 	want := theme.Theme{
-		Muted:       "\033[2m",
-		Good:        "\033[32m",
-		WarnColor:   "\033[33m",
-		BadColor:    "\033[31m",
-		Marker:      "\033[1m",
-		PathColor:   "\033[1m\033[38;5;33m",
-		Reset:       "\033[0m",
-		Full:        "█",
-		Partials:    [7]string{"▏", "▎", "▍", "▌", "▋", "▊", "▉"},
-		Empty:       "░",
-		MarkerGlyph: "┃",
+		Muted:         "\033[2m",
+		Good:          "\033[32m",
+		WarnColor:     "\033[33m",
+		BadColor:      "\033[31m",
+		Marker:        "\033[1m",
+		PathColor:     "\033[1m\033[38;5;33m",
+		Reset:         "\033[0m",
+		BranchColor:   "\033[1m\033[38;5;33m",
+		WorktreeColor: "\033[1m\033[38;5;208m",
+		BranchGlyph:   "🌿",
+		WorktreeGlyph: "🌳",
+		Full:          "█",
+		Partials:      [7]string{"▏", "▎", "▍", "▌", "▋", "▊", "▉"},
+		Empty:         "░",
+		MarkerGlyph:   "┃",
 	}
 	assert.Equal(t, want, got)
 }
@@ -271,7 +275,7 @@ func TestWithoutColor(t *testing.T) {
 
 	d := theme.Load("gradient", "", "")
 	got := d.WithoutColor()
-	for _, color := range []string{got.TextColor, got.Muted, got.Good, got.WarnColor, got.BadColor, got.Marker, got.PathColor, got.Reset, got.EmptyColor, got.MarkerColor} {
+	for _, color := range []string{got.TextColor, got.Muted, got.Good, got.WarnColor, got.BadColor, got.Marker, got.PathColor, got.BranchColor, got.WorktreeColor, got.Reset, got.EmptyColor, got.MarkerColor} {
 		assert.Empty(t, color, "WithoutColor() kept a color: %+v", got)
 	}
 	assert.Empty(t, got.Ramp)
@@ -279,6 +283,10 @@ func TestWithoutColor(t *testing.T) {
 	assert.Equal(t, d.Partials, got.Partials)
 	assert.Equal(t, d.Empty, got.Empty)
 	assert.Equal(t, d.MarkerGlyph, got.MarkerGlyph)
+	assert.Equal(t, d.BranchGlyph, got.BranchGlyph)
+	assert.Equal(t, d.WorktreeGlyph, got.WorktreeGlyph)
+	assert.NotEmpty(t, got.BranchGlyph)
+	assert.NotEmpty(t, got.WorktreeGlyph)
 	assert.True(t, got.Gradient, "WithoutColor() keeps the style")
 	assert.NotEmpty(t, d.Muted, "WithoutColor() modified the receiver")
 	assert.Len(t, d.Ramp, 3, "WithoutColor() modified the receiver")
@@ -344,4 +352,64 @@ func TestOpenRejectsFIFO(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		require.FailNow(t, "Open blocked on a FIFO")
 	}
+}
+
+func TestBranchRolesAndGlyphs(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"classic", "gradient"} {
+		d := theme.Load(name, "", "")
+		assert.Equal(t, d.PathColor, d.BranchColor, name)
+		assert.Equal(t, "\033[1m\033[38;5;208m", d.WorktreeColor, name)
+		branch, worktree := d.Glyphs()
+		assert.Equal(t, "🌿", branch, name)
+		assert.Equal(t, "🌳", worktree, name)
+	}
+}
+
+func TestOptionalRolesDefault(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	omitted, err := theme.Open(writeTheme(t, dir, "omitted.yaml", validTheme), "", "")
+	require.NoError(t, err)
+	assert.Equal(t, omitted.PathColor, omitted.BranchColor)
+	assert.Equal(t, "\033[1m\033[38;5;208m", omitted.WorktreeColor)
+	branch, worktree := omitted.Glyphs()
+	assert.Equal(t, "🌿", branch)
+	assert.Equal(t, "🌳", worktree)
+
+	set := strings.Replace(validTheme, "  path: bold 33\n", "  path: bold 33\n  branch: red\n  worktree: cyan\n", 1) +
+		"glyphs:\n  branch: \"B\"\n  worktree: \"W\"\n"
+	got, err := theme.Open(writeTheme(t, dir, "set.yaml", set), "", "")
+	require.NoError(t, err)
+	assert.Equal(t, "\033[31m", got.BranchColor)
+	assert.Equal(t, "\033[36m", got.WorktreeColor)
+	branch, worktree = got.Glyphs()
+	assert.Equal(t, "B", branch)
+	assert.Equal(t, "W", worktree)
+}
+
+func TestInvalidGlyphs(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	for name, glyphs := range map[string]string{
+		"empty branch":     "glyphs:\n  branch: \"\"\n",
+		"control worktree": "glyphs:\n  worktree: \"a\\u0007\"\n",
+	} {
+		_, err := theme.Open(writeTheme(t, dir, strings.ReplaceAll(name, " ", "_")+".yaml", validTheme+glyphs), "", "")
+		assert.Error(t, err, name)
+	}
+}
+
+func TestBranchWorktreePaint(t *testing.T) {
+	t.Parallel()
+
+	d := theme.Load("classic", "", "")
+	assert.Equal(t, d.BranchColor+"x"+d.Reset, d.Branch("x"))
+	assert.Equal(t, d.WorktreeColor+"x"+d.Reset, d.Worktree("x"))
+	plain := d.WithoutColor()
+	assert.Equal(t, "x", plain.Branch("x"))
+	assert.Equal(t, "x", plain.Worktree("x"))
 }

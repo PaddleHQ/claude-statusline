@@ -37,11 +37,21 @@ const (
 	styleGrad    = "gradient"
 	partialCount = 7
 	resetSeq     = "\033[0m"
+
+	defaultWorktreeColor = "bold 208"
+	defaultBranchGlyph   = "🌿"
+	defaultWorktreeGlyph = "🌳"
 )
 
 type spec struct {
 	Colors *colorsSpec `yaml:"colors"`
 	Bar    *barSpec    `yaml:"bar"`
+	Glyphs *glyphsSpec `yaml:"glyphs"`
+}
+
+type glyphsSpec struct {
+	Branch   *string `yaml:"branch"`
+	Worktree *string `yaml:"worktree"`
 }
 
 type colorsSpec struct {
@@ -52,6 +62,9 @@ type colorsSpec struct {
 	Bad    *string `yaml:"bad"`
 	Marker *string `yaml:"marker"`
 	Path   *string `yaml:"path"`
+
+	Branch   *string `yaml:"branch"`
+	Worktree *string `yaml:"worktree"`
 }
 
 type barSpec struct {
@@ -173,6 +186,9 @@ func (s *spec) compile() (Theme, error) {
 	if err := t.compileGlyphs(*s.Bar); err != nil {
 		return Theme{}, err
 	}
+	if err := t.compileMarks(s.Glyphs); err != nil {
+		return Theme{}, err
+	}
 	if err := t.compilePartials(s.Bar.Partials); err != nil {
 		return Theme{}, err
 	}
@@ -227,6 +243,48 @@ func (t *Theme) compileColors(c colorsSpec, b barSpec) error {
 			return err
 		}
 		*f.dst = seq
+	}
+	return t.compileOptionalRoles(c)
+}
+
+func (t *Theme) compileOptionalRoles(c colorsSpec) error {
+	t.BranchColor = t.PathColor
+	if c.Branch != nil {
+		seq, err := ParseColor(*c.Branch)
+		if err != nil {
+			return err
+		}
+		t.BranchColor = seq
+	}
+	worktree := defaultWorktreeColor
+	if c.Worktree != nil {
+		worktree = *c.Worktree
+	}
+	seq, err := ParseColor(worktree)
+	if err != nil {
+		return err
+	}
+	t.WorktreeColor = seq
+	return nil
+}
+
+func (t *Theme) compileMarks(g *glyphsSpec) error {
+	t.BranchGlyph, t.WorktreeGlyph = defaultBranchGlyph, defaultWorktreeGlyph
+	if g == nil {
+		return nil
+	}
+	for _, m := range []struct {
+		dst  *string
+		src  *string
+		name string
+	}{{&t.BranchGlyph, g.Branch, "branch"}, {&t.WorktreeGlyph, g.Worktree, "worktree"}} {
+		if m.src == nil {
+			continue
+		}
+		if !validGlyph(*m.src) {
+			return fmt.Errorf("glyphs.%s must be %w", m.name, errGlyph)
+		}
+		*m.dst = *m.src
 	}
 	return nil
 }
