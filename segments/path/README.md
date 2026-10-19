@@ -1,6 +1,6 @@
 # path
 
-Shows the working directory, shortened, with the git branch when there is one, for example `~/code/app (main)`. A git worktree is shown as the name of its main repository.
+Shows the working directory, shortened, with the git branch when there is one, for example `~/code/app (main)`. A git worktree under a directory listed in `path.worktrees` is shown as the name of its main repository.
 
 ## Settings
 
