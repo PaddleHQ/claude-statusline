@@ -151,7 +151,7 @@ separator: "|"`,
 		},
 		{
 			name:    `A model id is read as family and version, so an unlisted family or a date suffix needs no table entry`,
-			session: `{"tasks":[{"id":"a","name":"a","model":"claude-opus-5-5"},{"id":"b","name":"b","model":"claude-haiku-4-5-20251001"},{"id":"c","name":"c","model":"claude-newfamily-7"},{"id":"d","name":"d","model":"claude-opus-4-20250514"},{"id":"e","name":"e","model":"claude-3-5-sonnet-20241022"},{"id":"f","name":"f","model":"gpt-x"},{"id":"g","name":"g","model":"claude-opus-4-7[1m]"},{"id":"h","name":"h","model":"claude-opus-4-7-latest"},{"id":"i","name":"i","model":"claude-sonic-hedgehog-3-1"}]}`,
+			session: `{"tasks":[{"id":"a","name":"a","model":"claude-opus-5-5"},{"id":"b","name":"b","model":"claude-haiku-4-5-20251001"},{"id":"c","name":"c","model":"claude-newfamily-7"},{"id":"d","name":"d","model":"claude-opus-4-20250514"},{"id":"e","name":"e","model":"claude-3-5-sonnet-20241022"},{"id":"f","name":"f","model":"gpt-x"},{"id":"g","name":"g","model":"claude-opus-4-7[1m]"},{"id":"h","name":"h","model":"claude-opus-4-7-latest"},{"id":"i","name":"i","model":"claude-sonic-hedgehog-3-1"},{"id":"j","name":"j","model":"claude-opus-4-7\u0000"}]}`,
 			env:     map[string]string{`NO_COLOR`: `1`},
 			want: `"a"\ta · Opus 5.5
 "b"\tb · Haiku 4.5
@@ -161,7 +161,8 @@ separator: "|"`,
 "f"\tf · gpt-x
 "g"\tg · opus-4-7[1m]
 "h"\th · opus-4-7-latest
-"i"\ti · Sonic Hedgehog 3.1`,
+"i"\ti · Sonic Hedgehog 3.1
+"j"\tj · Opus 4.7`,
 		},
 		{
 			name:    `NO_COLOR removes every color from agent rows`,

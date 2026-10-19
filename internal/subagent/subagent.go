@@ -187,7 +187,7 @@ func number(r gjson.Result) (float64, bool) {
 
 // shortModel turns claude-opus-4-7-20251001 into Opus 4.7, and leaves an id it cannot parse as it is minus the claude- prefix.
 func shortModel(id string) string {
-	id = dateSuffix.ReplaceAllString(id, "")
+	id = dateSuffix.ReplaceAllString(payload.Sanitize(id), "")
 	if m := modelID.FindStringSubmatch(id); m != nil {
 		words := strings.Split(m[1], "-")
 		for i, w := range words {
@@ -197,5 +197,5 @@ func shortModel(id string) string {
 	} else {
 		id = strings.TrimPrefix(id, "claude-")
 	}
-	return payload.Sanitize(id)
+	return id
 }
