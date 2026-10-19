@@ -192,6 +192,17 @@ func (w *world) renderHelp(ctx context.Context) {
 	assert.NotContains(godog.T(ctx), w.screen, "\033", "help is plain text")
 }
 
+func (w *world) renderConfig(ctx context.Context) {
+	var out bytes.Buffer
+	w.suite.Execute([]string{"config"}, strings.NewReader(""), &out, w.getenv)
+
+	w.ran = true
+	w.screen = out.String()
+	w.out = strings.TrimSuffix(w.screen, "\n")
+	w.styled = w.out
+	assert.NotContains(godog.T(ctx), w.screen, "\033", "the config output is plain text")
+}
+
 func (w *world) checkRawOutput(want string) error {
 	if !w.ran {
 		return errNoOutput
@@ -239,6 +250,17 @@ func (w *world) checkText(want string) error {
 		return err
 	}
 	return compare("text", trimRows(want), trimRows(got.Text()))
+}
+
+func (w *world) checkTextPrefix(want string) error {
+	got, err := w.decodeOutput()
+	if err != nil {
+		return err
+	}
+	wantRows := strings.Split(trimRows(want), "\n")
+	gotRows := strings.Split(trimRows(got.Text()), "\n")
+	gotRows = gotRows[:min(len(gotRows), len(wantRows))]
+	return compare("text", strings.Join(wantRows, "\n"), strings.Join(gotRows, "\n"))
 }
 
 func trimRows(text string) string {

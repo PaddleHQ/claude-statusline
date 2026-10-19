@@ -105,12 +105,16 @@ func (s *Suite) initialize(sc *godog.ScenarioContext) {
 	})
 	sc.Step(`^the subagent rows render$`, func(ctx context.Context) error { return worldOf(ctx).renderSubagentRows(ctx) })
 	sc.Step(`^help runs$`, func(ctx context.Context) { worldOf(ctx).renderHelp(ctx) })
+	sc.Step(`^the config command runs$`, func(ctx context.Context) { worldOf(ctx).renderConfig(ctx) })
 
 	sc.Step(`^the output is:$`, func(ctx context.Context, doc *godog.DocString) error {
 		return worldOf(ctx).checkOutput(doc.Content)
 	})
 	sc.Step(`^the text is:$`, func(ctx context.Context, doc *godog.DocString) error {
 		return worldOf(ctx).checkText(doc.Content)
+	})
+	sc.Step(`^the text starts with:$`, func(ctx context.Context, doc *godog.DocString) error {
+		return worldOf(ctx).checkTextPrefix(doc.Content)
 	})
 	sc.Step(`^the raw output is:$`, func(ctx context.Context, doc *godog.DocString) error {
 		return worldOf(ctx).checkRawOutput(doc.Content)

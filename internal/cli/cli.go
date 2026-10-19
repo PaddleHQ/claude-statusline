@@ -40,23 +40,24 @@ func New(build Build) *App {
 // Execute runs the command the first argument selects, or the status line itself. It never reports failures: a
 // blank status line is better than a broken one.
 func (a *App) Execute(args []string, stdin io.Reader, stdout io.Writer, getenv func(string) string) {
-	if len(args) > 0 && args[0] == "--version" {
+	command := ""
+	if len(args) > 0 {
+		command = args[0]
+	}
+	switch command {
+	case "--version":
 		_, _ = fmt.Fprintln(stdout, a.build.String())
-		return
-	}
-	if len(args) > 0 && args[0] == "setup" {
+	case "setup":
 		setup.Run(stdout, eventFlag(args[1:]), a.build.Version)
-		return
-	}
-	if len(args) > 0 && args[0] == "subagent" {
+	case "subagent":
 		runSubagent(stdin, stdout, getenv)
-		return
-	}
-	if len(args) > 0 && args[0] == "help" {
+	case "help":
 		_, _ = io.WriteString(stdout, statusline.Help(getenv))
-		return
+	case "config":
+		_, _ = io.WriteString(stdout, statusline.DefaultConfig())
+	default:
+		run(stdin, stdout, getenv)
 	}
-	run(stdin, stdout, getenv)
 }
 
 func eventFlag(args []string) string {

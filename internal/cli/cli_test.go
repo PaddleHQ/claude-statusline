@@ -2,12 +2,17 @@ package cli_test
 
 import (
 	"bytes"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/PaddleHQ/claude-statusline/internal/cli"
+	"github.com/PaddleHQ/claude-statusline/internal/statusline"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func noEnv(string) string { return "" }
@@ -92,4 +97,31 @@ func TestEventFlag(t *testing.T) {
 			assert.Equal(t, tt.want, cli.EventFlag(tt.args))
 		})
 	}
+}
+
+type failingReader struct{ t *testing.T }
+
+func (r failingReader) Read([]byte) (int, error) {
+	r.t.Error("the config command must not read stdin")
+	return 0, io.ErrUnexpectedEOF
+}
+
+func TestExecuteConfig(t *testing.T) {
+	t.Parallel()
+
+	home := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(home, "claude-statusline"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(home, "claude-statusline", "config.yaml"), []byte("segments: [model]\n"), 0o600))
+	busy := map[string]string{"CLAUDE_CONFIG_DIR": home, "HOME": home, "NO_COLOR": "1", "COLUMNS": "10"}
+
+	run := func(args []string, env map[string]string) string {
+		var out bytes.Buffer
+		cli.New(cli.Build{Version: "dev"}).Execute(args, failingReader{t}, &out, func(k string) string { return env[k] })
+		return out.String()
+	}
+
+	want := statusline.DefaultConfig()
+	assert.Equal(t, want, run([]string{"config"}, busy))
+	assert.Equal(t, want, run([]string{"config"}, nil))
+	assert.Equal(t, want, run([]string{"config", "--x"}, busy))
 }
