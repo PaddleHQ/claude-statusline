@@ -15,9 +15,16 @@ var Defaults string
 const name = "model"
 
 var (
-	dateSuffix = regexp.MustCompile(`-\d{8}$`)
-	// A modern id is claude-<family words>[-<major>[-<minor>...]], so new models need no table entry (the transcript always holds full ids).
+	// The same model reaches us with a context suffix (claude-opus-5-5[1m]), a provider prefix and version
+	// (us.anthropic.claude-sonnet-4-5-20250929-v1:0) or a Vertex date (claude-sonnet-4-5@20250929), so those are stripped first.
+	contextSuffix  = regexp.MustCompile(`\[[^\]]*\]$`)
+	providerPrefix = regexp.MustCompile(`^(?:[a-z0-9-]+\.)*anthropic\.`)
+	providerSuffix = regexp.MustCompile(`-v\d+(?::\d+)?$`)
+	dateSuffix     = regexp.MustCompile(`[-@]\d{8}$`)
+	// claude-<family words>[-<major>[-<minor>...]], so a new model needs no table entry.
 	modelID = regexp.MustCompile(`^claude-([a-z]+(?:-[a-z]+)*)(?:-(\d+(?:-\d+)*))?$`)
+	// claude-<major>[-<minor>...]-<family words>, the order the 3.x models used.
+	legacyModelID = regexp.MustCompile(`^claude-(\d+(?:-\d+)*)-([a-z]+(?:-[a-z]+)*)$`)
 )
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Session
@@ -109,19 +116,27 @@ func (m *Model) Render() string {
 	return m.d.Paint.Text(display)
 }
 
-// parse reads a modern model id into its label and lower-case family.
+// parse reads a model id into its label and lower-case family.
 func parse(id string) (label, family string, ok bool) {
-	m := modelID.FindStringSubmatch(dateSuffix.ReplaceAllString(id, ""))
-	if m == nil {
+	id = contextSuffix.ReplaceAllString(id, "")
+	id = providerPrefix.ReplaceAllString(id, "")
+	id = providerSuffix.ReplaceAllString(id, "")
+	id = dateSuffix.ReplaceAllString(id, "")
+	var words, version string
+	if m := modelID.FindStringSubmatch(id); m != nil {
+		family, version = m[1], m[2]
+	} else if m := legacyModelID.FindStringSubmatch(id); m != nil {
+		family, version = m[2], m[1]
+	} else {
 		return "", "", false
 	}
-	words := strings.Split(m[1], "-")
-	for i, w := range words {
-		words[i] = strings.ToUpper(w[:1]) + w[1:]
+	parts := strings.Split(family, "-")
+	for i, w := range parts {
+		parts[i] = strings.ToUpper(w[:1]) + w[1:]
 	}
-	label = strings.Join(words, " ")
-	if m[2] != "" {
-		label += " " + strings.ReplaceAll(m[2], "-", ".")
+	words = strings.Join(parts, " ")
+	if version != "" {
+		words += " " + strings.ReplaceAll(version, "-", ".")
 	}
-	return label, m[1], true
+	return words, family, true
 }
