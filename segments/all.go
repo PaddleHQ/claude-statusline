@@ -4,11 +4,17 @@
 package segments
 
 import (
+	"github.com/PaddleHQ/claude-statusline/internal/bar"
 	"github.com/PaddleHQ/claude-statusline/internal/config"
+	"github.com/PaddleHQ/claude-statusline/internal/gitbranch"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
+	"github.com/PaddleHQ/claude-statusline/segments/cache"
+	"github.com/PaddleHQ/claude-statusline/segments/ctx"
 	"github.com/PaddleHQ/claude-statusline/segments/model"
+	"github.com/PaddleHQ/claude-statusline/segments/path"
+	"github.com/PaddleHQ/claude-statusline/segments/tokens"
 )
 
 // Segment is what every plugin's segment provides.
@@ -22,7 +28,7 @@ type Segment interface {
 
 // Defaults returns the text of every plugin's defaults.yaml, for layering under the user's config.
 func Defaults() []string {
-	return []string{model.Defaults}
+	return []string{path.Defaults, model.Defaults, ctx.Defaults, cache.Defaults}
 }
 
 // Env is one render's world, from which the segments are built.
@@ -31,6 +37,7 @@ type Env struct {
 	Config  *config.Config
 	Theme   theme.Theme
 	Columns int
+	Home    string
 }
 
 // Separator is the painted glyph drawn between segments, with a space either side.
@@ -66,9 +73,24 @@ type registration struct {
 
 // registrations is the one list of segments. To add a plugin, add its entries here.
 func (e *Env) registrations() []registration {
+	meter := func(cfg *config.Section) *bar.Meter {
+		return &bar.Meter{Theme: e.Theme, Width: bar.WidthOf(e.Columns, cfg)}
+	}
 	return []registration{
+		{"path", layout.Identity, func(cfg *config.Section) Segment {
+			return path.New(path.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Git: &gitbranch.Reader{}, Home: e.Home})
+		}},
 		{"model", layout.Identity, func(cfg *config.Section) Segment {
 			return model.New(model.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme})
+		}},
+		{"ctx", layout.Identity, func(cfg *config.Section) Segment {
+			return ctx.New(ctx.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Meter: meter(cfg)})
+		}},
+		{"tokens", layout.Usage, func(*config.Section) Segment {
+			return tokens.New(tokens.Deps{Session: &e.Payload, Paint: &e.Theme, Separator: e.Separator()})
+		}},
+		{"cache", layout.Usage, func(cfg *config.Section) Segment {
+			return cache.New(cache.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme})
 		}},
 	}
 }

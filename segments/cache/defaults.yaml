@@ -1,0 +1,3 @@
+cache:
+  # Prompt cache hit percentage below which the cache figure turns red.
+  warn: 5

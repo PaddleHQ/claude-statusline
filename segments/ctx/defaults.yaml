@@ -1,0 +1,11 @@
+ctx:
+  # Context bar width in cells on a wide terminal (160 columns or more).
+  width: 10
+  # Context bar width below 160 columns.
+  width_medium: 8
+  # Context bar width below 120 columns.
+  width_narrow: 6
+  # Context usage percentage at or above which the fill turns amber.
+  warn: 50
+  # Context usage percentage at or above which the fill turns red.
+  bad: 90
