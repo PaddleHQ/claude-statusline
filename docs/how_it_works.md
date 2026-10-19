@@ -49,7 +49,7 @@ These segments are read from the session transcript (`transcript_path` in the pa
 
 | Segment | Shows | When |
 |---|---|---|
-| `model` | `Haiku (skill)` instead of the model name and effort | The latest assistant turn in the transcript ran a different model family (haiku, sonnet, opus, fable or mythos) than the session's, as happens when a skill or subagent sets its own model. |
+| `model` | `Haiku 4.5 (skill)` instead of the model name and effort | The latest assistant turn in the transcript ran a different model family (read from the model id, so a new one needs no change here) than the session's, as happens when a skill or subagent sets its own model. |
 | `boot` | `⌂ 64.5k` | Prompt tokens on the first assistant turn: the system prompt, tools, skill listing and memory before you have said anything. |
 | `skills` | `⚙ 9.5k` | Size of the skill listing that is always loaded, as its length in characters divided by 4. |
 | `skills_stripped` | `✗ skills 3/12` in red | 3 of 12 listed skills had their descriptions stripped to fit the listing budget. |

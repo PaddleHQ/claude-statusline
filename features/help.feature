@@ -10,7 +10,7 @@ Feature: Help
 
       Shown now, in order:
         path: The working directory, with your home directory shown as ~, followed by the git branch in brackets.
-        model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku (skill), for example, while a skill or subagent runs a different model than the session's.
+        model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
         ctx: How full the context window is. Amber from 50%, red from 90%.
         tokens: Session token totals: input after the down arrow, output after the up arrow.
         cache: How much of the latest request's input was read from the prompt cache. Red below 5%.

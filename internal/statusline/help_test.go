@@ -56,7 +56,7 @@ Custom segments:
   late (late.sh, slot ctx): custom segment from late.sh
 
 Also available, not in your segments list:
-  model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku (skill), for example, while a skill or subagent runs a different model than the session's.
+  model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
   ctx: How full the context window is. Amber from 50%, red from 90%.
   tokens: Session token totals: input after the down arrow, output after the up arrow.
   cache: How much of the latest request's input was read from the prompt cache. Red below 5%.
@@ -92,7 +92,7 @@ Custom segments:
   plain (20-plain.sh, slot ctx): custom segment from 20-plain.sh
 
 Also available, not in your segments list:
-  model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku (skill), for example, while a skill or subagent runs a different model than the session's.
+  model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
   ctx: How full the context window is. Amber from 50%, red from 90%.
   tokens: Session token totals: input after the down arrow, output after the up arrow.
   cache: How much of the latest request's input was read from the prompt cache. Red below 5%.
@@ -114,7 +114,7 @@ Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/cust
 
 Shown now, in order:
   path: The working directory, with your home directory shown as ~, followed by the git branch in brackets.
-  model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku (skill), for example, while a skill or subagent runs a different model than the session's.
+  model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
   rate5h: Your 5 hour usage, with a marker at an even pace. Amber when more than 20 points off it, red beyond 40 points or from 95% used.
 
 Also available, not in your segments list:
@@ -147,7 +147,7 @@ Shown now, in order:
 
 Also available, not in your segments list:
   path: The working directory, with your home directory shown as ~, followed by the git branch in brackets.
-  model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku (skill), for example, while a skill or subagent runs a different model than the session's.
+  model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
   tokens: Session token totals: input after the down arrow, output after the up arrow.
   rate5h: Your 5 hour usage, with a marker at an even pace. Amber when more than 20 points off it, red beyond 40 points or from 95% used.
   rate7d: Your 7 day usage, with a marker at an even pace. Amber when more than 10 points off it, red beyond 20 points or from 95% used.

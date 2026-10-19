@@ -3,6 +3,7 @@ package model
 
 import (
 	_ "embed"
+	"regexp"
 	"strings"
 )
 
@@ -13,7 +14,13 @@ var Defaults string
 
 const name = "model"
 
-// families are the model families recognized by a substring of the model id, checked in order.
+var (
+	dateSuffix = regexp.MustCompile(`-\d{8}$`)
+	// A modern id is claude-<family words>-<major>[-<minor>...], so new models need no table entry.
+	modelID = regexp.MustCompile(`^claude-([a-z]+(?:-[a-z]+)*)-(\d+(?:-\d+)*)$`)
+)
+
+// families name the aliases and ids that modelID cannot parse, by a substring of the id, checked in order.
 var families = []struct{ key, label string }{
 	{"haiku", "Haiku"},
 	{"sonnet", "Sonnet"},
@@ -76,11 +83,19 @@ func (m *Model) Help() string {
 	if m.d.Config.Bool("effort") {
 		help += " and its effort level, as in Opus 4.7 [high]"
 	}
-	return help + ". It reads Haiku (skill), for example, while a skill or subagent runs a different model than the session's."
+	return help + ". It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's."
 }
 
 // Keys lists the config keys the segment reads, relative to its section.
 func (m *Model) Keys() []string { return []string{"effort"} }
+
+// Label turns claude-opus-4-7-20251001 into Opus 4.7, and shows an id it cannot parse as it is minus the claude- prefix.
+func Label(id string) string {
+	if label, _, ok := parse(id); ok {
+		return label
+	}
+	return strings.TrimPrefix(id, "claude-")
+}
 
 // Render returns the segment's text, or "" to hide it.
 func (m *Model) Render() string {
@@ -88,9 +103,9 @@ func (m *Model) Render() string {
 	level := m.d.Session.EffortLevel()
 	// A skill or subagent can run a different model than the session's, which the payload does not reflect.
 	if m.d.Session.TranscriptFile() != "" {
-		if actual, ok := family(m.d.Transcript().LatestModel()); ok {
-			if session, _ := family(m.d.Session.ModelID()); actual.key != session.key {
-				display, level = actual.label+" (skill)", ""
+		if actualLabel, actualKey, ok := identify(m.d.Transcript().LatestModel()); ok {
+			if _, sessionKey, _ := identify(m.d.Session.ModelID()); actualKey != sessionKey {
+				display, level = actualLabel+" (skill)", ""
 			}
 		}
 	}
@@ -103,11 +118,28 @@ func (m *Model) Render() string {
 	return m.d.Paint.Text(display)
 }
 
-func family(id string) (f struct{ key, label string }, ok bool) {
+// parse reads a modern model id into its label and lower-case family.
+func parse(id string) (label, family string, ok bool) {
+	m := modelID.FindStringSubmatch(dateSuffix.ReplaceAllString(id, ""))
+	if m == nil {
+		return "", "", false
+	}
+	words := strings.Split(m[1], "-")
+	for i, w := range words {
+		words[i] = strings.ToUpper(w[:1]) + w[1:]
+	}
+	return strings.Join(words, " ") + " " + strings.ReplaceAll(m[2], "-", "."), m[1], true
+}
+
+// identify gives the label to show and the family to compare, from a parsed id or else the families table.
+func identify(id string) (label, family string, ok bool) {
+	if label, family, ok = parse(id); ok {
+		return label, family, true
+	}
 	for _, f := range families {
 		if strings.Contains(id, f.key) {
-			return f, true
+			return f.label, f.key, true
 		}
 	}
-	return f, false
+	return "", "", false
 }

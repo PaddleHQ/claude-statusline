@@ -75,13 +75,15 @@ func TestSkillOverride(t *testing.T) {
 		want   string
 	}{
 		{"same family", "claude-opus-4-7", "claude-opus-4-7-20260101", "<t>Opus 4.7 [high]</t>"},
-		{"different family", "claude-opus-4-7", "claude-haiku-4-5", "<t>Haiku (skill)</t>"},
-		{"every family has a label", "claude-opus-4-7", "claude-sonnet-5", "<t>Sonnet (skill)</t>"},
+		{"different family", "claude-opus-4-7", "claude-haiku-4-5", "<t>Haiku 4.5 (skill)</t>"},
+		{"every family has a label", "claude-opus-4-7", "claude-sonnet-5", "<t>Sonnet 5 (skill)</t>"},
 		{"fable", "claude-opus-4-7", "fable-5", "<t>Fable (skill)</t>"},
 		{"mythos", "claude-opus-4-7", "mythos-1", "<t>Mythos (skill)</t>"},
+		{"a family nobody listed is labeled from its id", "claude-opus-4-7", "claude-sonic-hedgehog-3-1", "<t>Sonic Hedgehog 3.1 (skill)</t>"},
+		{"a new version of the same family is not a skill", "claude-opus-4-7", "claude-opus-5-5", "<t>Opus 4.7 [high]</t>"},
 		{"unknown actual family is ignored", "claude-opus-4-7", "something-else", "<t>Opus 4.7 [high]</t>"},
 		{"no actual model", "claude-opus-4-7", "", "<t>Opus 4.7 [high]</t>"},
-		{"unknown session family differs from a known one", "custom-model", "claude-haiku-4-5", "<t>Haiku (skill)</t>"},
+		{"unknown session family differs from a known one", "custom-model", "claude-haiku-4-5", "<t>Haiku 4.5 (skill)</t>"},
 		{"unknown on both sides", "custom-model", "other", "<t>Opus 4.7 [high]</t>"},
 	}
 	for _, tt := range tests {
@@ -122,4 +124,28 @@ func TestHelp(t *testing.T) {
 	assert.Contains(t, withEffort.Help(), "effort")
 	assert.NotContains(t, withoutEffort.Help(), "effort")
 	assert.Contains(t, withoutEffort.Help(), "model")
+}
+
+func TestLabel(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct{ name, id, want string }{
+		{"family and version", "claude-opus-5-5", "Opus 5.5"},
+		{"a date suffix is dropped", "claude-haiku-4-5-20251001", "Haiku 4.5"},
+		{"a major version only has no dot", "claude-opus-4-20250514", "Opus 4"},
+		{"a family nobody listed is capitalised word by word", "claude-sonic-hedgehog-3-1", "Sonic Hedgehog 3.1"},
+		{"a legacy id is shown unchanged minus the prefix", "claude-3-5-sonnet-20241022", "3-5-sonnet-20241022"},
+		{"a suffix after the version keeps the id unparsed", "claude-opus-4-7[1m]", "opus-4-7[1m]"},
+		{"a bare alias is shown as it is", "sonnet", "sonnet"},
+		{"a cloud provider id is shown as it is", "us.anthropic.claude-sonnet-4-5-20250929-v1:0", "us.anthropic.claude-sonnet-4-5-20250929-v1:0"},
+		{"an empty id stays empty", "", ""},
+		{"only the prefix leaves nothing", "claude-", ""},
+		{"upper case is not a modern id", "Claude-Opus-4-7", "Claude-Opus-4-7"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, model.Label(tt.id))
+		})
+	}
 }

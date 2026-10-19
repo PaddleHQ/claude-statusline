@@ -1,6 +1,6 @@
 # model
 
-Shows the model in use and its effort level, for example `Opus 4.7 [high]`. While a skill or subagent runs a different model it reads `Haiku (skill)`.
+Shows the model in use and its effort level, for example `Opus 4.7 [high]`. While a skill or subagent runs a different model it reads `Haiku 4.5 (skill)`.
 
 ## Settings
 

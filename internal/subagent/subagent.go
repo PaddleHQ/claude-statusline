@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"math"
-	"regexp"
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/bar"
@@ -14,6 +13,7 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments"
 	"github.com/PaddleHQ/claude-statusline/segments/ctx"
+	"github.com/PaddleHQ/claude-statusline/segments/model"
 	"github.com/PaddleHQ/claude-statusline/segments/tokens"
 
 	"github.com/tidwall/gjson"
@@ -28,13 +28,7 @@ const (
 	fallbackName   = "agent"
 )
 
-var (
-	dateSuffix = regexp.MustCompile(`-\d{8}$`)
-	// A modern id is claude-<family words>-<major>[-<minor>...], so new models need no table entry. The model segment keeps its own
-	// family table because it only needs to tell families apart, not to name them.
-	modelID = regexp.MustCompile(`^claude-([a-z]+(?:-[a-z]+)*)-(\d+(?:-\d+)*)$`)
-	ctxKeys = []string{"ctx.width", "ctx.width_medium", "ctx.width_narrow", "ctx.warn", "ctx.bad"}
-)
+var ctxKeys = []string{"ctx.width", "ctx.width_medium", "ctx.width_narrow", "ctx.warn", "ctx.bad"}
 
 // Keys lists every config key the subagent rows read, for checking against defaults.yaml.
 func Keys() []string {
@@ -119,12 +113,12 @@ func taskName(task gjson.Result) string {
 }
 
 func (r *renderer) appendModel(parts []string, task gjson.Result) []string {
-	model := task.Get("model")
-	if !truthy(model) || model.Type != gjson.String {
+	id := task.Get("model")
+	if !truthy(id) || id.Type != gjson.String {
 		return parts
 	}
 	th := r.th
-	part := th.Paint(th.TextColor, modelLabel(model.String()))
+	part := th.Paint(th.TextColor, model.Label(payload.Sanitize(id.String())))
 	if effort := scalar(task.Get("effort")); effort != nil {
 		part += th.Paint(th.Muted, " ["+*effort+"]")
 	}
@@ -184,18 +178,4 @@ func number(r gjson.Result) (float64, bool) {
 		return 0, false
 	}
 	return r.Num, true
-}
-
-// modelLabel turns claude-opus-4-7-20251001 into Opus 4.7, and shows an id it cannot parse as it is minus the claude- prefix.
-func modelLabel(id string) string {
-	id = payload.Sanitize(id)
-	m := modelID.FindStringSubmatch(dateSuffix.ReplaceAllString(id, ""))
-	if m == nil {
-		return strings.TrimPrefix(id, "claude-")
-	}
-	words := strings.Split(m[1], "-")
-	for i, w := range words {
-		words[i] = strings.ToUpper(w[:1]) + w[1:]
-	}
-	return strings.Join(words, " ") + " " + strings.ReplaceAll(m[2], "-", ".")
 }
