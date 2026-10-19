@@ -31,10 +31,8 @@ func TestDefaultConfig(t *testing.T) {
 				break
 			}
 		}
-		at := strings.Index(got, "# "+first)
-		if at < 0 {
-			continue
-		}
+		at := strings.Index(got, "\n# "+first)
+		require.GreaterOrEqual(t, at, 0, "section starting %q is missing", first)
 		assert.Greater(t, at, last, "section starting %q is out of order", first)
 		last = at
 	}

@@ -27,7 +27,7 @@ flowchart TD
 
 In order, a render:
 
-1. Layers your `config.yaml` over the defaults built into the binary, key by key.
+1. Layers your `config.yaml` over the defaults built into the binary, key by key. If the file cannot be used, the defaults apply and the line gains a [red row](customising.md#mistakes-in-the-config-file).
 2. Saves the payload as the [usage snapshot](#usage-snapshot).
 3. Loads the theme, with colour removed when [`NO_COLOR`](#no_color) is set.
 4. Parses the payload, then merges its rate limits with the [shared cache](#shared-rate-limit-cache).
@@ -37,7 +37,7 @@ In order, a render:
 
 The `subagent` command is the same idea for Claude Code's agent panel; see [Subagent rows](customising.md#subagent-rows).
 
-The binary prints the line with no trailing newline and always exits 0. Control characters are stripped from every string taken from the session, and anything unexpected results in blank output rather than an error, because a blank status line is better than a broken one.
+The binary prints the line with no trailing newline and always exits 0. A config file that cannot be used never blanks the line: the defaults apply, and a red row above the line says why. `claude-statusline config-check` is the one command that exits 1 when the config cannot be used. Control characters are stripped from every string taken from the session, and any other unexpected input results in blank output rather than an error, because a blank status line is better than a broken one.
 
 ## Shared rate-limit cache
 

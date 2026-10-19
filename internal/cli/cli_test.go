@@ -101,7 +101,7 @@ func TestEventFlag(t *testing.T) {
 
 type failingReader struct{ t *testing.T }
 
-func (r failingReader) Read([]byte) (int, error) {
+func (r *failingReader) Read([]byte) (int, error) {
 	r.t.Error("the config command must not read stdin")
 	return 0, io.ErrUnexpectedEOF
 }
@@ -116,7 +116,7 @@ func TestExecuteConfig(t *testing.T) {
 
 	run := func(args []string, env map[string]string) string {
 		var out bytes.Buffer
-		cli.New(cli.Build{Version: "dev"}).Execute(args, failingReader{t}, &out, func(k string) string { return env[k] })
+		cli.New(cli.Build{Version: "dev"}).Execute(args, &failingReader{t}, &out, func(k string) string { return env[k] })
 		return out.String()
 	}
 
@@ -173,7 +173,7 @@ The line is where the parser noticed the problem; the mistake may be just before
 			env := map[string]string{"CLAUDE_CONFIG_DIR": home, "HOME": home}
 
 			var out bytes.Buffer
-			status := cli.New(cli.Build{Version: "dev"}).Execute([]string{"config-check"}, failingReader{t}, &out, func(k string) string { return env[k] })
+			status := cli.New(cli.Build{Version: "dev"}).Execute([]string{"config-check"}, &failingReader{t}, &out, func(k string) string { return env[k] })
 
 			assert.Equal(t, tt.want, out.String())
 			assert.Equal(t, tt.status, status)

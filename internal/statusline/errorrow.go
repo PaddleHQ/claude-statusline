@@ -54,11 +54,15 @@ func (e *errorText) path() string {
 }
 
 func (e *errorText) String() string {
-	where := ": "
-	if e.line > 0 {
-		where = ":" + strconv.Itoa(e.line) + " "
+	return e.path() + lineSuffix(e.line) + e.reason + e.hint
+}
+
+// lineSuffix follows a path: the line when the parser gave one, then the separator before the reason.
+func lineSuffix(line int) string {
+	if line > 0 {
+		return ":" + strconv.Itoa(line) + " "
 	}
-	return e.path() + where + e.reason + e.hint
+	return ": "
 }
 
 // fit shortens the text until it is at most columns wide: the path first, then the hint, then the reason.

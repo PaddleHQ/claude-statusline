@@ -3,6 +3,8 @@ package config
 import "strings"
 
 const printHeader = `# claude-statusline settings, all commented out so the defaults still apply.
+# Save your file as config.yaml in the claude-statusline folder of your Claude config directory.
+# "claude-statusline help" shows the exact path.
 # To change a setting, remove the "# " in front of it.
 # When it sits in a section, remove the "# " in front of the section header too.
 # Delete the settings you do not change, so that future defaults reach you.

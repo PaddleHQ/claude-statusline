@@ -228,6 +228,16 @@ func TestProblemReport(t *testing.T) {
 			want: "the top level must be a mapping",
 		},
 		{
+			name: "a tab is shown, not dropped",
+			text: "hooks:\n\tttl: 60\n",
+			want: "2 found character that cannot start any token\n" +
+				"\n" +
+				"  1 | hooks:\n" +
+				"> 2 | \u2192ttl: 60\n" +
+				"  3 |\n" +
+				"\n" + reportNote,
+		},
+		{
 			name: "a file split by carriage returns",
 			text: "a: 1\rb: a: b\rc: 3",
 			want: "2 mapping values are not allowed in this context\n" +

@@ -82,7 +82,8 @@ func (p *Problem) context(lines []string) string {
 		}
 		text := ""
 		if n <= len(lines) {
-			text = Clean(lines[n-1])
+			// Clean drops tabs, and the parser may be complaining about one.
+			text = Clean(strings.ReplaceAll(lines[n-1], "\t", "→"))
 		}
 		rows = append(rows, strings.TrimRight(fmt.Sprintf("%s %*d | %s", marker, width, n, text), " "))
 	}

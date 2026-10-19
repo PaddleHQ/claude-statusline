@@ -193,6 +193,22 @@ func TestHelpStripsTerminalEscapes(t *testing.T) {
 	assert.Contains(t, got, "RED.sh")
 }
 
+func TestHelpRemovesInvisibleFormatCharacters(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	hooks := filepath.Join(dir, "hooks")
+	require.NoError(t, os.Mkdir(hooks, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(hooks, "ab"+string(rune(0x202e))+"cd.sh"), []byte("#!/bin/sh\n"), 0o700)) //nolint:gosec // test hook must be executable
+
+	got := statusline.Help(func(k string) string {
+		return map[string]string{"STATUSLINE_HOOK_DIR": hooks, "CLAUDE_CONFIG_DIR": dir}[k]
+	})
+
+	assert.NotContains(t, got, "\u202e")
+	assert.Contains(t, got, "abcd.sh")
+}
+
 func TestHelpShowsConfigProblem(t *testing.T) {
 	t.Parallel()
 

@@ -2,7 +2,6 @@ package statusline
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
@@ -129,18 +128,8 @@ func hookHelp(h *hook.Hook) string {
 
 func writeList(b *strings.Builder, lines []string) {
 	for _, l := range lines {
-		b.WriteString("  " + plain(l) + "\n")
+		b.WriteString("  " + config.Clean(l) + "\n")
 	}
-}
-
-// plain drops control characters so a hook filename or config value cannot inject terminal escapes.
-func plain(s string) string {
-	return strings.Map(func(r rune) rune {
-		if r < 0x20 || (r >= 0x7f && r <= 0x9f) {
-			return -1
-		}
-		return r
-	}, s)
 }
 
 func (h *helper) configFooter() string {
@@ -159,9 +148,5 @@ func (h *helper) configFooter() string {
 
 // problemText follows the path: the line, when the parser gave one, and the reason.
 func (h *helper) problemText() string {
-	where := ": "
-	if h.problem.Line > 0 {
-		where = ":" + strconv.Itoa(h.problem.Line) + " "
-	}
-	return where + config.Clean(h.problem.Reason)
+	return lineSuffix(h.problem.Line) + config.Clean(h.problem.Reason)
 }
