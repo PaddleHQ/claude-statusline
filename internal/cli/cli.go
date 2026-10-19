@@ -8,6 +8,7 @@ import (
 
 	"github.com/PaddleHQ/claude-statusline/internal/setup"
 	"github.com/PaddleHQ/claude-statusline/internal/statusline"
+	"github.com/PaddleHQ/claude-statusline/internal/subagent"
 )
 
 // Build identifies the binary: the values the release stamps in at build time.
@@ -47,6 +48,10 @@ func (a *App) Execute(args []string, stdin io.Reader, stdout io.Writer, getenv f
 		setup.Run(stdout, eventFlag(args[1:]), a.build.Version)
 		return
 	}
+	if len(args) > 0 && args[0] == "subagent" {
+		runSubagent(stdin, stdout, getenv)
+		return
+	}
 	run(stdin, stdout, getenv)
 }
 
@@ -68,4 +73,12 @@ func run(stdin io.Reader, stdout io.Writer, getenv func(string) string) {
 		return
 	}
 	_, _ = io.WriteString(stdout, statusline.Build(input, getenv))
+}
+
+func runSubagent(stdin io.Reader, stdout io.Writer, getenv func(string) string) {
+	input, err := io.ReadAll(stdin)
+	if err != nil {
+		return
+	}
+	_, _ = io.WriteString(stdout, subagent.Build(input, getenv))
 }

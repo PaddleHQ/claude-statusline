@@ -17,7 +17,7 @@ func TestDefaultsParse(t *testing.T) {
 	t.Parallel()
 
 	c := config.New("")
-	assert.Equal(t, []string{"path", "model", "ctx", "tokens", "cache", "rate5h", "rate7d"}, c.Strings("segments"))
+	assert.Equal(t, []string{"path", "model", "ctx", "tokens", "cache", "boot", "skills", "skills_stripped", "agent_skills", "mem", "rate5h", "rate7d"}, c.Strings("segments"))
 	assert.Equal(t, "·", c.String("separator"))
 	assert.Equal(t, "classic", c.String("theme"))
 	assert.True(t, c.Bool("snapshot.enabled"))
