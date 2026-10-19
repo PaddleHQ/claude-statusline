@@ -312,3 +312,18 @@ func TestBuildResolvesRelativeSnapshotPath(t *testing.T) {
 	assert.FileExists(t, filepath.Join(dir, "claude-statusline", "latest.json"))
 	assert.NoFileExists(t, filepath.Join(work, "latest.json"))
 }
+
+func TestBuildStateDir(t *testing.T) {
+	t.Parallel()
+
+	dir, state := t.TempDir(), t.TempDir()
+	writeHook(t, filepath.Join(dir, "statusline.d"), "10-x.sh", `printf custom`)
+	input := []byte(`{"session_id":"s1","model":{"display_name":"Opus"},"rate_limits":{"five_hour":{"used_percentage":40,"resets_at":4102444800}}}`)
+
+	got := statusline.Build(input, env(map[string]string{"CLAUDE_CONFIG_DIR": dir, config.StateDirEnv: state, "NO_COLOR": "1"}))
+
+	assert.Contains(t, got, "custom", "hooks still come from the config directory")
+	assert.FileExists(t, filepath.Join(state, "cache", "ratelimits"))
+	assert.DirExists(t, filepath.Join(state, "cache", "hooks", "s1"))
+	assert.NoDirExists(t, filepath.Join(dir, "claude-statusline", "cache"))
+}

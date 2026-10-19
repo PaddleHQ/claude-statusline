@@ -94,6 +94,33 @@ func AppDir(getenv func(string) string) string {
 	return filepath.Join(dir, "claude-statusline")
 }
 
+// StateDirEnv names the variable the command line sets to the directory holding the binary's private state when
+// it was installed by the plugin. The binary works that out for itself, so a value from the real environment is
+// replaced before it gets here.
+const StateDirEnv = "CLAUDE_STATUSLINE_STATE_DIR"
+
+// StateDir returns the directory for caches and setup markers, or "" when there is none. It is the plugin's data
+// directory when the binary lives in one, and the config file's directory otherwise.
+func StateDir(getenv func(string) string) string {
+	if dir := getenv(StateDirEnv); dir != "" {
+		return dir
+	}
+	return AppDir(getenv)
+}
+
+// PluginDataDir returns the plugin data directory the executable was installed into, or "" when it lives anywhere
+// else. Claude Code keeps a plugin's data at <config dir>/plugins/data/<plugin>, and the plugin installs the binary
+// into its bin directory.
+func PluginDataDir(exe string) string {
+	bin := filepath.Dir(exe)
+	data := filepath.Dir(bin)
+	plugins := filepath.Dir(filepath.Dir(data))
+	if filepath.Base(bin) == "bin" && filepath.Base(filepath.Dir(data)) == "data" && filepath.Base(plugins) == "plugins" {
+		return data
+	}
+	return ""
+}
+
 // Path returns where the user's config file lives, or "" when there is no config directory.
 func Path(getenv func(string) string) string {
 	dir := AppDir(getenv)

@@ -85,7 +85,8 @@ install_stub() {
 }
 
 age_check() {
-  printf '%s\n' "$(($(date +%s) - $1))" > "$T/claude/claude-statusline/last-check"
+  mkdir -p "$APP"
+  printf '%s\n' "$(($(date +%s) - $1))" > "$CHECK"
 }
 
 stub_gh() {
@@ -104,6 +105,7 @@ STUB
 }
 
 start() {
+  DATA_MODE=0
   NAME="$1"
   FAIL_START="$FAIL"
   T="$WORK/$2"
@@ -111,13 +113,25 @@ start() {
   : > "$T/setup.log"
   : > "$T/gh.log"
   cp -R "$ROOT/hooks" "$T/plugin/hooks"
-  BIN="$T/claude/claude-statusline/bin/claude-statusline"
-  CHECK="$T/claude/claude-statusline/last-check"
-  NOTICE="$T/claude/claude-statusline/.no-attestation-notice"
+  set_app_dir "$T/claude/claude-statusline"
+}
+
+set_app_dir() {
+  APP="$1"
+  BIN="$APP/bin/claude-statusline"
+  CHECK="$APP/last-check"
+  NOTICE="$APP/.no-attestation-notice"
+}
+
+use_plugin_data() {
+  DATA_MODE=1
+  set_app_dir "$T/claude/plugins/data/statusline-claude-statusline"
 }
 
 run_hook() {
-  PATH="$T/gh:$TOOLS" HOME="$T/home" CLAUDE_CONFIG_DIR="$T/claude" CLAUDE_PLUGIN_ROOT="$T/plugin" \
+  data=""
+  [ "$DATA_MODE" = 0 ] || data="$APP"
+  PATH="$T/gh:$TOOLS" HOME="$T/home" CLAUDE_CONFIG_DIR="$T/claude" CLAUDE_PLUGIN_ROOT="$T/plugin" CLAUDE_PLUGIN_DATA="$data" \
     CLAUDE_STATUSLINE_DOWNLOAD_BASE="file://$T/releases" CLAUDE_STATUSLINE_LATEST_URL="file://$T/latest" \
     STUB_LOG="$T/setup.log" "$SH" "$T/plugin/hooks/bootstrap.sh" > "$T/out" 2> "$T/err"
   RC=$?
@@ -156,7 +170,7 @@ assert_check_fresh() {
 }
 
 assert_no_temp_left() {
-  for left in "$T"/claude/claude-statusline/tmp.*; do [ ! -e "$left" ] || bad "temp dir left behind"; done
+  for left in "$APP"/tmp.*; do [ ! -e "$left" ] || bad "temp dir left behind"; done
 }
 
 finish() {
@@ -390,6 +404,79 @@ set_latest "v1.2.3-rc1"
 run_hook
 assert_message 'not a valid version'
 assert_not_installed
+finish
+
+start "with CLAUDE_PLUGIN_DATA the binary, last-check and notice live in the data directory and nothing in the legacy one" t21
+use_plugin_data
+make_release 1.2.3
+set_latest v1.2.3
+rm -rf "$T/gh"
+run_hook
+assert_setup_events "setup --event=installed"
+assert_version 1.2.3
+assert_check_fresh
+assert_no_temp_left
+[ -e "$NOTICE" ] || bad "notice marker not written in the data directory"
+[ ! -e "$T/claude/claude-statusline" ] || bad "the legacy directory was created"
+finish
+
+start "with CLAUDE_PLUGIN_DATA an update replaces the binary in the data directory" t22
+use_plugin_data
+make_release 1.2.4
+set_latest v1.2.4
+stub_gh login
+install_stub 1.2.3
+run_hook
+assert_setup_events "setup --event=updated"
+assert_version 1.2.4
+[ ! -e "$T/claude/claude-statusline" ] || bad "the legacy directory was created"
+finish
+
+start "with CLAUDE_PLUGIN_DATA a recent check makes no network request" t23
+use_plugin_data
+install_stub 1.2.3 60
+before=$(cat "$CHECK")
+run_hook
+assert_setup_events "setup --event=current"
+[ "$(cat "$CHECK")" = "$before" ] || bad "last-check was advanced, so a check was made"
+finish
+
+start "without CLAUDE_PLUGIN_DATA the legacy layout is used" t24
+make_release 1.2.3
+set_latest v1.2.3
+stub_gh login
+run_hook
+assert_version 1.2.3
+[ -x "$T/claude/claude-statusline/bin/claude-statusline" ] || bad "binary not in the legacy directory"
+[ ! -e "$T/claude/plugins" ] || bad "the plugin data directory was created"
+finish
+
+run_run() {
+  OUT=$(HOME="$T/home" CLAUDE_CONFIG_DIR="$T/claude" CLAUDE_PLUGIN_DATA="$1" STUB_LOG="$T/setup.log" "$SH" "$T/plugin/hooks/run.sh" "$2" 2>&1)
+}
+
+start "run.sh runs the binary in CLAUDE_PLUGIN_DATA with its arguments" t25
+write_stub "$T/data/bin/claude-statusline" 1.2.3
+write_stub "$T/claude/claude-statusline/bin/claude-statusline" 0.1.0
+run_run "$T/data" --version
+case "$OUT" in "claude-statusline 1.2.3"*) ;; *) bad "ran '$OUT'" ;; esac
+finish
+
+start "run.sh finds the plugin data directory from the config directory when CLAUDE_PLUGIN_DATA is not set" t26
+write_stub "$T/claude/plugins/data/statusline-claude-statusline/bin/claude-statusline" 1.2.3
+run_run "" --version
+case "$OUT" in "claude-statusline 1.2.3"*) ;; *) bad "ran '$OUT'" ;; esac
+finish
+
+start "run.sh falls back to the legacy install" t27
+write_stub "$T/claude/claude-statusline/bin/claude-statusline" 0.1.0
+run_run "" --version
+case "$OUT" in "claude-statusline 0.1.0"*) ;; *) bad "ran '$OUT'" ;; esac
+finish
+
+start "run.sh says NOT-INSTALLED when there is no binary" t28
+run_run "" --version
+[ "$OUT" = "NOT-INSTALLED" ] || bad "printed '$OUT'"
 finish
 
 NAME="real Claude config dir untouched"

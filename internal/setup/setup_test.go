@@ -29,8 +29,12 @@ func newDir(t *testing.T, settings *string) (dir, path string) {
 	return dir, path
 }
 
+func locations(dir string) setup.Locations {
+	return setup.Locations{ConfigDir: dir, StateDir: filepath.Join(dir, "claude-statusline"), Bin: testBin}
+}
+
 func run(dir, event string) string {
-	return setup.Apply(dir, testBin, event, "1.2.3")
+	return setup.Apply(locations(dir), event, "1.2.3")
 }
 
 func sentinelExists(dir string) bool {
@@ -56,15 +60,16 @@ func TestApply(t *testing.T) {
 		wantSettings string
 		wantSentinel bool
 	}{
-		{"leaves settings alone when already wired and current", &prettySettings, true, setup.EventCurrent, "", prettySettings, true},
-		{"announces an update when already wired", &prettySettings, true, setup.EventUpdated, "updated to v1.2.3", prettySettings, true},
-		{"stays silent when already wired and installed", &prettySettings, true, setup.EventInstalled, "", prettySettings, true},
+		{"does not re-add lines the user removed", &prettySettings, true, setup.EventCurrent, "", prettySettings, true},
+		{"announces an update without touching settings", &prettySettings, true, setup.EventUpdated, "updated to v1.2.3", prettySettings, true},
+		{"does not re-add lines the user removed, even on install", &prettySettings, true, setup.EventInstalled, "", prettySettings, true},
 		{"leaves invalid JSON alone and says so on install", &invalid, false, setup.EventInstalled, "not valid JSON", invalid, false},
 		{"leaves invalid JSON alone silently on later events", &invalid, false, setup.EventCurrent, "", invalid, false},
 		{"leaves a non-object alone", &array, false, setup.EventInstalled, "not valid JSON", array, false},
 		{"keeps our own statusLine and says installed", &own, false, setup.EventInstalled, "v1.2.3 installed.", own, true},
 		{"keeps our own statusLine silently on current", &own, false, setup.EventCurrent, "", own, true},
-		{"leaves someone else's statusLine and explains the switch", &other, false, setup.EventCurrent, "already have a statusLine", other, true},
+		{"leaves someone else's statusLine and explains the switch", &other, false, setup.EventInstalled, "already have a statusLine", other, true},
+		{"leaves someone else's statusLine silently on current", &other, false, setup.EventCurrent, "", other, true},
 		{"leaves someone else's subagentStatusLine and explains the switch", &otherSub, false, setup.EventInstalled, "already have a subagentStatusLine", otherSub, true},
 	}
 
@@ -293,7 +298,9 @@ func TestApplySubagent(t *testing.T) {
 		t.Parallel()
 		dir, path := newDir(t, &prettySettings)
 
-		setup.Apply(dir, "/opt/my tools/claude-statusline", setup.EventInstalled, "1.2.3")
+		loc := locations(dir)
+		loc.Bin = "/opt/my tools/claude-statusline"
+		setup.Apply(loc, setup.EventInstalled, "1.2.3")
 
 		got, err := os.ReadFile(path)
 		require.NoError(t, err)
@@ -359,12 +366,12 @@ func TestApplyFiles(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	t.Run("prints a single JSON line using the config dir from the environment", func(t *testing.T) {
+	t.Run("prints a single JSON line", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
-		t.Setenv("CLAUDE_CONFIG_DIR", dir)
 
 		var out bytes.Buffer
-		setup.Run(&out, setup.EventInstalled, "1.2.3")
+		setup.Run(&out, setup.EventInstalled, "1.2.3", locations(dir))
 
 		var msg struct {
 			SystemMessage string `json:"systemMessage"`
@@ -375,11 +382,407 @@ func TestRun(t *testing.T) {
 	})
 
 	t.Run("prints nothing when there is nothing to say", func(t *testing.T) {
-		t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+		t.Parallel()
+		loc := locations(t.TempDir())
 		var out bytes.Buffer
-		setup.Run(&out, setup.EventInstalled, "1.2.3")
+		setup.Run(&out, setup.EventInstalled, "1.2.3", loc)
 		out.Reset()
-		setup.Run(&out, setup.EventCurrent, "1.2.3")
+		setup.Run(&out, setup.EventCurrent, "1.2.3", loc)
 		assert.Zero(t, out.Len(), "output = %q", out.String())
 	})
+
+	t.Run("prints nothing without a config directory, state directory or binary", func(t *testing.T) {
+		t.Parallel()
+		var out bytes.Buffer
+		setup.Run(&out, setup.EventInstalled, "1.2.3", setup.Locations{})
+		setup.Uninstall(&out, setup.Locations{})
+		assert.Zero(t, out.Len(), "output = %q", out.String())
+	})
+}
+
+func settingsWith(status, sub string) string {
+	members := []string{`"theme": "dark"`}
+	if status != "" {
+		members = append(members, `"statusLine": {"type": "command", "command": `+quote(status)+`, "padding": 0}`)
+	}
+	if sub != "" {
+		members = append(members, `"subagentStatusLine": {"type": "command", "command": `+quote(sub)+`}`)
+	}
+	return "{\n  " + strings.Join(members, ",\n  ") + "\n}\n"
+}
+
+func quote(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
+}
+
+func TestApplyOwnership(t *testing.T) {
+	t.Parallel()
+
+	const (
+		pluginBin = "/old/claude/plugins/data/statusline-claude-statusline/bin/claude-statusline"
+		shell     = "/Users/me/.claude/paddle-statusline.sh"
+		subShell  = "bash /Users/me/.claude/paddle-subagent-statusline.sh"
+	)
+
+	tests := []struct {
+		name       string
+		status     string
+		sub        string
+		wantStatus string
+		wantSub    string
+		wantWrite  bool
+		wantMsg    string
+	}{
+		{"the current binary is left alone", testBin, testBin + " subagent", testBin, testBin + " subagent", false, ""},
+		{"a quoted current binary is left alone", "'" + testBin + "'", "'" + testBin + "' subagent", "'" + testBin + "'", "'" + testBin + "' subagent", false, ""},
+		{"the legacy binary is repointed", "LEGACY", "LEGACY subagent", testBin, testBin + " subagent", true, "now provides your statusLine"},
+		{"the legacy binary with a stray subagent argument is repointed", "LEGACY subagent", "LEGACY", testBin, testBin + " subagent", true, "now provides your statusLine"},
+		{"an earlier plugin data binary is repointed", pluginBin, pluginBin + " subagent", testBin, testBin + " subagent", true, "now provides your statusLine"},
+		{"the old Paddle shell lines are repointed", shell, subShell, testBin, testBin + " subagent", true, "now provides your statusLine"},
+		{"a shell script run through bash is repointed", "bash " + shell, "", testBin, "", true, "now provides your statusLine"},
+		{"someone else's lines are left alone", "/usr/bin/mine", "/usr/bin/mine subagent", "/usr/bin/mine", "/usr/bin/mine subagent", false, "already have a statusLine"},
+		{"the other key's script is someone else's", "/x/other.sh", "/x/paddle-statusline.sh", "/x/other.sh", "/x/paddle-statusline.sh", false, "already have a statusLine"},
+		{"our binary with other arguments is someone else's", testBin + " --flag", "", testBin + " --flag", "", false, "already have a statusLine"},
+		{"a similarly named binary elsewhere is someone else's", "/usr/local/bin/claude-statusline", "", "/usr/local/bin/claude-statusline", "", false, "already have a statusLine"},
+		{"a bin directory outside the plugin data layout is someone else's", "/c/plugins/cache/x/bin/claude-statusline", "", "/c/plugins/cache/x/bin/claude-statusline", "", false, "already have a statusLine"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			legacy := filepath.Join(dir, "claude-statusline", "bin", "claude-statusline")
+			swap := func(v string) string { return strings.ReplaceAll(v, "LEGACY", legacy) }
+			before := settingsWith(swap(tt.status), swap(tt.sub))
+			path := filepath.Join(dir, "settings.json")
+			require.NoError(t, os.WriteFile(path, []byte(before), 0o600))
+			require.NoError(t, setup.Touch(filepath.Join(dir, "claude-statusline", ".bootstrapped")))
+			require.NoError(t, setup.Touch(filepath.Join(dir, "claude-statusline", ".bootstrapped-subagent")))
+
+			msg := run(dir, setup.EventInstalled)
+
+			got, err := os.ReadFile(path)
+			require.NoError(t, err)
+			assert.Equal(t, swap(tt.wantStatus), gjson.GetBytes(got, "statusLine.command").String())
+			assert.Equal(t, swap(tt.wantSub), gjson.GetBytes(got, "subagentStatusLine.command").String())
+			assert.Contains(t, msg, tt.wantMsg)
+			if tt.wantWrite {
+				bak, err := os.ReadFile(path + ".bak")
+				require.NoError(t, err)
+				assert.Equal(t, before, string(bak))
+				assert.EqualValues(t, 0, gjson.GetBytes(got, "statusLine.padding").Int(), "other keys of the entry are kept")
+				assert.Contains(t, msg, "backed up at")
+				assert.NotEqual(t, before, string(got))
+			} else {
+				assert.Equal(t, before, string(got))
+				assert.NoFileExists(t, path+".bak")
+			}
+			assert.True(t, gjson.ValidBytes(got))
+		})
+	}
+
+	t.Run("a second run writes nothing and says nothing", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		path := filepath.Join(dir, "settings.json")
+		require.NoError(t, os.WriteFile(path, []byte(settingsWith("/Users/me/.claude/paddle-statusline.sh", "")), 0o600))
+		require.Contains(t, run(dir, setup.EventInstalled), "now provides your statusLine")
+		first, err := os.ReadFile(path)
+		require.NoError(t, err)
+		require.NoError(t, os.Remove(path+".bak"))
+
+		msg := run(dir, setup.EventCurrent)
+
+		second, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Empty(t, msg)
+		assert.Equal(t, string(first), string(second))
+		assert.NoFileExists(t, path+".bak")
+	})
+
+	t.Run("repointing keeps the file's formatting", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		path := filepath.Join(dir, "settings.json")
+		require.NoError(t, os.WriteFile(path, []byte(settingsWith("/Users/me/.claude/paddle-statusline.sh", "")), 0o600))
+		require.NoError(t, setup.Touch(filepath.Join(dir, "claude-statusline", ".bootstrapped")))
+		require.NoError(t, setup.Touch(filepath.Join(dir, "claude-statusline", ".bootstrapped-subagent")))
+
+		run(dir, setup.EventCurrent)
+
+		got, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, settingsWith(testBin, ""), string(got))
+	})
+
+	t.Run("a sentinel from the old layout stops a removed line coming back", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		path := filepath.Join(dir, "settings.json")
+		require.NoError(t, os.WriteFile(path, []byte(prettySettings), 0o600))
+		legacy := filepath.Join(dir, "claude-statusline")
+		require.NoError(t, setup.Touch(filepath.Join(legacy, ".bootstrapped")))
+		require.NoError(t, setup.Touch(filepath.Join(legacy, ".bootstrapped-subagent")))
+		loc := setup.Locations{ConfigDir: dir, StateDir: filepath.Join(dir, "plugins", "data", "x"), Bin: filepath.Join(dir, "plugins", "data", "x", "bin", "claude-statusline")}
+
+		msg := setup.Apply(loc, setup.EventInstalled, "1.2.3")
+
+		assert.Empty(t, msg)
+		got, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, prettySettings, string(got))
+		assert.FileExists(t, filepath.Join(loc.StateDir, ".bootstrapped"))
+	})
+
+	t.Run("a missing settings file is not created when the lines were already added", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, setup.Touch(filepath.Join(dir, "claude-statusline", ".bootstrapped")))
+		require.NoError(t, setup.Touch(filepath.Join(dir, "claude-statusline", ".bootstrapped-subagent")))
+
+		assert.Empty(t, run(dir, setup.EventCurrent))
+
+		assert.NoFileExists(t, filepath.Join(dir, "settings.json"))
+	})
+}
+
+func TestApplyMigration(t *testing.T) {
+	t.Parallel()
+
+	newLayout := func(t *testing.T) (loc setup.Locations, legacy, settings string) {
+		t.Helper()
+		dir := t.TempDir()
+		legacy = filepath.Join(dir, "claude-statusline")
+		data := filepath.Join(dir, "plugins", "data", "statusline-claude-statusline")
+		loc = setup.Locations{ConfigDir: dir, StateDir: data, Bin: filepath.Join(data, "bin", "claude-statusline")}
+		for _, f := range []string{"bin/claude-statusline", ".bootstrapped", ".bootstrapped-subagent", "last-check", ".no-attestation-notice", "cache/ratelimits", "cache/hooks/s1/x", "tmp.abc/x", "config.yaml"} {
+			require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(legacy, f)), 0o700))
+			require.NoError(t, os.WriteFile(filepath.Join(legacy, f), []byte("x"), 0o600))
+		}
+		settings = filepath.Join(dir, "settings.json")
+		legacyBin := filepath.Join(legacy, "bin", "claude-statusline")
+		require.NoError(t, os.WriteFile(settings, []byte(settingsWith(legacyBin, legacyBin+" subagent")), 0o600))
+		return loc, legacy, settings
+	}
+
+	t.Run("removes the old install and keeps config.yaml once the settings are repointed", func(t *testing.T) {
+		t.Parallel()
+		loc, legacy, settings := newLayout(t)
+
+		msg := setup.Apply(loc, setup.EventInstalled, "1.2.3")
+
+		assert.Contains(t, msg, "now provides your statusLine")
+		got, err := os.ReadFile(settings)
+		require.NoError(t, err)
+		assert.Equal(t, loc.Bin, gjson.GetBytes(got, "statusLine.command").String())
+		assert.Equal(t, loc.Bin+" subagent", gjson.GetBytes(got, "subagentStatusLine.command").String())
+		for _, gone := range []string{"bin", ".bootstrapped", ".bootstrapped-subagent", "last-check", ".no-attestation-notice", "cache", "tmp.abc"} {
+			assert.NoDirExists(t, filepath.Join(legacy, gone))
+			assert.NoFileExists(t, filepath.Join(legacy, gone))
+		}
+		assert.FileExists(t, filepath.Join(legacy, "config.yaml"))
+	})
+
+	t.Run("removes the old directory when nothing else is in it", func(t *testing.T) {
+		t.Parallel()
+		loc, legacy, _ := newLayout(t)
+		require.NoError(t, os.Remove(filepath.Join(legacy, "config.yaml")))
+
+		setup.Apply(loc, setup.EventInstalled, "1.2.3")
+
+		assert.NoDirExists(t, legacy)
+	})
+
+	t.Run("leaves the old install while a setting still points at it", func(t *testing.T) {
+		t.Parallel()
+		loc, legacy, settings := newLayout(t)
+		legacyBin := filepath.Join(legacy, "bin", "claude-statusline")
+		require.NoError(t, os.WriteFile(settings, []byte(settingsWith("/usr/bin/mine", "wrapper "+legacyBin+" --extra")), 0o600))
+
+		setup.Apply(loc, setup.EventInstalled, "1.2.3")
+
+		assert.FileExists(t, legacyBin)
+	})
+
+	t.Run("does nothing when the binary runs from the legacy layout", func(t *testing.T) {
+		t.Parallel()
+		loc, legacy, _ := newLayout(t)
+		loc.StateDir = legacy
+		loc.Bin = filepath.Join(legacy, "bin", "claude-statusline")
+
+		setup.Apply(loc, setup.EventCurrent, "1.2.3")
+
+		assert.FileExists(t, filepath.Join(legacy, "bin", "claude-statusline"))
+		assert.FileExists(t, filepath.Join(legacy, "last-check"))
+	})
+
+	t.Run("leaves the old install when the settings are not valid JSON", func(t *testing.T) {
+		t.Parallel()
+		loc, legacy, settings := newLayout(t)
+		require.NoError(t, os.WriteFile(settings, []byte("not json"), 0o600))
+
+		setup.Apply(loc, setup.EventInstalled, "1.2.3")
+
+		assert.FileExists(t, filepath.Join(legacy, "bin", "claude-statusline"))
+	})
+}
+
+func TestUninstall(t *testing.T) {
+	t.Parallel()
+
+	data := func(dir string) setup.Locations {
+		state := filepath.Join(dir, "plugins", "data", "statusline-claude-statusline")
+		return setup.Locations{ConfigDir: dir, StateDir: state, Bin: filepath.Join(state, "bin", "claude-statusline")}
+	}
+
+	tests := []struct {
+		name        string
+		status      string
+		sub         string
+		wantStatus  string
+		wantSub     string
+		wantOut     []string
+		wantWritten bool
+	}{
+		{"removes both lines that point at the current binary", "CUR", "CUR subagent", "", "", []string{"Removed statusLine and subagentStatusLine"}, true},
+		{"removes the legacy and earlier plugin data lines", "LEGACY", "/old/plugins/data/x/bin/claude-statusline subagent", "", "", []string{"Removed statusLine and subagentStatusLine"}, true},
+		{"keeps someone else's lines", "/usr/bin/mine", "/usr/bin/mine subagent", "/usr/bin/mine", "/usr/bin/mine subagent", []string{"statusLine is not set by claude-statusline", "subagentStatusLine is not set by claude-statusline"}, false},
+		{"keeps the old Paddle shell lines", "/Users/me/.claude/paddle-statusline.sh", "/Users/me/.claude/paddle-subagent-statusline.sh", "/Users/me/.claude/paddle-statusline.sh", "/Users/me/.claude/paddle-subagent-statusline.sh", []string{"not set by claude-statusline"}, false},
+		{"removes ours and keeps theirs", "CUR", "/usr/bin/mine", "", "/usr/bin/mine", []string{"Removed statusLine from", "subagentStatusLine is not set by claude-statusline"}, true},
+		{"reports lines that are absent", "", "", "", "", []string{"statusLine is not set.", "subagentStatusLine is not set."}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			loc := data(dir)
+			legacy := filepath.Join(dir, "claude-statusline", "bin", "claude-statusline")
+			swap := func(v string) string {
+				return strings.ReplaceAll(strings.ReplaceAll(v, "LEGACY", legacy), "CUR", loc.Bin)
+			}
+			before := settingsWith(swap(tt.status), swap(tt.sub))
+			path := filepath.Join(dir, "settings.json")
+			require.NoError(t, os.WriteFile(path, []byte(before), 0o600))
+			keep := []string{filepath.Join(dir, "claude-statusline", "config.yaml"), filepath.Join(dir, "statusline.d", "10-x.sh"), filepath.Join(dir, "usage-latest.json")}
+			for _, f := range keep {
+				require.NoError(t, os.MkdirAll(filepath.Dir(f), 0o700))
+				require.NoError(t, os.WriteFile(f, []byte("x"), 0o600))
+			}
+			require.NoError(t, setup.Touch(filepath.Join(loc.StateDir, ".bootstrapped")))
+
+			var out bytes.Buffer
+			setup.Uninstall(&out, loc)
+
+			got, err := os.ReadFile(path)
+			require.NoError(t, err)
+			assert.Equal(t, swap(tt.wantStatus), gjson.GetBytes(got, "statusLine.command").String())
+			assert.Equal(t, swap(tt.wantSub), gjson.GetBytes(got, "subagentStatusLine.command").String())
+			assert.Equal(t, "dark", gjson.GetBytes(got, "theme").String())
+			assert.True(t, gjson.ValidBytes(got), "result is not valid JSON: %s", got)
+			for _, want := range tt.wantOut {
+				assert.Contains(t, out.String(), want)
+			}
+			assert.Contains(t, out.String(), "/plugin uninstall statusline@claude-statusline")
+			if tt.wantWritten {
+				bak, err := os.ReadFile(path + ".bak")
+				require.NoError(t, err)
+				assert.Equal(t, before, string(bak))
+			} else {
+				assert.Equal(t, before, string(got))
+				assert.NoFileExists(t, path+".bak")
+			}
+			for _, f := range keep {
+				assert.FileExists(t, f)
+			}
+			assert.NoFileExists(t, filepath.Join(loc.StateDir, ".bootstrapped"))
+		})
+	}
+
+	t.Run("copes with a missing settings file", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		var out bytes.Buffer
+
+		setup.Uninstall(&out, data(dir))
+
+		assert.Contains(t, out.String(), "nothing to remove")
+		assert.Contains(t, out.String(), "/plugin uninstall")
+		assert.NoFileExists(t, filepath.Join(dir, "settings.json"))
+	})
+
+	t.Run("leaves invalid JSON alone", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		path := filepath.Join(dir, "settings.json")
+		require.NoError(t, os.WriteFile(path, []byte("not json"), 0o600))
+		var out bytes.Buffer
+
+		setup.Uninstall(&out, data(dir))
+
+		assert.Contains(t, out.String(), "left alone")
+		got, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, "not json", string(got))
+	})
+}
+
+func TestRemoveMember(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		in   string
+		key  string
+		want string
+	}{
+		{"first of several", "{\n  \"a\": 1,\n  \"b\": 2\n}\n", "a", "{\n  \"b\": 2\n}\n"},
+		{"middle", "{\n  \"a\": 1,\n  \"b\": {\"x\": 1},\n  \"c\": 3\n}\n", "b", "{\n  \"a\": 1,\n  \"c\": 3\n}\n"},
+		{"last", "{\n  \"a\": 1,\n  \"b\": [1, 2]\n}\n", "b", "{\n  \"a\": 1\n}\n"},
+		{"only member", "{\n  \"a\": 1\n}\n", "a", "{}\n"},
+		{"compact", `{"a":1,"b":"}","c":3}`, "b", `{"a":1,"c":3}`},
+		{"CRLF", "{\r\n  \"a\": 1,\r\n  \"b\": 2\r\n}\r\n", "b", "{\r\n  \"a\": 1\r\n}\r\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, ok := setup.RemoveMember([]byte(tt.in), tt.key)
+			require.True(t, ok)
+			assert.Equal(t, tt.want, string(got))
+			assert.True(t, gjson.ValidBytes(got))
+		})
+	}
+
+	t.Run("reports a missing key", func(t *testing.T) {
+		t.Parallel()
+		_, ok := setup.RemoveMember([]byte(`{"a":1}`), "z")
+		assert.False(t, ok)
+	})
+}
+
+func TestShellWords(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		in   string
+		want []string
+	}{
+		{"", nil},
+		{"  ", nil},
+		{"/a/b", []string{"/a/b"}},
+		{"/a/b subagent", []string{"/a/b", "subagent"}},
+		{"'/a b/c' subagent", []string{"/a b/c", "subagent"}},
+		{`"/a b/c"  x`, []string{"/a b/c", "x"}},
+		{`'/it'\''s/c' x`, []string{"/it's/c", "x"}},
+		{`/a\ b/c`, []string{"/a b/c"}},
+		{"bash\t/x.sh", []string{"bash", "/x.sh"}},
+		{`''`, []string{""}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, setup.ShellWords(tt.in))
+		})
+	}
 }

@@ -123,7 +123,7 @@ A hook's name is its filename without a leading `NN-` and without its extension,
 
 A hook runs at most once per TTL, per session. The default is `hooks.ttl` (60 seconds), and a hook can set its own with `# statusline-ttl: <seconds>` in its first 20 lines. A hook that takes longer than `hooks.timeout` (2 seconds) is killed. `STATUSLINE_HOOK_TTL` and `STATUSLINE_HOOK_TIMEOUT` override both settings.
 
-Results are cached in `~/.claude/claude-statusline/cache/hooks/<session id>/` (under `$CLAUDE_CONFIG_DIR` if set), one file per hook, because a hook is given the session JSON and its output may differ from one session to the next. Cache directories untouched for 7 days are removed when a new session's is created. The files are private state and may change between versions.
+Results are cached in `cache/hooks/<session id>/` in the status line's state directory (the plugin data directory for a plugin install; see [Where the files live](how_it_works.md#where-the-files-live)), one file per hook, because a hook is given the session JSON and its output may differ from one session to the next. Cache directories untouched for 7 days are removed when a new session's is created. The files are private state and may change between versions.
 
 ## Wrapping
 

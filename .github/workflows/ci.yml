@@ -283,7 +283,7 @@ jobs:
         run: brew install shellcheck
 
       - name: Lint shell scripts
-        run: shellcheck -s sh hooks/bootstrap.sh hooks/bootstrap_test.sh
+        run: shellcheck -s sh hooks/bootstrap.sh hooks/bootstrap_test.sh hooks/run.sh
 
       - name: Test bootstrap hook
         run: sh hooks/bootstrap_test.sh

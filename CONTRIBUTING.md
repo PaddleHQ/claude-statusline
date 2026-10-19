@@ -32,13 +32,13 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `themes` | The built-in themes: one YAML file each, embedded in the binary by a tiny package that only exports them. |
 | `internal/snapshot` | Saves the latest payload for other tools. |
 | `internal/subagent` | Renders the rows of Claude Code's agent panel. |
-| `internal/setup` | Adds `statusLine` and `subagentStatusLine` to `settings.json` once, backing the file up first. |
-| `hooks/` | The plugin's `SessionStart` hook: `hooks.json` and `bootstrap.sh`, which installs the latest release, and `bootstrap_test.sh`, its shell tests. |
+| `internal/setup` | Adds `statusLine` and `subagentStatusLine` to `settings.json`, takes over the ones that run an earlier install or the old Paddle shell line, and removes them again for `uninstall`, backing the file up before every write. It also clears the old install layout. |
+| `hooks/` | The plugin's `SessionStart` hook: `hooks.json` and `bootstrap.sh`, which installs the latest release into the plugin data directory (`CLAUDE_PLUGIN_DATA`), and `bootstrap_test.sh`, its shell tests. `run.sh` finds the installed binary and runs it for the slash commands. |
 | `features/` | The Gherkin feature files: readable examples of the whole line, and the scenarios the documentation images are made from. `features_test.go` runs them. |
 | `internal/featuretest` | The step definitions behind the feature files, shared by the tests and the image generator. |
 | `tools/screenshots` | The command that regenerates the documentation images: it runs the `@screenshot` scenarios and draws what they print as SVG. It is one `main` package with its own tests. |
 | `docs/` | The user documentation, and the generated images in `docs/images/`. |
-| `commands/` | The plugin's slash commands: `help.md` is `/statusline:help`, which runs `claude-statusline help` and has Claude relay its output. |
+| `commands/` | The plugin's slash commands: `help.md` is `/statusline:help`, which runs `claude-statusline help` and has Claude relay its output, and `uninstall.md` is `/statusline:uninstall`, which runs `claude-statusline uninstall`. Both go through `hooks/run.sh`, which looks in `CLAUDE_PLUGIN_DATA`, then in the plugin's data directory under the config directory, then in the legacy `claude-statusline/bin`. |
 | `.claude-plugin/` | The plugin and marketplace manifests. |
 
 ## Verifying a change
@@ -55,7 +55,7 @@ go vet ./...
 go test -race ./...
 # coverage at or above requiredCoverage in build-config.yaml: see Coverage below
 golangci-lint run
-shellcheck -s sh hooks/bootstrap.sh hooks/bootstrap_test.sh
+shellcheck -s sh hooks/bootstrap.sh hooks/bootstrap_test.sh hooks/run.sh
 sh hooks/bootstrap_test.sh
 actionlint                    # the workflow files
 editorconfig-checker          # whitespace and indentation against .editorconfig
