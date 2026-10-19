@@ -30,8 +30,8 @@ const (
 
 var (
 	dateSuffix = regexp.MustCompile(`-\d{8}$`)
-	// A modern id is claude-<family>-<major>[-<minor>...], so new models need no table entry.
-	modelID = regexp.MustCompile(`^claude-([a-z]+)-(\d+(?:-\d+)*)$`)
+	// A modern id is claude-<family words>-<major>[-<minor>...], so new models need no table entry.
+	modelID = regexp.MustCompile(`^claude-([a-z]+(?:-[a-z]+)*)-(\d+(?:-\d+)*)$`)
 	ctxKeys = []string{"ctx.width", "ctx.width_medium", "ctx.width_narrow", "ctx.warn", "ctx.bad"}
 )
 
@@ -189,7 +189,11 @@ func number(r gjson.Result) (float64, bool) {
 func shortModel(id string) string {
 	id = dateSuffix.ReplaceAllString(id, "")
 	if m := modelID.FindStringSubmatch(id); m != nil {
-		id = strings.ToUpper(m[1][:1]) + m[1][1:] + " " + strings.ReplaceAll(m[2], "-", ".")
+		words := strings.Split(m[1], "-")
+		for i, w := range words {
+			words[i] = strings.ToUpper(w[:1]) + w[1:]
+		}
+		id = strings.Join(words, " ") + " " + strings.ReplaceAll(m[2], "-", ".")
 	} else {
 		id = strings.TrimPrefix(id, "claude-")
 	}
