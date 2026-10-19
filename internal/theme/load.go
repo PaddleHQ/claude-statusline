@@ -12,6 +12,7 @@ import (
 
 	"github.com/PaddleHQ/claude-statusline/themes"
 
+	"github.com/mattn/go-runewidth"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -354,5 +355,6 @@ func validGlyph(s string) bool {
 			return false
 		}
 	}
-	return true
+	// A glyph that takes no columns would draw nothing, yet still claim a place in the line.
+	return runewidth.StringWidth(s) > 0
 }

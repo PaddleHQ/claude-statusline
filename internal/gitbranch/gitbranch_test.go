@@ -134,24 +134,28 @@ func TestLinked(t *testing.T) {
 			for path, content := range tt.files {
 				write(t, filepath.Join(tmp, path), strings.ReplaceAll(content, "@TMP@", tmp))
 			}
-			root, main, ok := gitbranch.Linked(filepath.Join(tmp, tt.dir))
+			root, dotGit, info, ok := gitbranch.Locate(filepath.Join(tmp, tt.dir))
+			var main string
+			if ok {
+				main, ok = gitbranch.Linked(info, gitbranch.GitDir(dotGit, info))
+			}
 			if !tt.wantOK {
 				assert.False(t, ok)
 				return
 			}
-			assert.True(t, ok)
+			require.True(t, ok)
 			assert.Equal(t, filepath.Join(tmp, tt.wantRoot), root)
 			assert.Equal(t, filepath.Join(tmp, tt.wantMain), main)
 		})
 	}
 }
 
-func TestLinkedRejectsRelativeAndEmptyDirectories(t *testing.T) {
+func TestLocateRejectsRelativeAndEmptyDirectories(t *testing.T) {
 	t.Parallel()
 
-	_, _, ok := gitbranch.Linked("")
+	_, _, _, ok := gitbranch.Locate("")
 	assert.False(t, ok)
-	_, _, ok = gitbranch.Linked("relative/dir")
+	_, _, _, ok = gitbranch.Locate("relative/dir")
 	assert.False(t, ok)
 }
 
@@ -168,7 +172,10 @@ func TestLinkedDoesNotBlockOnFIFO(t *testing.T) {
 
 	got := make(chan bool, 1)
 	go func() {
-		_, _, ok := gitbranch.Linked(repo)
+		_, dotGit, info, ok := gitbranch.Locate(repo)
+		if ok {
+			_, ok = gitbranch.Linked(info, gitbranch.GitDir(dotGit, info))
+		}
 		got <- ok
 	}()
 
@@ -176,7 +183,7 @@ func TestLinkedDoesNotBlockOnFIFO(t *testing.T) {
 	case ok := <-got:
 		assert.False(t, ok)
 	case <-time.After(2 * time.Second):
-		require.FailNow(t, "Linked blocked on a FIFO")
+		require.FailNow(t, "locating a linked worktree blocked on a FIFO")
 	}
 }
 
@@ -410,6 +417,15 @@ func TestCheckout(t *testing.T) {
 			wantRoot:    "proj-wt/foo",
 			wantMain:    "proj",
 			wantProject: "proj",
+		},
+		{
+			name:  "no repository above the directory",
+			files: map[string]string{"plain/file": ""},
+			dir:   "plain",
+		},
+		{
+			name: "directory that does not exist",
+			dir:  "missing/dir",
 		},
 		{
 			name:        "spellings that cannot be reconciled",

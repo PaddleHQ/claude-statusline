@@ -397,6 +397,8 @@ func TestInvalidGlyphs(t *testing.T) {
 	for name, glyphs := range map[string]string{
 		"empty branch":     "glyphs:\n  branch: \"\"\n",
 		"control worktree": "glyphs:\n  worktree: \"a\\u0007\"\n",
+		"zero width":       "glyphs:\n  branch: \"\\u200d\"\n",
+		"combining only":   "glyphs:\n  worktree: \"\\u0301\"\n",
 	} {
 		_, err := theme.Open(writeTheme(t, dir, strings.ReplaceAll(name, " ", "_")+".yaml", validTheme+glyphs), "", "")
 		assert.Error(t, err, name)

@@ -136,12 +136,14 @@ func (p *Path) worktreePath(dir, root, mainRoot, project string, entries []strin
 
 func (p *Path) paintBranch(branch string, isWorktree bool) string {
 	paint := p.d.Paint.Branch
-	branchGlyph, worktreeGlyph := p.d.Paint.Glyphs()
-	glyph := branchGlyph
 	if isWorktree {
-		paint, glyph = p.d.Paint.Worktree, worktreeGlyph
+		paint = p.d.Paint.Worktree
 	}
 	if p.d.Config.Bool("emoji") {
+		glyph, worktreeGlyph := p.d.Paint.Glyphs()
+		if isWorktree {
+			glyph = worktreeGlyph
+		}
 		branch = glyph + " " + branch
 	}
 	return paint(branch)

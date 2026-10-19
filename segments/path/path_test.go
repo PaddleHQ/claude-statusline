@@ -99,7 +99,9 @@ func newPath(t *testing.T, s setup, git *mocks.Git) *path.Path {
 	paint.EXPECT().Path(mock.Anything).RunAndReturn(func(s string) string { return "<p>" + s + "</>" }).Maybe()
 	paint.EXPECT().Branch(mock.Anything).RunAndReturn(func(s string) string { return "<b>" + s + "</>" }).Maybe()
 	paint.EXPECT().Worktree(mock.Anything).RunAndReturn(func(s string) string { return "<w>" + s + "</>" }).Maybe()
-	paint.EXPECT().Glyphs().Return("B", "W").Maybe()
+	if s.emoji {
+		paint.EXPECT().Glyphs().Return("B", "W").Maybe()
+	}
 	return path.New(path.Deps{Session: sess, Config: cfg, Paint: paint, Git: git, Home: "/home/me"})
 }
 
