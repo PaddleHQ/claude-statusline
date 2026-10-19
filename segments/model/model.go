@@ -3,6 +3,7 @@ package model
 
 import (
 	_ "embed"
+	"strings"
 )
 
 // Defaults is the text of the segment's defaults.yaml, for layering under the user's config.
@@ -12,12 +13,30 @@ var Defaults string
 
 const name = "model"
 
+// families are the model families recognized by a substring of the model id, checked in order.
+var families = []struct{ key, label string }{
+	{"haiku", "Haiku"},
+	{"sonnet", "Sonnet"},
+	{"opus", "Opus"},
+	{"fable", "Fable"},
+	{"mythos", "Mythos"},
+}
+
 //go:generate go run github.com/vektra/mockery/v2 --name=Session
 
 // Session is what the segment needs to know about the session.
 type Session interface {
 	DisplayName() string
+	ModelID() string
 	EffortLevel() string
+	TranscriptFile() string
+}
+
+//go:generate go run github.com/vektra/mockery/v2 --name=Transcript
+
+// Transcript is what the segment needs from the session transcript.
+type Transcript interface {
+	LatestModel() string
 }
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Config
@@ -34,11 +53,12 @@ type Painter interface {
 	Text(s string) string
 }
 
-// Deps is everything the segment is built from.
+// Deps is everything the segment is built from. Transcript is a function so that the transcript is only read when the segment needs it.
 type Deps struct {
-	Session Session
-	Config  Config
-	Paint   Painter
+	Session    Session
+	Transcript func() Transcript
+	Config     Config
+	Paint      Painter
 }
 
 // Model shows the model in use.
@@ -56,11 +76,29 @@ func (m *Model) Keys() []string { return []string{"effort"} }
 // Render returns the segment's text, or "" to hide it.
 func (m *Model) Render() string {
 	display := m.d.Session.DisplayName()
+	level := m.d.Session.EffortLevel()
+	// A skill or subagent can run a different model than the session's, which the payload does not reflect.
+	if m.d.Session.TranscriptFile() != "" {
+		if actual, ok := family(m.d.Transcript().LatestModel()); ok {
+			if session, _ := family(m.d.Session.ModelID()); actual.key != session.key {
+				display, level = actual.label+" (skill)", ""
+			}
+		}
+	}
 	if display == "" {
 		return ""
 	}
-	if level := m.d.Session.EffortLevel(); level != "" && m.d.Config.Bool("effort") {
+	if level != "" && m.d.Config.Bool("effort") {
 		display += " [" + level + "]"
 	}
 	return m.d.Paint.Text(display)
+}
+
+func family(id string) (f struct{ key, label string }, ok bool) {
+	for _, f := range families {
+		if strings.Contains(id, f.key) {
+			return f, true
+		}
+	}
+	return f, false
 }

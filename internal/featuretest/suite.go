@@ -97,6 +97,7 @@ func (s *Suite) initialize(sc *godog.ScenarioContext) {
 		worldOf(ctx).setEnv("COLUMNS", columns)
 		worldOf(ctx).renderStatusLine(ctx)
 	})
+	sc.Step(`^the subagent rows render$`, func(ctx context.Context) error { return worldOf(ctx).renderSubagentRows(ctx) })
 
 	sc.Step(`^the output is:$`, func(ctx context.Context, doc *godog.DocString) error {
 		return worldOf(ctx).checkOutput(doc.Content)
