@@ -1,0 +1,3 @@
+model:
+  # Show the effort level after the model name (true or false).
+  effort: true
