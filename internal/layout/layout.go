@@ -4,7 +4,8 @@ package layout
 import (
 	"regexp"
 	"strings"
-	"unicode/utf8"
+
+	"github.com/mattn/go-runewidth"
 )
 
 // Group says where a segment goes when the line has to wrap.
@@ -40,9 +41,16 @@ const minRoom = 24
 
 var sgr = regexp.MustCompile("\x1b\\[[0-9;]*m")
 
-// Width is the number of columns s occupies once color sequences are removed, counting every rune as one column.
+// columns ignores the locale, so wrapping does not change under a CJK locale that would widen ambiguous characters.
+var columns = func() *runewidth.Condition {
+	c := runewidth.NewCondition()
+	c.EastAsianWidth = false
+	return c
+}()
+
+// Width is the number of columns s occupies once color sequences are removed, counting wide characters as two.
 func Width(s string) int {
-	return utf8.RuneCountInString(sgr.ReplaceAllString(s, ""))
+	return columns.StringWidth(sgr.ReplaceAllString(s, ""))
 }
 
 // Render joins the items on one row when they fit within o.Columns, and otherwise wraps them into rows.

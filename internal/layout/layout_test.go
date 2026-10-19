@@ -24,6 +24,27 @@ func usage(s string) layout.Item { return layout.Item{Group: layout.Usage, Text:
 func rates(s string) layout.Item { return layout.Item{Group: layout.Rates, Text: s} }
 func extra(s string) layout.Item { return layout.Item{Group: layout.Extra, Text: s} }
 
+func TestWidthWideCharacters(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		in   string
+		want int
+	}{
+		{"emoji", "🌿", 2},
+		{"emoji and text", "🌿 main", 7},
+		{"emoji inside color sequences", "\x1b[32m🌳\x1b[0m x", 4},
+		{"middle dot", "·", 1},
+		{"narrow symbols", "café ↑", 6},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, layout.Width(tc.in))
+		})
+	}
+}
+
 func TestWidth(t *testing.T) {
 	t.Parallel()
 
@@ -136,6 +157,13 @@ func TestRenderMeasuresVisibleWidth(t *testing.T) {
 	red := "\x1b[31mred\x1b[0m"
 	assert.Equal(t, red+sep+red, render(9, id(red), id(red)), "color sequences take no room")
 	assert.Equal(t, red+"\n"+red, render(8, id(red), id(red)))
+}
+
+func TestRenderWrapsWhenAWideCharacterOverflows(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "🌿ab"+sep+"cc", render(9, id("🌿ab"), id("cc")))
+	assert.Equal(t, "🌿ab\ncc", render(8, id("🌿ab"), id("cc")), "eight runes but nine columns")
 }
 
 // bars are the context and rate-limit bars the segments draw at each width class, without color.
