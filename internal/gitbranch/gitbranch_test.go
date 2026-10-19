@@ -248,9 +248,35 @@ func TestReconcile(t *testing.T) {
 			"repo/.worktrees/wt", "repo", "repo",
 		},
 		{
-			"no common ending",
+			"worktree beside the main root",
+			func(t *testing.T, base string) { mkdirs(t, base, "t/proj", "t/proj-wt/foo") },
+			"t/proj-wt/foo", "t/proj", "t/proj",
+		},
+		{
+			"worktree beside the main root under a symlinked parent",
+			func(t *testing.T, base string) {
+				mkdirs(t, base, "private/t/proj", "private/t/proj-wt/foo")
+				symlink(t, base, "private/t", "t")
+			},
+			"t/proj-wt/foo", "private/t/proj", "t/proj",
+		},
+		{
+			"worktree in an unrelated directory under a shared ancestor",
 			func(t *testing.T, base string) { mkdirs(t, base, "a/wt", "b/repo") },
-			"a/wt", "b/repo", "",
+			"a/wt", "b/repo", "b/repo",
+		},
+		{
+			"candidate that does not resolve to the main root",
+			func(t *testing.T, base string) {
+				mkdirs(t, base, "M/.worktrees/wt", "L")
+				symlink(t, base, "M/.worktrees", "L/.worktrees")
+			},
+			"L/.worktrees/wt", "M", "",
+		},
+		{
+			"worktree root equal to the main root",
+			func(t *testing.T, base string) { mkdirs(t, base, "repo") },
+			"repo", "repo", "repo",
 		},
 		{
 			"symlinked worktree directory hides the remainder",
@@ -261,9 +287,9 @@ func TestReconcile(t *testing.T) {
 			"wtlink", "real/repo", "",
 		},
 		{
-			"main root is a sibling with a shared prefix",
+			"worktree beside the main root with a shared name prefix",
 			func(t *testing.T, base string) { mkdirs(t, base, "repo-wt", "repo") },
-			"repo-wt", "repo", "",
+			"repo-wt", "repo", "repo",
 		},
 		{
 			"missing worktree root",
@@ -290,6 +316,14 @@ func TestReconcile(t *testing.T) {
 			assert.Equal(t, want, gitbranch.Reconcile(filepath.Join(base, tt.w), filepath.Join(base, tt.m)))
 		})
 	}
+}
+
+func TestReconcileNeverUsesTheFilesystemRoot(t *testing.T) {
+	t.Parallel()
+
+	base := realTempDir(t)
+	mkdirs(t, base, "wt")
+	assert.Empty(t, gitbranch.Reconcile(filepath.Join(base, "wt"), "/"))
 }
 
 func worktreeFiles(main, wt string, extra map[string]string) map[string]string {
@@ -360,11 +394,30 @@ func TestCheckout(t *testing.T) {
 			wantProject: "repo",
 		},
 		{
-			name:        "spellings that cannot be reconciled",
+			name:        "worktree in a directory beside the main repository",
 			files:       worktreeFiles("repo", "wt", nil),
 			dir:         "wt",
 			wantBranch:  "topic",
 			wantRoot:    "wt",
+			wantMain:    "repo",
+			wantProject: "repo",
+		},
+		{
+			name:        "worktree beside the main repository",
+			files:       worktreeFiles("proj", "proj-wt/foo", map[string]string{"proj-wt/foo/pkg/file": ""}),
+			dir:         "proj-wt/foo/pkg",
+			wantBranch:  "topic",
+			wantRoot:    "proj-wt/foo",
+			wantMain:    "proj",
+			wantProject: "proj",
+		},
+		{
+			name:        "spellings that cannot be reconciled",
+			files:       worktreeFiles("repo", "repo/.worktrees/wt", nil),
+			links:       map[string]string{"wtlink": "repo/.worktrees/wt"},
+			dir:         "wtlink",
+			wantBranch:  "topic",
+			wantRoot:    "wtlink",
 			wantProject: "repo",
 		},
 	}

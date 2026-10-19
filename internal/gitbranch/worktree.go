@@ -41,7 +41,9 @@ func linked(dir string) (root, main string, ok bool) {
 
 // reconcile returns the main root m, which is in git's spelling, in the spelling of the
 // worktree root w, or "" when the two cannot be matched. Git writes real paths, while the
-// working directory may come through a symlink such as macOS /tmp.
+// working directory may come through a symlink such as macOS /tmp. The worktree may sit
+// beside the main root rather than under it, so the match goes through their deepest
+// common ancestor, and the candidate must resolve back to the main root.
 func reconcile(w, m string) string {
 	if strings.HasPrefix(w, m+"/") {
 		return m
@@ -54,9 +56,20 @@ func reconcile(w, m string) string {
 	if err != nil {
 		return ""
 	}
-	rest, ok := strings.CutPrefix(r, mm+"/")
-	if !ok || !strings.HasSuffix(w, "/"+rest) {
-		return ""
+	for a := mm; a != filepath.Dir(a); a = filepath.Dir(a) {
+		rest, ok := strings.CutPrefix(r, a+"/")
+		if !ok {
+			continue
+		}
+		wa, ok := strings.CutSuffix(w, "/"+rest)
+		if !ok {
+			return ""
+		}
+		candidate := wa + strings.TrimPrefix(mm, a)
+		if resolved, err := filepath.EvalSymlinks(candidate); err != nil || resolved != mm {
+			return ""
+		}
+		return candidate
 	}
-	return strings.TrimSuffix(w, "/"+rest)
+	return ""
 }
