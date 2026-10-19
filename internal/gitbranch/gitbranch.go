@@ -28,8 +28,13 @@ func (g *Reader) Branch(dir string) string { return payload.Sanitize(Read(dir)) 
 // dir's spelling; mainRoot is "" when git's spelling cannot be matched to it, and the
 // project name then comes from git's spelling. Every result is safe to print.
 func (g *Reader) Checkout(dir string) (branch, worktreeRoot, mainRoot, project string) {
-	branch = g.Branch(dir)
-	root, main, ok := linked(dir)
+	root, dotGit, info, ok := locate(dir)
+	if !ok {
+		return "", "", "", ""
+	}
+	target := gitDir(dotGit, info)
+	branch = payload.Sanitize(head(target))
+	main, ok := linked(info, target)
 	if !ok {
 		return branch, "", "", ""
 	}

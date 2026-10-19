@@ -17,6 +17,52 @@ func (_m *Git) EXPECT() *Git_Expecter {
 	return &Git_Expecter{mock: &_m.Mock}
 }
 
+// Branch provides a mock function with given fields: dir
+func (_m *Git) Branch(dir string) string {
+	ret := _m.Called(dir)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Branch")
+	}
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(dir)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
+// Git_Branch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Branch'
+type Git_Branch_Call struct {
+	*mock.Call
+}
+
+// Branch is a helper method to define mock.On call
+//   - dir string
+func (_e *Git_Expecter) Branch(dir interface{}) *Git_Branch_Call {
+	return &Git_Branch_Call{Call: _e.mock.On("Branch", dir)}
+}
+
+func (_c *Git_Branch_Call) Run(run func(dir string)) *Git_Branch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *Git_Branch_Call) Return(_a0 string) *Git_Branch_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Git_Branch_Call) RunAndReturn(run func(string) string) *Git_Branch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Checkout provides a mock function with given fields: dir
 func (_m *Git) Checkout(dir string) (string, string, string, string) {
 	ret := _m.Called(dir)

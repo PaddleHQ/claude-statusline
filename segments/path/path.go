@@ -44,6 +44,8 @@ type Painter interface {
 
 // Git reads the checkout a directory is in.
 type Git interface {
+	// Branch is the printable branch name, or "" when there is none.
+	Branch(dir string) string
 	// Checkout gives the printable branch name, and for a linked worktree its root, the main
 	// repository's root and the main repository's name, all "" when unknown. The roots are in
 	// dir's own spelling, and mainRoot is "" when that spelling cannot be reconciled.
@@ -100,8 +102,15 @@ func (p *Path) Render() string {
 		return p.d.Paint.Path(displayPath(dir, p.d.Home, strip))
 	}
 
-	branch, root, mainRoot, project := p.d.Git.Checkout(dir)
-	shown, isWorktree := p.worktreePath(dir, root, mainRoot, project, worktrees)
+	var branch, shown string
+	var isWorktree bool
+	if len(worktrees) == 0 {
+		branch = p.d.Git.Branch(dir)
+	} else {
+		var root, mainRoot, project string
+		branch, root, mainRoot, project = p.d.Git.Checkout(dir)
+		shown, isWorktree = p.worktreePath(dir, root, mainRoot, project, worktrees)
+	}
 	if !isWorktree {
 		shown = displayPath(dir, p.d.Home, strip)
 	}
@@ -116,7 +125,7 @@ func (p *Path) worktreePath(dir, root, mainRoot, project string, entries []strin
 	if project == "" || !underWorktrees(root, mainRoot, p.d.Home, entries) {
 		return "", false
 	}
-	rest, ok := strings.CutPrefix(dir, root)
+	rest, ok := strings.CutPrefix(filepath.Clean(dir), root)
 	if !ok || (rest != "" && rest[0] != '/') {
 		return "", false
 	}

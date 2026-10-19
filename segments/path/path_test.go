@@ -57,7 +57,8 @@ type setup struct {
 	checkout [4]string
 }
 
-func build(t *testing.T, s setup, wantCheckout bool) *path.Path {
+// build expects one git read when wantGit is set: Checkout when worktrees are listed, else Branch.
+func build(t *testing.T, s setup, wantGit bool) *path.Path {
 	t.Helper()
 
 	sess := mocks.NewSession(t)
@@ -73,8 +74,11 @@ func build(t *testing.T, s setup, wantCheckout bool) *path.Path {
 	paint.EXPECT().Worktree(mock.Anything).RunAndReturn(func(s string) string { return "<w>" + s + "</>" }).Maybe()
 	paint.EXPECT().Glyphs().Return("B", "W").Maybe()
 	git := mocks.NewGit(t)
-	if wantCheckout {
+	switch {
+	case wantGit && len(s.worktrees) > 0:
 		git.EXPECT().Checkout(s.cwd).Return(s.checkout[0], s.checkout[1], s.checkout[2], s.checkout[3]).Once()
+	case wantGit:
+		git.EXPECT().Branch(s.cwd).Return(s.checkout[0]).Once()
 	}
 	return path.New(path.Deps{Session: sess, Config: cfg, Paint: paint, Git: git, Home: "/home/me"})
 }
@@ -115,6 +119,9 @@ func TestRender(t *testing.T) {
 		{"entry with dot segments", setup{cwd: wt, branch: true, worktrees: []string{"a/../.worktrees"}, checkout: wtCheckout}, "<p>repo (</><w>feat</><p>)</>"},
 		{"root entry is ignored", setup{cwd: wt, branch: true, worktrees: []string{"/"}, checkout: wtCheckout}, "<p>~/repo/.worktrees/wt (</><b>feat</><p>)</>"},
 		{"any listed entry may match", setup{cwd: wt, branch: true, worktrees: []string{".claude/worktrees", ".worktrees"}, checkout: wtCheckout}, "<p>repo (</><w>feat</><p>)</>"},
+		{"worktrees listed with branch off in a regular repository", setup{cwd: repo, worktrees: []string{".worktrees"}, checkout: [4]string{"main"}}, "<p>~/repo</>"},
+		{"working directory with a trailing slash", setup{cwd: wt + "/", branch: true, worktrees: []string{".worktrees"}, checkout: wtCheckout}, "<p>repo (</><w>feat</><p>)</>"},
+		{"working directory with a dot segment", setup{cwd: "/home/me/repo/.worktrees/./wt", branch: true, worktrees: []string{".worktrees"}, checkout: wtCheckout}, "<p>repo (</><w>feat</><p>)</>"},
 		{"main repository itself is regular", setup{cwd: repo, branch: true, worktrees: []string{".worktrees"}, checkout: [4]string{"main"}}, "<p>~/repo (</><b>main</><p>)</>"},
 		{"root equal to the entry is regular", setup{cwd: "/home/me/repo/.worktrees", branch: true, worktrees: []string{".worktrees"}, checkout: [4]string{"feat", "/home/me/repo/.worktrees", repo, "repo"}}, "<p>~/repo/.worktrees (</><b>feat</><p>)</>"},
 		{"sibling named with the entry as a prefix is regular", setup{cwd: repo + "/.worktrees-old/wt", branch: true, worktrees: []string{".worktrees"}, checkout: [4]string{"feat", repo + "/.worktrees-old/wt", repo, "repo"}}, "<p>~/repo/.worktrees-old/wt (</><b>feat</><p>)</>"},
@@ -124,17 +131,32 @@ func TestRender(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			wantCheckout := tt.s.cwd != "" && (tt.s.branch || len(tt.s.worktrees) > 0)
-			assert.Equal(t, tt.want, build(t, tt.s, wantCheckout).Render())
+			wantGit := tt.s.cwd != "" && (tt.s.branch || len(tt.s.worktrees) > 0)
+			assert.Equal(t, tt.want, build(t, tt.s, wantGit).Render())
 		})
 	}
 }
 
-func TestGitIsNotReadWhenNothingNeedsIt(t *testing.T) {
+// The mocks fail on any call build did not expect, so each case also proves the other method is never called.
+func TestGitReadsOnlyWhatIsNeeded(t *testing.T) {
 	t.Parallel()
 
-	got := build(t, setup{cwd: "/home/me/repo", checkout: [4]string{"main"}}, false).Render()
-	assert.Equal(t, "<p>~/repo</>", got)
+	tests := []struct {
+		name    string
+		s       setup
+		wantGit bool
+		want    string
+	}{
+		{"without worktrees only the branch is read", setup{cwd: "/home/me/repo", branch: true, checkout: [4]string{"main"}}, true, "<p>~/repo (</><b>main</><p>)</>"},
+		{"with worktrees only the checkout is read", setup{cwd: "/home/me/repo", branch: true, worktrees: []string{".worktrees"}, checkout: [4]string{"main"}}, true, "<p>~/repo (</><b>main</><p>)</>"},
+		{"with neither nothing is read", setup{cwd: "/home/me/repo", checkout: [4]string{"main"}}, false, "<p>~/repo</>"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, build(t, tt.s, tt.wantGit).Render())
+		})
+	}
 }
 
 func TestNameAndKeys(t *testing.T) {
