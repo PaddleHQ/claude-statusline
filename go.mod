@@ -7,7 +7,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.31
 	github.com/stretchr/testify v1.12.1
 	github.com/tidwall/gjson v1.20.0
-	github.com/tidwall/pretty v1.2.0
+	github.com/tidwall/pretty v1.2.2
 	go.yaml.in/yaml/v3 v3.0.5
 )
 
