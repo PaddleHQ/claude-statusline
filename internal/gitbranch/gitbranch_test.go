@@ -97,3 +97,83 @@ func TestReadDoesNotBlockOnFIFO(t *testing.T) {
 		require.FailNow(t, "Read blocked on a FIFO")
 	}
 }
+
+func TestLinked(t *testing.T) {
+	t.Parallel()
+
+	const wtGit = "repo/.git/worktrees/wt/"
+	tests := []struct {
+		name     string
+		files    map[string]string
+		dir      string
+		wantRoot string
+		wantMain string
+		wantOK   bool
+	}{
+		{"absolute gitdir and relative commondir", map[string]string{"repo/.worktrees/wt/.git": "gitdir: @TMP@/repo/.git/worktrees/wt\n", wtGit + "commondir": "../..\n"}, "repo/.worktrees/wt", "repo/.worktrees/wt", "repo", true},
+		{"walks up from inside the worktree", map[string]string{"repo/.worktrees/wt/.git": "gitdir: @TMP@/repo/.git/worktrees/wt\n", wtGit + "commondir": "../..\n", "repo/.worktrees/wt/pkg/sub/file": ""}, "repo/.worktrees/wt/pkg/sub", "repo/.worktrees/wt", "repo", true},
+		{"absolute commondir", map[string]string{"wt/.git": "gitdir: @TMP@/store/wt\n", "store/wt/commondir": "@TMP@/repo/.git\n", "repo/.git/HEAD": ""}, "wt", "wt", "repo", true},
+		{"relative gitdir", map[string]string{"repo/.worktrees/wt/.git": "gitdir: ../../.git/worktrees/wt\n", wtGit + "commondir": "../..\n"}, "repo/.worktrees/wt", "repo/.worktrees/wt", "repo", true},
+		{"commondir missing", map[string]string{"repo/.worktrees/wt/.git": "gitdir: @TMP@/repo/.git/worktrees/wt\n", wtGit + "HEAD": ""}, "repo/.worktrees/wt", "", "", false},
+		{"empty commondir", map[string]string{"repo/.worktrees/wt/.git": "gitdir: @TMP@/repo/.git/worktrees/wt\n", wtGit + "commondir": "\n"}, "repo/.worktrees/wt", "", "", false},
+		{"common directory not named .git", map[string]string{"wt/.git": "gitdir: @TMP@/x.git/worktrees/wt\n", "x.git/worktrees/wt/commondir": "../..\n"}, "wt", "", "", false},
+		{"common directory is a file", map[string]string{"wt/.git": "gitdir: @TMP@/store/wt\n", "store/wt/commondir": "@TMP@/repo/.git\n", "repo/.git": "gitdir: elsewhere\n"}, "wt", "", "", false},
+		{"common directory missing", map[string]string{"wt/.git": "gitdir: @TMP@/store/wt\n", "store/wt/commondir": "@TMP@/repo/.git\n"}, "wt", "", "", false},
+		{"nested repository inside a worktree", map[string]string{"repo/.worktrees/wt/.git": "gitdir: @TMP@/repo/.git/worktrees/wt\n", wtGit + "commondir": "../..\n", "repo/.worktrees/wt/nested/.git/HEAD": ""}, "repo/.worktrees/wt/nested", "", "", false},
+		{"main checkout", map[string]string{"repo/.git/HEAD": "ref: refs/heads/main\n"}, "repo", "", "", false},
+		{"submodule without commondir", map[string]string{"repo/sub/.git": "gitdir: ../.git/modules/sub\n", "repo/.git/modules/sub/HEAD": ""}, "repo/sub", "", "", false},
+		{"malformed .git file", map[string]string{"wt/.git": "nonsense\n"}, "wt", "", "", false},
+		{"no repository", map[string]string{"plain/file": ""}, "plain", "", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tmp := t.TempDir()
+			for path, content := range tt.files {
+				write(t, filepath.Join(tmp, path), strings.ReplaceAll(content, "@TMP@", tmp))
+			}
+			root, main, ok := gitbranch.Linked(filepath.Join(tmp, tt.dir))
+			if !tt.wantOK {
+				assert.False(t, ok)
+				return
+			}
+			assert.True(t, ok)
+			assert.Equal(t, filepath.Join(tmp, tt.wantRoot), root)
+			assert.Equal(t, filepath.Join(tmp, tt.wantMain), main)
+		})
+	}
+}
+
+func TestLinkedRejectsRelativeAndEmptyDirectories(t *testing.T) {
+	t.Parallel()
+
+	_, _, ok := gitbranch.Linked("")
+	assert.False(t, ok)
+	_, _, ok = gitbranch.Linked("relative/dir")
+	assert.False(t, ok)
+}
+
+func TestLinkedDoesNotBlockOnFIFO(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	store := filepath.Join(tmp, "store")
+	require.NoError(t, os.Mkdir(store, 0o750))
+	require.NoError(t, syscall.Mkfifo(filepath.Join(store, "commondir"), 0o600))
+	repo := filepath.Join(tmp, "repo")
+	require.NoError(t, os.Mkdir(repo, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(repo, ".git"), []byte("gitdir: "+store+"\n"), 0o600))
+
+	got := make(chan bool, 1)
+	go func() {
+		_, _, ok := gitbranch.Linked(repo)
+		got <- ok
+	}()
+
+	select {
+	case ok := <-got:
+		assert.False(t, ok)
+	case <-time.After(2 * time.Second):
+		require.FailNow(t, "Linked blocked on a FIFO")
+	}
+}

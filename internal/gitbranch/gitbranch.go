@@ -26,16 +26,25 @@ func (g *Reader) Branch(dir string) string { return payload.Sanitize(Read(dir)) 
 // Read returns the branch checked out in dir or any parent, the first seven characters
 // of the commit when HEAD is detached, or "" when there is no readable repository.
 func Read(dir string) string {
-	if !filepath.IsAbs(dir) {
+	_, dotGit, info, ok := locate(dir)
+	if !ok {
 		return ""
 	}
+	return head(gitDir(dotGit, info))
+}
+
+// locate walks up from the absolute dir to the nearest .git, returning the directory that holds it.
+func locate(dir string) (root, dotGit string, info os.FileInfo, ok bool) {
+	if !filepath.IsAbs(dir) {
+		return "", "", nil, false
+	}
 	for dir = filepath.Clean(dir); ; dir = filepath.Dir(dir) {
-		dotGit := filepath.Join(dir, ".git")
+		dotGit = filepath.Join(dir, ".git")
 		if info, err := os.Stat(dotGit); err == nil {
-			return head(gitDir(dotGit, info))
+			return dir, dotGit, info, true
 		}
 		if filepath.Dir(dir) == dir {
-			return ""
+			return "", "", nil, false
 		}
 	}
 }
