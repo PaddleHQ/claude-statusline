@@ -216,7 +216,7 @@ bar:
 | Field | Meaning |
 |---|---|
 | `colors.text`, `muted`, `good`, `warn`, `bad`, `marker`, `path` | A colour for each role. `text` is labels and figures, `muted` is separators and empty bar cells, `good`, `warn` and `bad` colour the bar fill, `marker` is the pace marker and `path` is the working directory. An empty string uses the terminal's own colour. |
-| `colors.branch`, `colors.worktree` | Optional. The branch and a linked worktree's name in the `path` segment. `branch` defaults to the `path` colour and `worktree` to `bold 208`. |
+| `colors.branch`, `colors.worktree` | Optional. The branch, and the branch of a linked worktree, in the `path` segment. `branch` defaults to the `path` colour and `worktree` to `bold 208`. |
 | `glyphs.branch`, `glyphs.worktree` | Optional. The emoji shown before a branch and before a worktree, 🌿 and 🌳 by default. Each must be a non-empty string without control characters. |
 | `bar.style` | `solid` or `gradient`. |
 | `bar.full`, `bar.empty`, `bar.marker` | The glyphs for a full cell, an empty cell and the pace marker. |

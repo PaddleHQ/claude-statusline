@@ -403,6 +403,20 @@ func TestInvalidGlyphs(t *testing.T) {
 	}
 }
 
+func TestInvalidOptionalColors(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	for name, role := range map[string]string{
+		"bad branch":   "  branch: nonsense\n",
+		"bad worktree": "  worktree: red blue\n",
+	} {
+		body := strings.Replace(validTheme, "  path: bold 33\n", "  path: bold 33\n"+role, 1)
+		_, err := theme.Open(writeTheme(t, dir, strings.ReplaceAll(name, " ", "_")+".yaml", body), "", "")
+		assert.Error(t, err, name)
+	}
+}
+
 func TestBranchWorktreePaint(t *testing.T) {
 	t.Parallel()
 
