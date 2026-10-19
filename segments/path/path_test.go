@@ -111,7 +111,7 @@ func TestRender(t *testing.T) {
 		{"worktree without a branch name", setup{cwd: wt, branch: true, worktrees: []string{".worktrees"}, checkout: [4]string{"", wt, repo, "repo"}}, "<p>repo</>"},
 		{"branch off shows the project alone", setup{cwd: wt, emoji: true, worktrees: []string{".worktrees"}, checkout: wtCheckout}, "<p>repo</>"},
 		{"absolute entry without a main root", setup{cwd: wt, branch: true, worktrees: []string{"/home/me/repo/.worktrees"}, checkout: [4]string{"feat", wt, "", "repo"}}, "<p>repo (</><w>feat</><p>)</>"},
-		{"relative entry without a main root", setup{cwd: wt, branch: true, worktrees: []string{".worktrees"}, checkout: [4]string{"feat", wt, "", "repo"}}, "<p>~/repo/.worktrees/wt (</><b>feat</><p>)</>"},
+		{"relative entry without a main root", setup{cwd: wt, branch: true, worktrees: []string{"home"}, checkout: [4]string{"feat", wt, "", "repo"}}, "<p>~/repo/.worktrees/wt (</><b>feat</><p>)</>"},
 		{"tilde entry", setup{cwd: wt, branch: true, worktrees: []string{"~/repo/.worktrees"}, checkout: wtCheckout}, "<p>repo (</><w>feat</><p>)</>"},
 		{"tilde user entry is relative", setup{cwd: wt, branch: true, worktrees: []string{"~me/repo/.worktrees"}, checkout: wtCheckout}, "<p>~/repo/.worktrees/wt (</><b>feat</><p>)</>"},
 		{"entry that cleans to the main root", setup{cwd: wt, branch: true, worktrees: []string{"./"}, checkout: wtCheckout}, "<p>repo (</><w>feat</><p>)</>"},

@@ -162,7 +162,7 @@ func underWorktrees(root, mainRoot, home string, entries []string) bool {
 			}
 			entry = mainRoot + "/" + entry
 		}
-		if entry = filepath.Clean(entry); entry != "/" && strings.HasPrefix(root, entry+"/") {
+		if entry = filepath.Clean(entry); strings.HasPrefix(root, entry+"/") {
 			return true
 		}
 	}
