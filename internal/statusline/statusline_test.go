@@ -1,10 +1,13 @@
 package statusline_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/statusline"
@@ -37,6 +40,31 @@ func TestDefaultsAreDocumented(t *testing.T) {
 
 	for _, text := range append([]string{config.Defaults}, segments.Defaults()...) {
 		assert.Empty(t, config.UncommentedKeys(text), "keys in a defaults.yaml need a comment on the line above")
+	}
+}
+
+func TestNow(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		env  map[string]string
+		want int64
+	}{
+		{"uses STATUSLINE_NOW", map[string]string{"STATUSLINE_NOW": "1760000000"}, 1760000000},
+		{"strips leading zeros", map[string]string{"STATUSLINE_NOW": "0000000012"}, 12},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, statusline.Now(env(tt.env)).Unix())
+		})
+	}
+
+	for _, bad := range []string{"", "abc", "-1", "1e9", "1760000000000000"} {
+		before := time.Now().Add(-time.Minute)
+		got := statusline.Now(env(map[string]string{"STATUSLINE_NOW": bad}))
+		assert.False(t, got.Before(before) || got.After(time.Now().Add(time.Minute)), "now() with STATUSLINE_NOW=%q = %v, want the current time", bad, got)
 	}
 }
 
@@ -84,4 +112,111 @@ func TestBuild(t *testing.T) {
 			assert.Equal(t, tt.want, statusline.Build([]byte(tt.input), env(tt.env)))
 		})
 	}
+}
+
+func TestBuildSnapshot(t *testing.T) {
+	t.Parallel()
+
+	const input = "{\"model\":{\"display_name\":\"Opus\"},\n \"rate_limits\":{\"five_hour\":{\"used_percentage\":12}}}\n"
+
+	configure := func(t *testing.T, dir, text string) {
+		t.Helper()
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "claude-statusline"), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "claude-statusline", "config.yaml"), []byte(text), 0o600))
+	}
+
+	t.Run("writes the payload unchanged with mode 0600", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		got := statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir, "NO_COLOR": "1"}))
+
+		assert.Equal(t, "Opus", got)
+		path := filepath.Join(dir, "usage-latest.json")
+		data, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.JSONEq(t, input, string(data))
+		fi, err := os.Stat(path)
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o600), fi.Mode().Perm())
+	})
+
+	t.Run("falls back to HOME/.claude", func(t *testing.T) {
+		t.Parallel()
+		home := t.TempDir()
+
+		statusline.Build([]byte(input), env(map[string]string{"HOME": home}))
+
+		assert.FileExists(t, filepath.Join(home, ".claude", "usage-latest.json"))
+	})
+
+	t.Run("honors snapshot.path", func(t *testing.T) {
+		t.Parallel()
+		dir, elsewhere := t.TempDir(), filepath.Join(t.TempDir(), "out", "latest.json")
+		configure(t, dir, fmt.Sprintf("snapshot:\n  path: %q\n", elsewhere))
+
+		statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir}))
+
+		assert.FileExists(t, elsewhere)
+		assert.NoFileExists(t, filepath.Join(dir, "usage-latest.json"))
+	})
+
+	t.Run("is disabled by snapshot.enabled", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		configure(t, dir, "snapshot:\n  enabled: false\n")
+
+		statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir}))
+
+		assert.NoFileExists(t, filepath.Join(dir, "usage-latest.json"))
+	})
+
+	t.Run("does not write input that is not valid JSON", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		for _, bad := range []string{`{"model":`, ``, "not json"} {
+			statusline.Build([]byte(bad), env(map[string]string{"CLAUDE_CONFIG_DIR": dir}))
+		}
+
+		assert.NoFileExists(t, filepath.Join(dir, "usage-latest.json"))
+	})
+
+	t.Run("keeps the previous snapshot when a later payload is invalid", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		e := env(map[string]string{"CLAUDE_CONFIG_DIR": dir})
+
+		statusline.Build([]byte(input), e)
+		statusline.Build([]byte(`{"model":`), e)
+
+		data, err := os.ReadFile(filepath.Join(dir, "usage-latest.json"))
+		require.NoError(t, err)
+		assert.JSONEq(t, input, string(data))
+	})
+
+	t.Run("an unwritable directory does not break rendering", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		blocker := filepath.Join(dir, "file")
+		require.NoError(t, os.WriteFile(blocker, nil, 0o600))
+		configure(t, dir, fmt.Sprintf("snapshot:\n  path: %q\n", filepath.Join(blocker, "sub", "latest.json")))
+
+		got := statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir, "NO_COLOR": "1"}))
+
+		assert.Equal(t, "Opus", got)
+	})
+
+	t.Run("leaves no temporary files behind", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir}))
+
+		entries, err := os.ReadDir(dir)
+		require.NoError(t, err)
+		for _, e := range entries {
+			assert.False(t, strings.HasPrefix(e.Name(), ".usage-"), "left %s behind", e.Name())
+		}
+	})
 }

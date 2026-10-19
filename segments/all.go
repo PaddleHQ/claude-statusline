@@ -4,16 +4,21 @@
 package segments
 
 import (
+	"sync"
+	"time"
+
 	"github.com/PaddleHQ/claude-statusline/internal/bar"
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/gitbranch"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
+	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments/cache"
 	"github.com/PaddleHQ/claude-statusline/segments/ctx"
 	"github.com/PaddleHQ/claude-statusline/segments/model"
 	"github.com/PaddleHQ/claude-statusline/segments/path"
+	"github.com/PaddleHQ/claude-statusline/segments/rate"
 	"github.com/PaddleHQ/claude-statusline/segments/tokens"
 )
 
@@ -28,16 +33,37 @@ type Segment interface {
 
 // Defaults returns the text of every plugin's defaults.yaml, for layering under the user's config.
 func Defaults() []string {
-	return []string{path.Defaults, model.Defaults, ctx.Defaults, cache.Defaults}
+	return []string{path.Defaults, model.Defaults, ctx.Defaults, cache.Defaults, rate.Defaults}
 }
 
-// Env is one render's world, from which the segments are built.
+// Env is one render's world, from which the segments are built. RateLimits is called at most once per render,
+// and only if a segment asks; it may be nil.
 type Env struct {
-	Payload payload.Payload
-	Config  *config.Config
-	Theme   theme.Theme
-	Columns int
-	Home    string
+	Payload    payload.Payload
+	Config     *config.Config
+	Theme      theme.Theme
+	Now        time.Time
+	Columns    int
+	Home       string
+	RateLimits func() ratecache.Limits
+
+	limits func() *ratecache.Limits
+}
+
+// NewEnv returns the environment for one render.
+func NewEnv(e Env) *Env {
+	e.limits = once(e.RateLimits)
+	return &e
+}
+
+func once[T any](f func() T) func() *T {
+	return sync.OnceValue(func() *T {
+		var v T
+		if f != nil {
+			v = f()
+		}
+		return &v
+	})
 }
 
 // Separator is the painted glyph drawn between segments, with a space either side.
@@ -76,6 +102,15 @@ func (e *Env) registrations() []registration {
 	meter := func(cfg *config.Section) *bar.Meter {
 		return &bar.Meter{Theme: e.Theme, Width: bar.WidthOf(e.Columns, cfg)}
 	}
+	rates := func(cfg *config.Section) rate.Deps {
+		return rate.Deps{
+			Config: cfg,
+			Paint:  &e.Theme,
+			Meter:  meter(cfg),
+			Now:    e.Now,
+			Limits: func() rate.Limits { return e.limits() },
+		}
+	}
 	return []registration{
 		{"path", layout.Identity, func(cfg *config.Section) Segment {
 			return path.New(path.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Git: &gitbranch.Reader{}, Home: e.Home})
@@ -92,5 +127,7 @@ func (e *Env) registrations() []registration {
 		{"cache", layout.Usage, func(cfg *config.Section) Segment {
 			return cache.New(cache.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme})
 		}},
+		{"rate5h", layout.Rates, func(cfg *config.Section) Segment { return rate.NewFiveHour(rates(cfg)) }},
+		{"rate7d", layout.Rates, func(cfg *config.Section) Segment { return rate.NewSevenDay(rates(cfg)) }},
 	}
 }

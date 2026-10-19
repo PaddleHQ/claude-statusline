@@ -62,13 +62,13 @@ func TestRender(t *testing.T) {
 		th   theme.Theme
 		want string
 	}{
-		{"default segments", "", th, "/srv/app \033[2m·\033[0m Opus \033[2m·\033[0m ctx: 42% \033[2m·\033[0m ↓ 1.5k · ↑ 2.0k"},
+		{"default segments", "", th, "/srv/app \033[2m·\033[0m Opus \033[2m·\033[0m ctx: 42% \033[2m·\033[0m ↓ 1.5k · ↑ 2.0k \033[2m·\033[0m 5h: 45%"},
 		{"unknown names are skipped", "segments: [bogus, model, \"Bad-Name\", \"../x\"]", th, "Opus"},
 		{"repeated segment is joined with the painted separator", "segments: [model, model]", th, "Opus \033[2m·\033[0m Opus"},
 		{"custom separator is painted muted", "segments: [model, model]\nseparator: \"|\"", th, "Opus \033[2m|\033[0m Opus"},
 		{"no color leaves the separator bare", "segments: [model, model]", th.WithoutColor(), "Opus · Opus"},
 		{"only unknown segments render nothing", "segments: [bogus]", th, ""},
-		{"empty segments falls back to the default", "segments =", th, "/srv/app \033[2m·\033[0m Opus \033[2m·\033[0m ctx: 42% \033[2m·\033[0m ↓ 1.5k · ↑ 2.0k"},
+		{"empty segments falls back to the default", "segments =", th, "/srv/app \033[2m·\033[0m Opus \033[2m·\033[0m ctx: 42% \033[2m·\033[0m ↓ 1.5k · ↑ 2.0k \033[2m·\033[0m 5h: 45%"},
 		{"separator injection stays data", "segments: [model, model]\nseparator: \"$(touch x)\"", th, "Opus \033[2m$(touch x)\033[0m Opus"},
 		{"segments with nothing to show are dropped", "segments: [model, empty, model]", th, "Opus \033[2m·\033[0m Opus"},
 	}

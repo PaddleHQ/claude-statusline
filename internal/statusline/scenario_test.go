@@ -18,12 +18,14 @@ const tmpMarker = "@TMP@"
 // scenario is one run of the command in a private home directory. The text of every field may name that directory
 // as @TMP@, and the expected output writes an escape byte as \e.
 type scenario struct {
-	name    string
-	session string
-	config  string
-	env     map[string]string
-	files   map[string]string
-	want    string
+	name      string
+	session   string
+	config    string
+	env       map[string]string
+	files     map[string]string
+	cache     string
+	want      string
+	wantCache string
 }
 
 // home creates the scenario's directory with its config, files and seeded cache, and returns it with the environment.
@@ -46,6 +48,9 @@ func (s *scenario) home(t *testing.T) (dir string, getenv func(string) string) {
 	if s.config != "" {
 		write(filepath.Join("claude-statusline", "config.yaml"), s.config, 0o600)
 	}
+	if s.cache != "" {
+		write(filepath.Join("claude-statusline", "cache", "ratelimits"), s.cache, 0o600)
+	}
 	for rel, text := range s.files {
 		write(rel, text, 0o600)
 	}
@@ -65,6 +70,11 @@ func (s *scenario) build(t *testing.T) {
 
 	assert.Equal(t, s.expected(dir), escaped(got))
 	assert.NoFileExists(t, filepath.Join(dir, "pwned"), "a config value was executed")
+	if s.wantCache != "" {
+		data, err := os.ReadFile(filepath.Join(dir, "claude-statusline", "cache", "ratelimits"))
+		require.NoError(t, err)
+		assert.Equal(t, strings.TrimSpace(s.wantCache), strings.TrimSpace(string(data)))
+	}
 }
 
 func runAll(t *testing.T, tests []scenario) {
