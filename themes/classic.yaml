@@ -1,0 +1,28 @@
+# classic: the built-in theme. Basic ANSI colors and a bold default-foreground
+# marker read well on light and dark terminals.
+#
+# A theme file uses this same format. Every field below is required, so copy a
+# built-in theme and edit it. Unknown keys make the theme invalid.
+
+# Color roles. Each value is space-separated tokens: bold, dim, italic,
+# underline, a color name (black, red, green, yellow, blue, magenta, cyan,
+# white, or bright-<name>), a number 0-255, or #rrggbb. An empty value leaves
+# the terminal's own color.
+colors:
+  text: ""
+  muted: dim
+  good: green
+  warn: yellow
+  bad: red
+  marker: bold
+  path: bold 33
+
+bar:
+  # solid: eighth-block fill colored by pace. gradient: whole cells colored
+  # by position, with the pace color on the percentage (see gradient.yaml).
+  style: solid
+  full: "█"
+  # Seven partial-cell glyphs, from one eighth to seven eighths.
+  partials: ["▏", "▎", "▍", "▌", "▋", "▊", "▉"]
+  empty: "░"
+  marker: "┃"

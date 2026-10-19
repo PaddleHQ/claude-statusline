@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func noEnv(string) string { return "" }
+
 func TestRun(t *testing.T) {
 	t.Parallel()
 
@@ -34,7 +36,37 @@ func TestRun(t *testing.T) {
 			t.Parallel()
 
 			var out bytes.Buffer
-			cli.Run(strings.NewReader(tt.input), &out)
+			cli.Run(strings.NewReader(tt.input), &out, noEnv)
+
+			assert.Equal(t, tt.want, out.String())
+		})
+	}
+}
+
+func TestExecute(t *testing.T) {
+	t.Parallel()
+
+	const payloadJSON = `{"model":{"display_name":"Opus"}}`
+
+	tests := []struct {
+		name  string
+		args  []string
+		build cli.Build
+		want  string
+	}{
+		{"prints the version without a commit", []string{"--version"}, cli.Build{Version: "dev"}, "claude-statusline dev\n"},
+		{"prints commit and date when set", []string{"--version"}, cli.Build{Version: "1.2.3", Commit: "abc1234", Date: "2026-10-13T10:00:00Z"}, "claude-statusline 1.2.3 (abc1234, 2026-10-13T10:00:00Z)\n"},
+		{"only the first argument selects version", []string{"--version", "extra"}, cli.Build{Version: "1.2.3"}, "claude-statusline 1.2.3\n"},
+		{"ignores version later in the arguments", []string{"other", "--version"}, cli.Build{Version: "1.2.3"}, "Opus"},
+		{"prints the status line without arguments", nil, cli.Build{Version: "1.2.3"}, "Opus"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var out bytes.Buffer
+			cli.New(tt.build).Execute(tt.args, strings.NewReader(payloadJSON), &out, noEnv)
 
 			assert.Equal(t, tt.want, out.String())
 		})
