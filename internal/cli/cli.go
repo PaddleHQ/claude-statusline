@@ -37,9 +37,9 @@ func New(build Build) *App {
 	return &App{build: build}
 }
 
-// Execute runs the command the first argument selects, or the status line itself. It never reports failures: a
-// blank status line is better than a broken one.
-func (a *App) Execute(args []string, stdin io.Reader, stdout io.Writer, getenv func(string) string) {
+// Execute runs the command the first argument selects, or the status line itself, and returns the exit status. It
+// never blanks the status line over a failure, and only config-check exits non-zero, when the config cannot be used.
+func (a *App) Execute(args []string, stdin io.Reader, stdout io.Writer, getenv func(string) string) int {
 	command := ""
 	if len(args) > 0 {
 		command = args[0]
@@ -55,9 +55,12 @@ func (a *App) Execute(args []string, stdin io.Reader, stdout io.Writer, getenv f
 		_, _ = io.WriteString(stdout, statusline.Help(getenv))
 	case "config":
 		_, _ = io.WriteString(stdout, statusline.DefaultConfig())
+	case "config-check":
+		return runConfigCheck(stdout, getenv)
 	default:
 		run(stdin, stdout, getenv)
 	}
+	return 0
 }
 
 func eventFlag(args []string) string {
@@ -86,4 +89,13 @@ func runSubagent(stdin io.Reader, stdout io.Writer, getenv func(string) string) 
 		return
 	}
 	_, _ = io.WriteString(stdout, subagent.Build(input, getenv))
+}
+
+func runConfigCheck(stdout io.Writer, getenv func(string) string) int {
+	report, ok := statusline.ConfigCheck(getenv)
+	_, _ = io.WriteString(stdout, report)
+	if !ok {
+		return 1
+	}
+	return 0
 }

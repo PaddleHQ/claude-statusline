@@ -2,7 +2,7 @@ package statusline
 
 import (
 	"fmt"
-	"os"
+	"strconv"
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
@@ -15,13 +15,15 @@ const docsURL = "https://github.com/PaddleHQ/claude-statusline/blob/main/docs/cu
 
 // helper describes the status line as the user has configured it. It never runs a hook script.
 type helper struct {
-	env   *segments.Env
-	hooks []hook.Hook
-	names []string
+	env        *segments.Env
+	hooks      []hook.Hook
+	names      []string
+	configPath string
+	problem    *config.Problem
 }
 
 // Help describes the user's status line in plain text: what is shown now, the custom segments and the built-ins left out.
-// It reads the same config and hook directory as Build, and never reports a failure.
+// It reads the same config and hook directory as Build, and names the config file with why it cannot be used, if it cannot.
 func Help(getenv func(string) string) string {
 	defaults := segments.Defaults()
 	cfg := config.New("", defaults...)
@@ -34,14 +36,16 @@ func Help(getenv func(string) string) string {
 	env := segments.NewEnv(segments.Env{Config: cfg, Theme: th, Home: getenv("HOME"), Columns: defaultColumns})
 
 	h := &helper{
-		env:   env,
-		hooks: hook.Discover(hookDir(getenv)),
-		names: cfg.Strings("segments"),
+		env:        env,
+		hooks:      hook.Discover(hookDir(getenv)),
+		names:      cfg.Strings("segments"),
+		configPath: path,
+		problem:    cfg.Problem(),
 	}
-	return h.text(path)
+	return h.text()
 }
 
-func (h *helper) text(configPath string) string {
+func (h *helper) text() string {
 	var b strings.Builder
 	b.WriteString("Your status line, as currently configured.\n\n")
 
@@ -67,7 +71,7 @@ func (h *helper) text(configPath string) string {
 		writeList(&b, left)
 	}
 
-	b.WriteString("\n" + configFooter(configPath))
+	b.WriteString("\n" + h.configFooter())
 	b.WriteString("Documentation: " + docsURL + "\n")
 	return b.String()
 }
@@ -139,18 +143,25 @@ func plain(s string) string {
 	}, s)
 }
 
-func configFooter(path string) string {
+func (h *helper) configFooter() string {
+	path := config.Clean(h.configPath)
 	switch {
-	case path == "":
+	case h.configPath == "":
 		return "Config file: none (no Claude config directory found), so the defaults apply.\n"
-	case fileExists(path):
-		return "Config file: " + plain(path) + "\n"
+	case h.problem != nil:
+		return "Config file: " + path + "\nConfig error: " + path + h.problemText() + "\n"
+	case missing(h.configPath):
+		return fmt.Sprintf("Config file: %s (not created yet, so the defaults apply)\n", path)
 	default:
-		return fmt.Sprintf("Config file: %s (not created yet, so the defaults apply)\n", plain(path))
+		return "Config file: " + path + "\n"
 	}
 }
 
-func fileExists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.Mode().IsRegular()
+// problemText follows the path: the line, when the parser gave one, and the reason.
+func (h *helper) problemText() string {
+	where := ": "
+	if h.problem.Line > 0 {
+		where = ":" + strconv.Itoa(h.problem.Line) + " "
+	}
+	return where + config.Clean(h.problem.Reason)
 }

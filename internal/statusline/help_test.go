@@ -192,3 +192,81 @@ func TestHelpStripsTerminalEscapes(t *testing.T) {
 	assert.NotContains(t, got, "\x07")
 	assert.Contains(t, got, "RED.sh")
 }
+
+func TestHelpShowsConfigProblem(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		setup   func(t *testing.T, path string)
+		want    []string
+		notWant []string
+	}{
+		{
+			name:    "a broken config names the line and the reason under the file",
+			setup:   writeText("hooks:\n  ttl: 60\n timeout: 2\n"),
+			want:    []string{"Config file: @TMP@/claude-statusline/config.yaml\nConfig error: @TMP@/claude-statusline/config.yaml:2 did not find expected key\n"},
+			notWant: []string{"not created yet"},
+		},
+		{
+			name: "a directory at the config path is an error, not a file yet to be created",
+			setup: func(t *testing.T, path string) {
+				t.Helper()
+				require.NoError(t, os.Mkdir(path, 0o700))
+			},
+			want:    []string{"Config file: @TMP@/claude-statusline/config.yaml\nConfig error: @TMP@/claude-statusline/config.yaml: not a regular file\n"},
+			notWant: []string{"not created yet"},
+		},
+		{
+			name:    "a valid config has no error line",
+			setup:   writeText("segments: [model]\n"),
+			want:    []string{"Config file: @TMP@/claude-statusline/config.yaml\n"},
+			notWant: []string{"Config error", "not created yet"},
+		},
+		{
+			name:    "a missing config has no error line",
+			want:    []string{"Config file: @TMP@/claude-statusline/config.yaml (not created yet, so the defaults apply)\n"},
+			notWant: []string{"Config error"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			home := t.TempDir()
+			require.NoError(t, os.Mkdir(filepath.Join(home, "claude-statusline"), 0o700))
+			if tt.setup != nil {
+				tt.setup(t, filepath.Join(home, "claude-statusline", "config.yaml"))
+			}
+
+			got := statusline.Help(func(k string) string {
+				return map[string]string{"HOME": home, "CLAUDE_CONFIG_DIR": home, "STATUSLINE_HOOK_DIR": filepath.Join(home, "none")}[k]
+			})
+			got = strings.ReplaceAll(got, home, "@TMP@")
+
+			for _, w := range tt.want {
+				assert.Contains(t, got, w)
+			}
+			for _, n := range tt.notWant {
+				assert.NotContains(t, got, n)
+			}
+		})
+	}
+}
+
+func TestHelpCleansConfigError(t *testing.T) {
+	t.Parallel()
+
+	home := t.TempDir() + "/a\x1b[31m\u202eb"
+	require.NoError(t, os.MkdirAll(filepath.Join(home, "claude-statusline"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(home, "claude-statusline", "config.yaml"), []byte("hooks:\n  ttl: 60\n timeout: 2\n"), 0o600))
+
+	got := statusline.Help(func(k string) string {
+		return map[string]string{"HOME": home, "CLAUDE_CONFIG_DIR": home, "STATUSLINE_HOOK_DIR": filepath.Join(home, "none")}[k]
+	})
+
+	assert.NotContains(t, got, "\x1b")
+	assert.NotContains(t, got, "\u202e")
+	assert.Contains(t, got, "a[31mb/claude-statusline/config.yaml:2 did not find expected key\n")
+}

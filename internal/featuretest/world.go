@@ -203,6 +203,19 @@ func (w *world) renderConfig(ctx context.Context) {
 	assert.NotContains(godog.T(ctx), w.screen, "\033", "the config output is plain text")
 }
 
+func (w *world) renderConfigCheck(ctx context.Context) {
+	var out bytes.Buffer
+	w.suite.Execute([]string{"config-check"}, strings.NewReader(""), &out, w.getenv)
+
+	w.ran = true
+	w.screen = out.String()
+	w.out = strings.TrimSuffix(w.screen, "\n")
+	w.styled = w.out
+	t := godog.T(ctx)
+	assert.NotContains(t, w.screen, "\033", "the config-check output is plain text")
+	assert.NotRegexp(t, controlChars, w.screen, "output contains a control character other than newline and escape")
+}
+
 func (w *world) checkRawOutput(want string) error {
 	if !w.ran {
 		return errNoOutput

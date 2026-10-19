@@ -15,5 +15,8 @@ var (
 )
 
 func main() {
-	cli.New(cli.Build{Version: version, Commit: commit, Date: date}).Execute(os.Args[1:], os.Stdin, os.Stdout, os.Getenv)
+	app := cli.New(cli.Build{Version: version, Commit: commit, Date: date})
+	if code := app.Execute(os.Args[1:], os.Stdin, os.Stdout, os.Getenv); code != 0 {
+		os.Exit(code)
+	}
 }
