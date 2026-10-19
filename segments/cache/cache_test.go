@@ -56,3 +56,9 @@ func TestNameAndKeys(t *testing.T) {
 	assert.Equal(t, "cache", seg.Name())
 	assert.Equal(t, []string{"warn"}, seg.Keys())
 }
+
+func TestHelp(t *testing.T) {
+	t.Parallel()
+
+	assert.Contains(t, build(t, 0, 0, 0, 12).Help(), "12%")
+}

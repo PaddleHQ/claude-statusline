@@ -61,6 +61,18 @@ func New(d Deps) *Path { return &Path{d: d} }
 // Name is the segment's name in the segments list.
 func (p *Path) Name() string { return name }
 
+// Help says what the segment shows, for the help command.
+func (p *Path) Help() string {
+	help := "The working directory, with your home directory shown as ~"
+	if prefixes := p.d.Config.Strings("strip"); len(prefixes) > 0 {
+		help += " and the prefixes " + strings.Join(prefixes, ", ") + " removed"
+	}
+	if p.d.Config.Bool("branch") {
+		help += ", followed by the git branch in brackets"
+	}
+	return help + "."
+}
+
 // Keys lists the config keys the segment reads, relative to its section.
 func (p *Path) Keys() []string { return []string{"strip", "branch"} }
 

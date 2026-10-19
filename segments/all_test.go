@@ -50,6 +50,14 @@ func TestEveryRegisteredNameIsUniqueAndFindable(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestEverySegmentHasHelp(t *testing.T) {
+	t.Parallel()
+
+	for _, seg := range newEnv("", `{}`).All() {
+		assert.NotEmpty(t, seg.Help(), seg.Name())
+	}
+}
+
 func TestLayoutGroups(t *testing.T) {
 	t.Parallel()
 

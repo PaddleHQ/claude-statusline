@@ -3,6 +3,7 @@ package cache
 
 import (
 	_ "embed"
+	"fmt"
 	"strconv"
 )
 
@@ -54,6 +55,11 @@ func New(d Deps) *Cache { return &Cache{d: d} }
 
 // Name is the segment's name in the segments list.
 func (c *Cache) Name() string { return name }
+
+// Help says what the segment shows, for the help command.
+func (c *Cache) Help() string {
+	return fmt.Sprintf("How much of the latest request's input was read from the prompt cache. Red below %d%%.", c.d.Config.Int("warn"))
+}
 
 // Keys lists the config keys the segment reads, relative to its section.
 func (c *Cache) Keys() []string { return []string{"warn"} }

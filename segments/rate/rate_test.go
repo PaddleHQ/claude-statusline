@@ -102,6 +102,7 @@ func TestLimitsAreOnlyAskedForWhenDrawing(t *testing.T) {
 	seg := rate.NewFiveHour(f.deps)
 	seg.Name()
 	seg.Keys()
+	seg.Help()
 	assert.Zero(t, f.reads)
 }
 
@@ -113,6 +114,18 @@ func TestNamesAndKeys(t *testing.T) {
 		assert.Equal(t, name, seg.Name())
 		assert.Len(t, seg.Keys(), 7, "%s declares %v", name, seg.Keys())
 	}
+}
+
+func TestHelp(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t, nil)
+	five := rate.NewFiveHour(f.deps).Help()
+	seven := rate.NewSevenDay(f.deps).Help()
+	for _, want := range []string{"5 hour", "20 points", "40 points", "95%"} {
+		assert.Contains(t, five, want)
+	}
+	assert.Contains(t, seven, "7 day")
 }
 
 func TestLabelIsDrawnAsText(t *testing.T) {

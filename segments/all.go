@@ -27,6 +27,9 @@ import (
 // Segment is what every plugin's segment provides.
 type Segment interface {
 	Name() string
+	// Help says in a sentence or two what the segment shows and what its colors mean,
+	// using the user's current settings for any threshold or label.
+	Help() string
 	// Keys lists every config key Render reads, relative to the segment's section, so a test can check them against defaults.yaml.
 	Keys() []string
 	// Render returns the segment's text, or "" to hide it.

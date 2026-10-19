@@ -41,6 +41,7 @@ type Deps struct {
 // spec describes one diagnostic: show returns "" when there is nothing to report, and paint picks the text color.
 type spec struct {
 	name  string
+	help  string
 	show  func(t Transcript, tokens tokenFn) string
 	paint func(p Painter, s string) string
 }
@@ -53,35 +54,35 @@ func counts(bare, total int) string {
 }
 
 var specs = []spec{
-	{"boot", func(t Transcript, tokens tokenFn) string {
+	{"boot", "The prompt size on the first turn, before you said anything.", func(t Transcript, tokens tokenFn) string {
 		boot := t.BootTokens()
 		if boot <= 0 {
 			return ""
 		}
 		return "⌂ " + tokens(boot)
 	}, text},
-	{"skills", func(t Transcript, tokens tokenFn) string {
+	{"skills", "The size of the always-loaded skill listing, in tokens.", func(t Transcript, tokens tokenFn) string {
 		chars := t.SkillListChars()
 		if chars <= 0 {
 			return ""
 		}
 		return "⚙ " + tokens(int64(chars/charsPerToken))
 	}, text},
-	{"skills_stripped", func(t Transcript, _ tokenFn) string {
+	{"skills_stripped", "Red when skills lost their descriptions to fit the budget; shows how many.", func(t Transcript, _ tokenFn) string {
 		bare, total := t.SkillCounts()
 		if bare <= 0 {
 			return ""
 		}
 		return "✗ skills " + counts(bare, total)
 	}, bad},
-	{"agent_skills", func(t Transcript, _ tokenFn) string {
+	{"agent_skills", "Amber when a subagent lost skill descriptions; shows how many.", func(t Transcript, _ tokenFn) string {
 		bare, total := t.SubagentSkillCounts()
 		if bare <= 0 {
 			return ""
 		}
 		return "✗ agent skills " + counts(bare, total)
 	}, warn},
-	{"mem", func(t Transcript, _ tokenFn) string {
+	{"mem", "Red when a SessionStart hook output was too large to inject.", func(t Transcript, _ tokenFn) string {
 		if !t.MemoryDropped() {
 			return ""
 		}
@@ -116,6 +117,9 @@ func New(name string, d Deps) (*Diagnostic, bool) {
 
 // Name is the segment's name in the segments list.
 func (g *Diagnostic) Name() string { return g.spec.name }
+
+// Help says what the segment shows, for the help command.
+func (g *Diagnostic) Help() string { return g.spec.help }
 
 // Keys lists the config keys the segments read; they have none.
 func (g *Diagnostic) Keys() []string { return nil }
