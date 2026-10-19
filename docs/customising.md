@@ -148,7 +148,7 @@ Claude Code's agent panel lists the subagents you have running. `claude-statusli
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/subagent-dark.svg">
-  <img alt="Two agent panel rows: reviewer on sonnet-4-5 at high effort with a green context bar at 42%, and tester on opus-4-7 at xhigh effort with a red context bar at 92%, each followed by a token count and its task description" src="images/subagent-light.svg">
+  <img alt="Two agent panel rows: reviewer on Sonnet 4.5 at high effort with a green context bar at 42%, and tester on Opus 4.7 at xhigh effort with a red context bar at 92%, each followed by a token count and its task description" src="images/subagent-light.svg">
 </picture>
 
 Each part is left out when Claude Code does not send it, so older versions show fewer parts. The bar is the same as the `ctx` segment's: it uses the `ctx.*` widths, warning and bad thresholds, narrows with the panel's `columns`, and follows `theme`, `separator` and `NO_COLOR`. Control characters are stripped from everything Claude Code sends. The command prints nothing and exits 0 whatever it is given, so Claude Code falls back to its default rows. A task without an `id` keeps the default row.

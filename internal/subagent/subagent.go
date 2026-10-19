@@ -30,7 +30,9 @@ const (
 
 var (
 	dateSuffix = regexp.MustCompile(`-\d{8}$`)
-	ctxKeys    = []string{"ctx.width", "ctx.width_medium", "ctx.width_narrow", "ctx.warn", "ctx.bad"}
+	// A modern id is claude-<family>-<major>[-<minor>...], so new models need no table entry.
+	modelID = regexp.MustCompile(`^claude-([a-z]+)-(\d+(?:-\d+)*)$`)
+	ctxKeys = []string{"ctx.width", "ctx.width_medium", "ctx.width_narrow", "ctx.warn", "ctx.bad"}
 )
 
 // Keys lists every config key the subagent rows read, for checking against defaults.yaml.
@@ -183,9 +185,13 @@ func number(r gjson.Result) (float64, bool) {
 	return r.Num, true
 }
 
-// shortModel turns claude-haiku-4-5-20251001 into haiku-4-5.
+// shortModel turns claude-opus-4-7-20251001 into Opus 4.7, and leaves an id it cannot parse as it is minus the claude- prefix.
 func shortModel(id string) string {
-	id = strings.TrimPrefix(id, "claude-")
 	id = dateSuffix.ReplaceAllString(id, "")
+	if m := modelID.FindStringSubmatch(id); m != nil {
+		id = strings.ToUpper(m[1][:1]) + m[1][1:] + " " + strings.ReplaceAll(m[2], "-", ".")
+	} else {
+		id = strings.TrimPrefix(id, "claude-")
+	}
 	return payload.Sanitize(id)
 }
