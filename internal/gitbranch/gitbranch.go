@@ -1,4 +1,4 @@
-// Package gitbranch finds the current branch by reading .git files, without running git.
+// Package gitbranch finds the current branch, and a linked worktree's main repository, by reading .git files, without running git.
 package gitbranch
 
 import (

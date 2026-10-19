@@ -183,10 +183,13 @@ func (s *spec) compile() (Theme, error) {
 	if err := t.compileColors(*s.Colors, *s.Bar); err != nil {
 		return Theme{}, err
 	}
+	if err := t.compileBranchColors(*s.Colors); err != nil {
+		return Theme{}, err
+	}
 	if err := t.compileGlyphs(*s.Bar); err != nil {
 		return Theme{}, err
 	}
-	if err := t.compileMarks(s.Glyphs); err != nil {
+	if err := t.compileBranchGlyphs(s.Glyphs); err != nil {
 		return Theme{}, err
 	}
 	if err := t.compilePartials(s.Bar.Partials); err != nil {
@@ -244,10 +247,10 @@ func (t *Theme) compileColors(c colorsSpec, b barSpec) error {
 		}
 		*f.dst = seq
 	}
-	return t.compileOptionalRoles(c)
+	return nil
 }
 
-func (t *Theme) compileOptionalRoles(c colorsSpec) error {
+func (t *Theme) compileBranchColors(c colorsSpec) error {
 	t.BranchColor = t.PathColor
 	if c.Branch != nil {
 		seq, err := ParseColor(*c.Branch)
@@ -268,7 +271,7 @@ func (t *Theme) compileOptionalRoles(c colorsSpec) error {
 	return nil
 }
 
-func (t *Theme) compileMarks(g *glyphsSpec) error {
+func (t *Theme) compileBranchGlyphs(g *glyphsSpec) error {
 	t.BranchGlyph, t.WorktreeGlyph = defaultBranchGlyph, defaultWorktreeGlyph
 	if g == nil {
 		return nil

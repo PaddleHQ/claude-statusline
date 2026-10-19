@@ -35,34 +35,33 @@ func linked(info os.FileInfo, target string) (main string, ok bool) {
 	return filepath.Dir(common), true
 }
 
-// reconcile returns the main root m, which is in git's spelling, in the spelling of the
-// worktree root w, or "" when the two cannot be matched. Git writes real paths, while the
-// working directory may come through a symlink such as macOS /tmp. The worktree may sit
-// beside the main root rather than under it, so the match goes through their deepest
-// common ancestor, and the candidate must resolve back to the main root.
-func reconcile(w, m string) string {
-	if strings.HasPrefix(w, m+"/") {
-		return m
+// reconcile returns main, which is in git's real-path spelling, in the spelling of worktree
+// (the working directory may come through a symlink such as macOS /tmp), or "" when they
+// cannot be matched. The worktree may sit beside main, so the match goes through their deepest
+// common ancestor, and the candidate must resolve back to main.
+func reconcile(worktree, main string) string {
+	if strings.HasPrefix(worktree, main+"/") {
+		return main
 	}
-	r, err := filepath.EvalSymlinks(w)
+	realWorktree, err := filepath.EvalSymlinks(worktree)
 	if err != nil {
 		return ""
 	}
-	mm, err := filepath.EvalSymlinks(m)
+	realMain, err := filepath.EvalSymlinks(main)
 	if err != nil {
 		return ""
 	}
-	for a := mm; a != filepath.Dir(a); a = filepath.Dir(a) {
-		rest, ok := strings.CutPrefix(r, a+"/")
+	for ancestor := realMain; ancestor != filepath.Dir(ancestor); ancestor = filepath.Dir(ancestor) {
+		rest, ok := strings.CutPrefix(realWorktree, ancestor+"/")
 		if !ok {
 			continue
 		}
-		wa, ok := strings.CutSuffix(w, "/"+rest)
+		worktreeAncestor, ok := strings.CutSuffix(worktree, "/"+rest)
 		if !ok {
 			return ""
 		}
-		candidate := wa + strings.TrimPrefix(mm, a)
-		if resolved, err := filepath.EvalSymlinks(candidate); err != nil || resolved != mm {
+		candidate := worktreeAncestor + strings.TrimPrefix(realMain, ancestor)
+		if resolved, err := filepath.EvalSymlinks(candidate); err != nil || resolved != realMain {
 			return ""
 		}
 		return candidate

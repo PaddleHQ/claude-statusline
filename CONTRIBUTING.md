@@ -26,7 +26,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `internal/transcript` | Reads the few facts the line takes from the session transcript. |
 | `internal/ratecache` | Shares rate-limit readings between sessions through a small cache file. |
 | `internal/hook` | Runs custom segment scripts with a timeout and a per-session cache, and sanitises their output. |
-| `internal/gitbranch` | Finds the branch by reading `.git` files, without running `git`. |
+| `internal/gitbranch` | Finds the branch, and a linked worktree's main repository, by reading `.git` files, without running `git`. |
 | `internal/bar` | Draws a usage bar with an optional pace marker. |
 | `internal/theme` | Loads themes from YAML, compiles colour specs, and provides the colour-free variant used for `NO_COLOR`. It reads the built-in themes from `themes/`. |
 | `themes` | The built-in themes: one YAML file each, embedded in the binary by a tiny package that only exports them. |

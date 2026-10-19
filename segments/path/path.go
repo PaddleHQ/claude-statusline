@@ -31,7 +31,7 @@ type Config interface {
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Painter
 
-// Painter colors text.
+// Painter colors text and supplies the branch and worktree glyphs.
 type Painter interface {
 	Path(s string) string
 	Branch(s string) string
@@ -105,6 +105,7 @@ func (p *Path) Render() string {
 	var branch, shown string
 	var isWorktree bool
 	if len(worktrees) == 0 {
+		// Checkout costs extra stats and symlink resolution on every render, so the default stays on the cheap call.
 		branch = p.d.Git.Branch(dir)
 	} else {
 		var root, mainRoot, project string
@@ -125,6 +126,7 @@ func (p *Path) worktreePath(dir, root, mainRoot, project string, entries []strin
 	if project == "" || !underWorktrees(root, mainRoot, p.d.Home, entries) {
 		return "", false
 	}
+	// Git does not promise that root is an ancestor of dir, and a misbehaving reader must not corrupt the path.
 	rest, ok := strings.CutPrefix(filepath.Clean(dir), root)
 	if !ok || (rest != "" && rest[0] != '/') {
 		return "", false
@@ -148,9 +150,6 @@ func (p *Path) paintBranch(branch string, isWorktree bool) string {
 // underWorktrees reports whether root sits strictly under one of the entries. A relative entry
 // is taken from the main repository and cannot match when that is unknown.
 func underWorktrees(root, mainRoot, home string, entries []string) bool {
-	if root == "" {
-		return false
-	}
 	for _, entry := range entries {
 		entry, ok := expandHome(entry, strings.TrimRight(home, "/"))
 		if !ok {
