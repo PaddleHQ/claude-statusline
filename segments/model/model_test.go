@@ -76,9 +76,9 @@ func TestSkillOverride(t *testing.T) {
 	}{
 		{"same family", "claude-opus-4-7", "claude-opus-4-7-20260101", "<t>Opus 4.7 [high]</t>"},
 		{"different family", "claude-opus-4-7", "claude-haiku-4-5", "<t>Haiku 4.5 (skill)</t>"},
-		{"every family has a label", "claude-opus-4-7", "claude-sonnet-5", "<t>Sonnet 5 (skill)</t>"},
-		{"fable", "claude-opus-4-7", "fable-5", "<t>Fable (skill)</t>"},
-		{"mythos", "claude-opus-4-7", "mythos-1", "<t>Mythos (skill)</t>"},
+		{"another family", "claude-opus-4-7", "claude-sonnet-5", "<t>Sonnet 5 (skill)</t>"},
+		{"fable", "claude-opus-4-7", "claude-fable-5", "<t>Fable 5 (skill)</t>"},
+		{"mythos", "claude-opus-4-7", "claude-mythos-1", "<t>Mythos 1 (skill)</t>"},
 		{"a family nobody listed is labeled from its id", "claude-opus-4-7", "claude-sonic-hedgehog-3-1", "<t>Sonic Hedgehog 3.1 (skill)</t>"},
 		{"a family with no version is labeled from its id", "claude-opus-4-7", "claude-sonic-hedgehog", "<t>Sonic Hedgehog (skill)</t>"},
 		{"a new version of the same family is not a skill", "claude-opus-4-7", "claude-opus-5-5", "<t>Opus 4.7 [high]</t>"},

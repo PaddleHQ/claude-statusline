@@ -16,18 +16,9 @@ const name = "model"
 
 var (
 	dateSuffix = regexp.MustCompile(`-\d{8}$`)
-	// A modern id is claude-<family words>[-<major>[-<minor>...]], so new models need no table entry.
+	// A modern id is claude-<family words>[-<major>[-<minor>...]], so new models need no table entry (the transcript always holds full ids).
 	modelID = regexp.MustCompile(`^claude-([a-z]+(?:-[a-z]+)*)(?:-(\d+(?:-\d+)*))?$`)
 )
-
-// families name the aliases and ids that modelID cannot parse, by a substring of the id, checked in order.
-var families = []struct{ key, label string }{
-	{"haiku", "Haiku"},
-	{"sonnet", "Sonnet"},
-	{"opus", "Opus"},
-	{"fable", "Fable"},
-	{"mythos", "Mythos"},
-}
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Session
 
@@ -103,8 +94,8 @@ func (m *Model) Render() string {
 	level := m.d.Session.EffortLevel()
 	// A skill or subagent can run a different model than the session's, which the payload does not reflect.
 	if m.d.Session.TranscriptFile() != "" {
-		if actualLabel, actualKey, ok := identify(m.d.Transcript().LatestModel()); ok {
-			if _, sessionKey, _ := identify(m.d.Session.ModelID()); actualKey != sessionKey {
+		if actualLabel, actualKey, ok := parse(m.d.Transcript().LatestModel()); ok {
+			if _, sessionKey, _ := parse(m.d.Session.ModelID()); actualKey != sessionKey {
 				display, level = actualLabel+" (skill)", ""
 			}
 		}
@@ -133,17 +124,4 @@ func parse(id string) (label, family string, ok bool) {
 		label += " " + strings.ReplaceAll(m[2], "-", ".")
 	}
 	return label, m[1], true
-}
-
-// identify gives the label to show and the family to compare, from a parsed id or else the families table.
-func identify(id string) (label, family string, ok bool) {
-	if label, family, ok = parse(id); ok {
-		return label, family, true
-	}
-	for _, f := range families {
-		if strings.Contains(id, f.key) {
-			return f.label, f.key, true
-		}
-	}
-	return "", "", false
 }
