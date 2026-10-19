@@ -87,6 +87,9 @@ func (s *Suite) initialize(sc *godog.ScenarioContext) {
 	sc.Step(`^the file "([^"]+)":$`, func(ctx context.Context, path string, doc *godog.DocString) error {
 		return worldOf(ctx).writeFile(path, doc.Content, filePerm)
 	})
+	sc.Step(`^the executable file "([^"]+)":$`, func(ctx context.Context, path string, doc *godog.DocString) error {
+		return worldOf(ctx).writeFile(path, doc.Content, executablePerm)
+	})
 	sc.Step(`^the directory "([^"]+)"$`, func(ctx context.Context, path string) error { return worldOf(ctx).makeDir(path) })
 	sc.Step(`^the rate-limit cache:$`, func(ctx context.Context, doc *godog.DocString) error {
 		return worldOf(ctx).writeCache(doc.Content)

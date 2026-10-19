@@ -19,8 +19,9 @@ import (
 const (
 	tmpMarker = "@TMP@"
 
-	dirPerm  = 0o700
-	filePerm = 0o600
+	dirPerm        = 0o700
+	filePerm       = 0o600
+	executablePerm = 0o700
 
 	controlChars = "[\x00-\x09\x0b-\x1a\x1c-\x1f\x7f]"
 )
@@ -55,8 +56,9 @@ func newWorld(s *Suite) (*world, error) {
 		suite: s,
 		tmp:   tmp,
 		env: map[string]string{
-			"HOME":              tmp,
-			"CLAUDE_CONFIG_DIR": tmp,
+			"HOME":                    tmp,
+			"CLAUDE_CONFIG_DIR":       tmp,
+			"STATUSLINE_HOOK_TIMEOUT": "30",
 		},
 	}, nil
 }
