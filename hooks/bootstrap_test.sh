@@ -479,6 +479,14 @@ run_run "" --version
 [ "$OUT" = "NOT-INSTALLED" ] || bad "printed '$OUT'"
 finish
 
+start "run.sh reports a non-zero exit status on its last line" t29
+mkdir -p "$T/data/bin"
+printf '#!/bin/sh\necho "Config file: x"\nexit 1\n' > "$T/data/bin/claude-statusline"
+chmod +x "$T/data/bin/claude-statusline"
+run_run "$T/data" config-check
+[ "$OUT" = "$(printf 'Config file: x\nexit status: 1')" ] || bad "printed '$OUT'"
+finish
+
 NAME="real Claude config dir untouched"
 if [ "$(real_state)" = "$REAL_BEFORE" ]; then ok; else bad "state under $REAL_CLAUDE changed"; fi
 
