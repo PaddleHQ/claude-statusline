@@ -42,44 +42,46 @@ func New(build Build) *App {
 	return &App{build: build, executable: os.Executable}
 }
 
-// Execute runs the command the first argument selects, or the status line itself. It never reports failures: a
-// blank status line is better than a broken one.
-func (a *App) Execute(args []string, stdin io.Reader, stdout io.Writer, getenv func(string) string) {
-	if len(args) > 0 && args[0] == "--version" {
+// Execute runs the command the first argument selects, or the status line itself, and returns the exit status. It
+// never blanks the status line over a failure, and only config-check exits non-zero, when the config cannot be used.
+func (a *App) Execute(args []string, stdin io.Reader, stdout io.Writer, getenv func(string) string) int {
+	command := ""
+	if len(args) > 0 {
+		command = args[0]
+	}
+	if command == "--version" {
 		_, _ = fmt.Fprintln(stdout, a.build.String())
-		return
+		return 0
 	}
 	exe := a.resolvedExecutable()
 	getenv = withStateDir(getenv, exe)
-	if len(args) > 0 && a.manage(args, stdout, locations(exe, getenv)) {
-		return
-	}
-	if len(args) > 0 && args[0] == "subagent" {
+	switch command {
+	case "setup":
+		a.runSetup(args[1:], stdout, locations(exe, getenv))
+	case "uninstall":
+		setup.Uninstall(stdout, locations(exe, getenv))
+	case "subagent":
 		runSubagent(stdin, stdout, getenv)
-		return
-	}
-	if len(args) > 0 && args[0] == "help" {
+	case "help":
 		_, _ = io.WriteString(stdout, statusline.Help(getenv))
-		return
+	case "config":
+		_, _ = io.WriteString(stdout, statusline.DefaultConfig())
+	case "config-check":
+		return runConfigCheck(stdout, getenv)
+	default:
+		run(stdin, stdout, getenv)
 	}
-	run(stdin, stdout, getenv)
+	return 0
 }
 
-// manage runs the commands that edit settings.json, and reports whether the first argument named one.
-func (a *App) manage(args []string, stdout io.Writer, loc setup.Locations) bool {
-	switch args[0] {
-	case "setup":
-		event := eventFlag(args[1:])
-		if !slices.ContainsFunc(args[1:], func(a string) bool { return strings.HasPrefix(a, "--event=") }) {
-			event = setup.EventManual
-		}
-		setup.Run(stdout, event, a.build.Version, loc)
-	case "uninstall":
-		setup.Uninstall(stdout, loc)
-	default:
-		return false
+// runSetup wires the status line into settings.json. Without an --event flag it was run by hand, which re-adds the
+// lines even after an uninstall.
+func (a *App) runSetup(args []string, stdout io.Writer, loc setup.Locations) {
+	event := eventFlag(args)
+	if !slices.ContainsFunc(args, func(a string) bool { return strings.HasPrefix(a, "--event=") }) {
+		event = setup.EventManual
 	}
-	return true
+	setup.Run(stdout, event, a.build.Version, loc)
 }
 
 func (a *App) resolvedExecutable() string {
@@ -138,4 +140,13 @@ func runSubagent(stdin io.Reader, stdout io.Writer, getenv func(string) string) 
 		return
 	}
 	_, _ = io.WriteString(stdout, subagent.Build(input, getenv))
+}
+
+func runConfigCheck(stdout io.Writer, getenv func(string) string) int {
+	report, ok := statusline.ConfigCheck(getenv)
+	_, _ = io.WriteString(stdout, report)
+	if !ok {
+		return 1
+	}
+	return 0
 }

@@ -64,16 +64,17 @@ func Generate(features string) ([]Image, error) {
 
 // execute is the part of the claude-statusline command the screenshot scenarios use: the status line, and with
 // the subagent argument the agent panel rows.
-func execute(args []string, stdin io.Reader, stdout io.Writer, getenv func(string) string) {
+func execute(args []string, stdin io.Reader, stdout io.Writer, getenv func(string) string) int {
 	input, err := io.ReadAll(stdin)
 	if err != nil {
-		return
+		return 0
 	}
 	if len(args) > 0 && args[0] == subagentName {
 		_, _ = io.WriteString(stdout, subagent.Build(input, getenv))
-		return
+		return 0
 	}
 	_, _ = io.WriteString(stdout, statusline.Build(input, getenv))
+	return 0
 }
 
 // Write saves the images into dir, creating it if needed.

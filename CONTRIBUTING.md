@@ -16,12 +16,12 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | Path | What it is |
 |---|---|
 | `main.go` | A few lines of wiring: it holds the build stamps and hands them, the arguments and the standard streams to `internal/cli`. It has no test, so that its wiring does not count against coverage. |
-| `internal/cli` | Picks the command from the arguments (`--version`, `setup`, `subagent`, `help`, or the status line itself) and reads stdin. It never reports an error, because a blank status line is better than a broken one. |
+| `internal/cli` | Picks the command from the arguments (`--version`, `setup`, `subagent`, `help`, `config`, `config-check`, or the status line itself) and reads stdin. A bad config never blanks the status line. `Execute` returns an exit status, which `main` uses only when it is not zero; only `config-check` sets one, when the config cannot be used. |
 | `internal/statusline` | Builds the line (and the text of `help`): loads config, saves the snapshot, merges rate limits, reads the transcript, runs hooks and renders. Also lists every config key the code reads. |
 | `segments/` | One folder per plugin, each providing the segments it names and owning their `defaults.yaml`, README, tests and generated mocks. A plugin declares the interfaces it needs and imports nothing from `internal/`. `segments/all.go` is the composition root: the single list of plugins, and the environment that hands them the internal types, which satisfy the plugins' interfaces directly. See [Building plugins](docs/building_plugins.md). |
 | `internal/render` | Renders the configured segments in order, and places custom segments among them. |
 | `internal/layout` | Joins rendered segments into one row, or wraps them into groups when the terminal is too narrow. |
-| `internal/config` | Layers your config file over the defaults embedded in the binary: its own `defaults.yaml` for the global keys, and each plugin's. |
+| `internal/config` | Layers your config file over the defaults embedded in the binary: its own `defaults.yaml` for the global keys, and each plugin's. It also records why a config file could not be used, for the error row, `help` and `config-check`. |
 | `internal/payload` | Decodes the session JSON from Claude Code and strips control characters from its strings. |
 | `internal/transcript` | Reads the few facts the line takes from the session transcript. |
 | `internal/ratecache` | Shares rate-limit readings between sessions through a small cache file. |
@@ -38,7 +38,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `internal/featuretest` | The step definitions behind the feature files, shared by the tests and the image generator. |
 | `tools/screenshots` | The command that regenerates the documentation images: it runs the `@screenshot` scenarios and draws what they print as SVG. It is one `main` package with its own tests. |
 | `docs/` | The user documentation, and the generated images in `docs/images/`. |
-| `commands/` | The plugin's slash commands: `help.md` is `/statusline:help`, which runs `claude-statusline help` and has Claude relay its output, and `uninstall.md` is `/statusline:uninstall`, which runs `claude-statusline uninstall` and then `claude plugin uninstall statusline@claude-statusline -s user`. Each command's `allowed-tools` lists the exact commands it may run without asking; Claude Code matches them with the quotes kept, so the script path is written `"*/hooks/run.sh"`. Both go through `hooks/run.sh`, which looks in `CLAUDE_PLUGIN_DATA`, then in the plugin's data directory under the config directory, then in the legacy `claude-statusline/bin`. |
+| `commands/` | The plugin's slash commands: `help.md` is `/statusline:help`, which runs `claude-statusline help` and has Claude relay its output, `config-check.md` is `/statusline:config-check`, which does the same for `claude-statusline config-check`, and `uninstall.md` is `/statusline:uninstall`, which runs `claude-statusline uninstall` and then `claude plugin uninstall statusline@claude-statusline -s user`. Each command's `allowed-tools` lists the exact commands it may run without asking; Claude Code matches them with the quotes kept, so the script path is written `"*/hooks/run.sh"`. They all go through `hooks/run.sh`, which looks in `CLAUDE_PLUGIN_DATA`, then in the plugin's data directory under the config directory, then in the legacy `claude-statusline/bin`. |
 | `.claude-plugin/` | The plugin and marketplace manifests. |
 
 ## Verifying a change
@@ -87,6 +87,7 @@ There are three layers. Put a test in the lowest one that can show the behaviour
 - a theme file with an unknown colour name falls back to `classic` (`internal/theme`).
 - a reading ten points below the cached one in the same window is stale, and eleven is a reset (`internal/ratecache`).
 - a hook with a `statusline-ttl: 300` header is not run again for 299 seconds (`internal/hook`).
+- the `config` output with one `# ` removed from every line parses to the effective defaults, and is the same bytes on every run (`internal/config`).
 
 **3. Gherkin features**, in `features/`. They show the overall shape of the line in examples a reader can follow: the default line, segments dropped or reordered, wrapping at a few widths, a hook placed in a slot and a hook replacing a built-in, each theme applied once, `NO_COLOR`, the help output, a couple of subagent rows, and one example for each plugin so that every feature file still documents its segment. The `@screenshot` scenarios are here too, because the documentation images are made from them. For example:
 
@@ -178,8 +179,11 @@ A step that takes text ends in a colon and is followed by a `"""` block. The tex
 | `When the status line renders at <n> columns` | The same, with the terminal `<n>` columns wide. |
 | `When the subagent rows render` | Runs the `subagent` command. |
 | `When help runs` | Runs the `help` command. |
+| `When the config command runs` | Runs the `config` command. |
+| `When the config check runs` | Runs the `config-check` command. |
 | `Then the output is:` | The output with its colours and styles, written as rows of text with a style line under each; see [Expected output](#expected-output). |
 | `Then the text is:` | The output with every colour and style removed. Use it when the scenario has no colour at all. |
+| `Then the text starts with:` | The output with every colour and style removed begins with the block. Use it for long output where only the start is the point, such as `config`. |
 | `Then the raw output is:` | The exact bytes, with each escape byte written as `\e`. Use it only when the bytes are the point. |
 | `Then the rate-limit cache is:` | The cache file's content after the run, compared ignoring surrounding whitespace. |
 | `Then the output is saved as the screenshot "name"` | Used only by `@screenshot` scenarios; see [Documentation images](#documentation-images). |
@@ -268,7 +272,7 @@ Every key the code reads must appear, with a one-line comment above it, in `inte
 
 ### Adding a built-in theme
 
-Built-in themes are YAML files in the top-level `themes/` directory, embedded in the binary by `themes/themes.go`; the file name without `.yaml` is the name users put in `theme`. Write one in the format the Themes section of [`docs/customising.md`](docs/customising.md) describes, with comments, since the files double as examples. Every theme is a complete, standalone file, so start by copying `themes/classic.yaml` or `themes/gradient.yaml`. Parsing is strict (unknown keys are an error), so a typo fails the tests rather than shipping. Add a test in `internal/theme` for what is new, and one scenario that selects the theme in its config (`features/gradient_theme.feature` is the model), so each built-in theme is applied once. Mention the theme in the Themes section of `docs/customising.md`. Keep the loader's fallback to `classic` silent: a status line never prints an error.
+Built-in themes are YAML files in the top-level `themes/` directory, embedded in the binary by `themes/themes.go`; the file name without `.yaml` is the name users put in `theme`. Write one in the format the Themes section of [`docs/customising.md`](docs/customising.md) describes, with comments, since the files double as examples. Every theme is a complete, standalone file, so start by copying `themes/classic.yaml` or `themes/gradient.yaml`. Parsing is strict (unknown keys are an error), so a typo fails the tests rather than shipping. Add a test in `internal/theme` for what is new, and one scenario that selects the theme in its config (`features/gradient_theme.feature` is the model), so each built-in theme is applied once. Mention the theme in the Themes section of `docs/customising.md`. Keep the loader's fallback to `classic` silent. A config file that cannot be used shows the error row, but a theme that cannot be loaded does not.
 
 ### Adding a segment
 

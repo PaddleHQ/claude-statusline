@@ -68,6 +68,11 @@ func TestBuild(t *testing.T) {
 			want:    `"t1"\t\e[1mbad[31mname\e[0m \e[2m·\e[0m sonnet-4-5[0m\e[2m [high]\e[0m \e[2m·\e[0m ctx: \e[32m██▌\e[0m\e[2m░░░░░░░\e[0m \e[32m25%\e[0m \e[2m·\e[0m 50.0k \e[2m·\e[0m \e[2mline oneline two ]8;;http://evillink31m end\e[0m`,
 		},
 		{
+			name:    `A latest alias is labeled as the model it names`,
+			session: `{"tasks":[{"id":"t1","name":"r","model":"claude-3-7-sonnet-latest","contextWindowSize":200000,"tokenCount":50000}]}`,
+			want:    `"t1"\t\e[1mr\e[0m \e[2m·\e[0m Sonnet 3.7 \e[2m·\e[0m ctx: \e[32m██▌\e[0m\e[2m░░░░░░░\e[0m \e[32m25%\e[0m \e[2m·\e[0m 50.0k`,
+		},
+		{
 			name:    `The ctx.width, ctx.warn, ctx.bad and separator settings apply to agent rows`,
 			session: `{"tasks":[{"id":"t1","name":"reviewer","description":"Custom thresholds","model":"claude-sonnet-4-5","contextWindowSize":200000,"tokenCount":60000}]}`,
 			config: `ctx:
