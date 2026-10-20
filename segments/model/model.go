@@ -15,12 +15,13 @@ var Defaults string
 const name = "model"
 
 var (
-	// The same model reaches us with a context suffix (claude-opus-5-5[1m]), a provider prefix and version
-	// (us.anthropic.claude-sonnet-4-5-20250929-v1:0) or a Vertex date (claude-sonnet-4-5@20250929), so those are stripped first.
+	// The same model reaches us with a context suffix (claude-opus-5-5[1m]), a Bedrock ARN, a provider prefix and version
+	// (us.anthropic.claude-sonnet-4-5-20250929-v1:0), a Vertex date (claude-sonnet-4-5@20250929) or -latest, so those are stripped first.
 	contextSuffix  = regexp.MustCompile(`\[[^\]]*\]$`)
 	providerPrefix = regexp.MustCompile(`^(?:[a-z0-9-]+\.)*anthropic\.`)
 	providerSuffix = regexp.MustCompile(`-v\d+(?::\d+)?$`)
 	dateSuffix     = regexp.MustCompile(`[-@]\d{8}$`)
+	latestSuffix   = regexp.MustCompile(`-latest$`)
 	// claude-<family words>[-<major>[-<minor>...]], so a new model needs no table entry.
 	modelID = regexp.MustCompile(`^claude-([a-z]+(?:-[a-z]+)*)(?:-(\d+(?:-\d+)*))?$`)
 	// claude-<major>[-<minor>...]-<family words>, the order the 3.x models used.
@@ -119,10 +120,14 @@ func (m *Model) Render() string {
 // parse reads a model id into its label and lower-case family.
 func parse(id string) (label, family string, ok bool) {
 	id = contextSuffix.ReplaceAllString(id, "")
+	if strings.HasPrefix(id, "arn:") {
+		id = id[strings.LastIndex(id, "/")+1:]
+	}
 	id = providerPrefix.ReplaceAllString(id, "")
 	id = providerSuffix.ReplaceAllString(id, "")
 	id = dateSuffix.ReplaceAllString(id, "")
-	var words, version string
+	id = latestSuffix.ReplaceAllString(id, "")
+	var version string
 	if m := modelID.FindStringSubmatch(id); m != nil {
 		family, version = m[1], m[2]
 	} else if m := legacyModelID.FindStringSubmatch(id); m != nil {
@@ -130,13 +135,13 @@ func parse(id string) (label, family string, ok bool) {
 	} else {
 		return "", "", false
 	}
-	parts := strings.Split(family, "-")
-	for i, w := range parts {
-		parts[i] = strings.ToUpper(w[:1]) + w[1:]
+	words := strings.Split(family, "-")
+	for i, w := range words {
+		words[i] = strings.ToUpper(w[:1]) + w[1:]
 	}
-	words = strings.Join(parts, " ")
+	label = strings.Join(words, " ")
 	if version != "" {
-		words += " " + strings.ReplaceAll(version, "-", ".")
+		label += " " + strings.ReplaceAll(version, "-", ".")
 	}
-	return words, family, true
+	return label, family, true
 }
