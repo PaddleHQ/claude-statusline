@@ -8,6 +8,7 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func FuzzLoad(f *testing.F) {
@@ -46,6 +47,34 @@ func FuzzLoad(f *testing.F) {
 				assert.Equal(t, defaults.Int(key), cfg.Int(key), "Int(%q) without a usable file", key)
 				assert.Equal(t, defaults.Bool(key), cfg.Bool(key), "Bool(%q) without a usable file", key)
 			}
+		}
+	})
+}
+
+func FuzzLoadProblem(f *testing.F) {
+	for _, s := range []string{
+		"", "~", "---", "# only a comment\n",
+		"a: [1", "hooks:\n  ttl: 60\n timeout: 2\n", "- a\n- b\n", "just a string",
+		"a: 1\na: 2\n", "a: 1\na: 2\nb: 1\nb: 2\n", "a: 1\x00", "a: *x", "hooks:\n\tttl: 60\n",
+		"a: \"abc\nb: 1\n", "a: 1\rb: a: b\rc: 3", "a: 1\r\nb: a: b\r\n",
+		"a: 1\u2028b: a: b\u2029c: 3\u0085d: [", "a: \"\u202e\" b: [", "\xff",
+	} {
+		f.Add(s)
+	}
+
+	f.Fuzz(func(t *testing.T, text string) {
+		var p *config.Problem
+		require.NotPanics(t, func() { p = config.New(text).Problem() })
+		if p == nil {
+			return
+		}
+		assert.NotEmpty(t, p.Reason)
+		assert.GreaterOrEqual(t, p.Line, 0)
+		assert.LessOrEqual(t, p.Line, len(config.SplitLines(text))+1)
+		for line := range strings.SplitSeq(p.Report(), "\n") {
+			assert.False(t, strings.ContainsFunc(line, func(r rune) bool {
+				return unicode.IsControl(r) || unicode.Is(unicode.Cf, r)
+			}), "report line %q", line)
 		}
 	})
 }

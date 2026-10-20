@@ -79,7 +79,19 @@ func Build(input []byte, getenv func(string) string) string {
 		Anchor:    th.Paint(th.Muted, "↳"),
 		Hooks:     runHooks(input, p, cfg, at, getenv),
 	}
-	return line.Render()
+	return withErrorRow(line.Render(), cfg.Problem(), &th, getenv("HOME"), env.Columns)
+}
+
+// withErrorRow puts the config error above the line, or shows it alone when the line is empty.
+func withErrorRow(line string, p *config.Problem, th *theme.Theme, home string, columns int) string {
+	if p == nil {
+		return line
+	}
+	row := errorRow(p, th, home, columns)
+	if line == "" {
+		return row
+	}
+	return row + "\n" + line
 }
 
 // lookup lets the renderer find the segments of env.

@@ -20,8 +20,9 @@ var ErrScenariosFailed = errors.New("feature scenarios failed")
 // ErrNoScenarios is returned when no scenario was selected, which would otherwise pass without checking anything.
 var ErrNoScenarios = errors.New("no scenarios were run: check the paths and tags")
 
-// Execute runs the claude-statusline command with the given arguments, standard input and environment.
-type Execute func(args []string, stdin io.Reader, stdout io.Writer, getenv func(string) string)
+// Execute runs the claude-statusline command with the given arguments, standard input and environment, and returns
+// its exit status.
+type Execute func(args []string, stdin io.Reader, stdout io.Writer, getenv func(string) string) int
 
 // Suite is a set of feature files and what runs them.
 type Suite struct {
@@ -105,12 +106,17 @@ func (s *Suite) initialize(sc *godog.ScenarioContext) {
 	})
 	sc.Step(`^the subagent rows render$`, func(ctx context.Context) error { return worldOf(ctx).renderSubagentRows(ctx) })
 	sc.Step(`^help runs$`, func(ctx context.Context) { worldOf(ctx).renderHelp(ctx) })
+	sc.Step(`^the config command runs$`, func(ctx context.Context) { worldOf(ctx).renderConfig(ctx) })
+	sc.Step(`^the config check runs$`, func(ctx context.Context) { worldOf(ctx).renderConfigCheck(ctx) })
 
 	sc.Step(`^the output is:$`, func(ctx context.Context, doc *godog.DocString) error {
 		return worldOf(ctx).checkOutput(doc.Content)
 	})
 	sc.Step(`^the text is:$`, func(ctx context.Context, doc *godog.DocString) error {
 		return worldOf(ctx).checkText(doc.Content)
+	})
+	sc.Step(`^the text starts with:$`, func(ctx context.Context, doc *godog.DocString) error {
+		return worldOf(ctx).checkTextPrefix(doc.Content)
 	})
 	sc.Step(`^the raw output is:$`, func(ctx context.Context, doc *godog.DocString) error {
 		return worldOf(ctx).checkRawOutput(doc.Content)

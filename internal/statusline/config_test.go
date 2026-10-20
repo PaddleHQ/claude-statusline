@@ -25,24 +25,24 @@ unknown_top: 2`,
 			want: `Opus 4.7 \e[2m|\e[0m Opus 4.7`,
 		},
 		{
-			name:    `Invalid YAML ignores the whole file and the defaults apply`,
+			name:    `Invalid YAML ignores the whole file, the defaults apply and an error row comes first`,
 			session: session,
 			config: `separator: "|"
 segments: [model, model`,
-			want: `Opus 4.7 [high]`,
+			want: "\\e[31m~/claude-statusline/config.yaml:1 did not find expected ',' or ']' · run /statusline:config-check\\e[0m\nOpus 4.7 [high]",
 		},
 		{
-			name:    `A duplicate key makes the YAML invalid, so the whole file is ignored`,
+			name:    `A duplicate key makes the YAML invalid, so the whole file is ignored and an error row comes first`,
 			session: session,
 			config: `segments: [model, model]
 segments: [model]`,
-			want: `Opus 4.7 [high]`,
+			want: "\\e[31m~/claude-statusline/config.yaml:2 mapping key \"segments\" already defined at line 1 · run /statusline:config-check\\e[0m\nOpus 4.7 [high]",
 		},
 		{
-			name:    `A file that is not a mapping is ignored`,
+			name:    `A file that is not a mapping is ignored and an error row comes first`,
 			session: session,
 			config:  `- segments: [model, model]`,
-			want:    `Opus 4.7 [high]`,
+			want:    "\\e[31m~/claude-statusline/config.yaml: the top level must be a mapping · run /statusline:config-check\\e[0m\nOpus 4.7 [high]",
 		},
 		{
 			name:    `A value of the wrong type falls back to its default while the keys around it still apply`,

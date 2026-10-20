@@ -19,7 +19,10 @@ import (
 // FileName is the user's config file inside the app directory.
 const FileName = "config.yaml"
 
-var errTooLarge = errors.New("config file too large")
+var (
+	errTooLarge   = errors.New("config file too large")
+	errNotRegular = errors.New("config file is not a regular file")
+)
 
 // Defaults is the text of the global defaults.yaml, which sits under every plugin's defaults.
 //
@@ -41,24 +44,42 @@ const maxFileBytes = 1 << 20
 type Config struct {
 	defaults map[string]any
 	user     map[string]any
+	problem  *Problem
 }
 
 // New builds a Config from the text of a user's config file. The defaults are the embedded global ones
-// layered under the defaults files of the plugins, given as text. Text that is not a YAML mapping is ignored.
+// layered under the defaults files of the plugins, given as text. Text that is not a YAML mapping is ignored,
+// and Problem says why.
 func New(userText string, pluginDefaults ...string) *Config {
-	return &Config{defaults: mergeDefaults(pluginDefaults), user: parse(userText)}
+	user, problem := parseProblem(userText)
+	return &Config{defaults: mergeDefaults(pluginDefaults), user: user, problem: problem}
 }
 
-// Load reads the user's config file; a missing or unreadable file means defaults only.
+// Load reads the user's config file; a missing or unusable file means defaults only, and Problem says why
+// a file that exists could not be used.
 func Load(path string, pluginDefaults ...string) *Config {
 	data, err := readLimited(path)
 	if err != nil {
-		return New("", pluginDefaults...)
+		cfg := New("", pluginDefaults...)
+		cfg.problem = readProblem(path, err)
+		return cfg
 	}
-	return New(string(data), pluginDefaults...)
+	cfg := New(string(data), pluginDefaults...)
+	if cfg.problem != nil {
+		cfg.problem.Path = path
+	}
+	return cfg
 }
 
+// readLimited refuses anything but a regular file before opening it, because opening a FIFO blocks.
 func readLimited(path string) ([]byte, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("stat config file: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, errNotRegular
+	}
 	f, err := os.Open(path) //nolint:gosec // G304: reading the config file the user named is the feature
 	if err != nil {
 		return nil, fmt.Errorf("open config file: %w", err)
@@ -262,11 +283,8 @@ func mapOf(v any) map[string]any {
 
 // parse reads YAML as data; nothing in a value is ever interpreted. Anything that is not a YAML mapping gives nil.
 func parse(text string) map[string]any {
-	var root any
-	if err := yaml.Unmarshal([]byte(text), &root); err != nil {
-		return nil
-	}
-	return mapOf(root)
+	user, _ := parseProblem(text)
+	return user
 }
 
 // flatten turns a mapping of sections into "section.key" entries; a top-level key holding a mapping is a section.
