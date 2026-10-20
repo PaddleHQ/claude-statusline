@@ -69,34 +69,35 @@ func TestSkillOverride(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name   string
-		id     string
-		actual string
-		want   string
+		name    string
+		id      string
+		display string
+		actual  string
+		want    string
 	}{
-		{"same family", "claude-opus-4-7", "claude-opus-4-7-20260101", "<t>Opus 4.7 [high]</t>"},
-		{"different family", "claude-opus-4-7", "claude-haiku-4-5", "<t>Haiku 4.5 (skill)</t>"},
-		{"another family", "claude-opus-4-7", "claude-sonnet-5", "<t>Sonnet 5 (skill)</t>"},
-		{"fable", "claude-opus-4-7", "claude-fable-5", "<t>Fable 5 (skill)</t>"},
-		{"mythos", "claude-opus-4-7", "claude-mythos-1", "<t>Mythos 1 (skill)</t>"},
-		{"a family nobody listed is labeled from its id", "claude-opus-4-7", "claude-sonic-hedgehog-3-1", "<t>Sonic Hedgehog 3.1 (skill)</t>"},
-		{"a family with no version is labeled from its id", "claude-opus-4-7", "claude-sonic-hedgehog", "<t>Sonic Hedgehog (skill)</t>"},
-		{"a context suffix on the session id is the same family", "claude-opus-5-5[1m]", "claude-opus-5-5", "<t>Opus 4.7 [high]</t>"},
-		{"a Bedrock session id is the same family as the plain id", "us.anthropic.claude-sonnet-4-5-20250929-v1:0", "claude-sonnet-4-5-20250929", "<t>Opus 4.7 [high]</t>"},
-		{"a Bedrock session id still differs from another family", "us.anthropic.claude-sonnet-4-5-20250929-v1:0", "claude-haiku-4-5", "<t>Haiku 4.5 (skill)</t>"},
-		{"a latest alias session id is the same family as the dated transcript id", "claude-3-7-sonnet-latest", "claude-3-7-sonnet-20250219", "<t>Opus 4.7 [high]</t>"},
-		{"an inference profile ARN session id is the same family as the plain id", "arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-sonnet-4-5-20250929-v1:0", "claude-sonnet-4-5-20250929", "<t>Opus 4.7 [high]</t>"},
-		{"a legacy transcript id is labeled", "claude-opus-4-7", "claude-3-5-haiku-20241022", "<t>Haiku 3.5 (skill)</t>"},
-		{"a new version of the same family is not a skill", "claude-opus-4-7", "claude-opus-5-5", "<t>Opus 4.7 [high]</t>"},
-		{"unknown actual family is ignored", "claude-opus-4-7", "something-else", "<t>Opus 4.7 [high]</t>"},
-		{"no actual model", "claude-opus-4-7", "", "<t>Opus 4.7 [high]</t>"},
-		{"unknown session family differs from a known one", "custom-model", "claude-haiku-4-5", "<t>Haiku 4.5 (skill)</t>"},
-		{"unknown on both sides", "custom-model", "other", "<t>Opus 4.7 [high]</t>"},
+		{"same family", "claude-opus-4-7", "Opus 4.7", "claude-opus-4-7-20260101", "<t>Opus 4.7 [high]</t>"},
+		{"different family", "claude-opus-4-7", "Opus 4.7", "claude-haiku-4-5", "<t>Haiku 4.5 (skill)</t>"},
+		{"another family", "claude-opus-4-7", "Opus 4.7", "claude-sonnet-5", "<t>Sonnet 5 (skill)</t>"},
+		{"fable", "claude-opus-4-7", "Opus 4.7", "claude-fable-5", "<t>Fable 5 (skill)</t>"},
+		{"mythos", "claude-opus-4-7", "Opus 4.7", "claude-mythos-1", "<t>Mythos 1 (skill)</t>"},
+		{"a family nobody listed is labeled from its id", "claude-opus-4-7", "Opus 4.7", "claude-sonic-hedgehog-3-1", "<t>Sonic Hedgehog 3.1 (skill)</t>"},
+		{"a family with no version is labeled from its id", "claude-opus-4-7", "Opus 4.7", "claude-sonic-hedgehog", "<t>Sonic Hedgehog (skill)</t>"},
+		{"a context suffix on the session id is the same family", "claude-opus-5-5[1m]", "Opus 5.5", "claude-opus-5-5", "<t>Opus 5.5 [high]</t>"},
+		{"a Bedrock session id is the same family as the plain id", "us.anthropic.claude-sonnet-4-5-20250929-v1:0", "Sonnet 4.5", "claude-sonnet-4-5-20250929", "<t>Sonnet 4.5 [high]</t>"},
+		{"a Bedrock session id still differs from another family", "us.anthropic.claude-sonnet-4-5-20250929-v1:0", "Sonnet 4.5", "claude-haiku-4-5", "<t>Haiku 4.5 (skill)</t>"},
+		{"a latest alias session id is the same family as the dated transcript id", "claude-3-7-sonnet-latest", "Sonnet 3.7", "claude-3-7-sonnet-20250219", "<t>Sonnet 3.7 [high]</t>"},
+		{"an inference profile ARN session id is the same family as the plain id", "arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-sonnet-4-5-20250929-v1:0", "Sonnet 4.5", "claude-sonnet-4-5-20250929", "<t>Sonnet 4.5 [high]</t>"},
+		{"a legacy transcript id is labeled", "claude-opus-4-7", "Opus 4.7", "claude-3-5-haiku-20241022", "<t>Haiku 3.5 (skill)</t>"},
+		{"a new version of the same family is not a skill", "claude-opus-4-7", "Opus 4.7", "claude-opus-5-5", "<t>Opus 4.7 [high]</t>"},
+		{"unknown actual family is ignored", "claude-opus-4-7", "Opus 4.7", "something-else", "<t>Opus 4.7 [high]</t>"},
+		{"no actual model", "claude-opus-4-7", "Opus 4.7", "", "<t>Opus 4.7 [high]</t>"},
+		{"unknown session family differs from a known one", "custom-model", "Custom Model", "claude-haiku-4-5", "<t>Haiku 4.5 (skill)</t>"},
+		{"unknown on both sides", "custom-model", "Custom Model", "other", "<t>Custom Model [high]</t>"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			seg, _ := build(t, session{display: "Opus 4.7", id: tt.id, level: "high", path: "/t.jsonl"}, true, tt.actual)
+			seg, _ := build(t, session{display: tt.display, id: tt.id, level: "high", path: "/t.jsonl"}, true, tt.actual)
 			assert.Equal(t, tt.want, seg.Render())
 		})
 	}
