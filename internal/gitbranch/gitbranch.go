@@ -1,4 +1,4 @@
-// Package gitbranch finds the current branch by reading .git files, without running git.
+// Package gitbranch finds the current branch, and a linked worktree's main repository, by reading .git files, without running git.
 package gitbranch
 
 import (
@@ -23,19 +23,51 @@ type Reader struct{}
 // Branch returns the branch checked out in dir, as Read does, with control characters removed.
 func (g *Reader) Branch(dir string) string { return payload.Sanitize(Read(dir)) }
 
+// Checkout returns the branch in dir and, when dir is inside a linked worktree, the
+// worktree's root, the main repository's root and the project name. Both roots are in
+// dir's spelling; mainRoot is "" when git's spelling cannot be matched to it, and the
+// project name then comes from git's spelling. Every result is safe to print.
+func (g *Reader) Checkout(dir string) (branch, worktreeRoot, mainRoot, project string) {
+	root, dotGit, info, ok := locate(dir)
+	if !ok {
+		return "", "", "", ""
+	}
+	target := gitDir(dotGit, info)
+	branch = payload.Sanitize(head(target))
+	main, ok := linked(info, target)
+	if !ok {
+		return branch, "", "", ""
+	}
+	mainRoot = reconcile(root, main)
+	project = filepath.Base(main)
+	if mainRoot != "" {
+		project = filepath.Base(mainRoot)
+	}
+	return branch, payload.Sanitize(root), payload.Sanitize(mainRoot), payload.Sanitize(project)
+}
+
 // Read returns the branch checked out in dir or any parent, the first seven characters
 // of the commit when HEAD is detached, or "" when there is no readable repository.
 func Read(dir string) string {
-	if !filepath.IsAbs(dir) {
+	_, dotGit, info, ok := locate(dir)
+	if !ok {
 		return ""
 	}
+	return head(gitDir(dotGit, info))
+}
+
+// locate walks up from the absolute dir to the nearest .git, returning the directory that holds it.
+func locate(dir string) (root, dotGit string, info os.FileInfo, ok bool) {
+	if !filepath.IsAbs(dir) {
+		return "", "", nil, false
+	}
 	for dir = filepath.Clean(dir); ; dir = filepath.Dir(dir) {
-		dotGit := filepath.Join(dir, ".git")
+		dotGit = filepath.Join(dir, ".git")
 		if info, err := os.Stat(dotGit); err == nil {
-			return head(gitDir(dotGit, info))
+			return dir, dotGit, info, true
 		}
 		if filepath.Dir(dir) == dir {
-			return ""
+			return "", "", nil, false
 		}
 	}
 }

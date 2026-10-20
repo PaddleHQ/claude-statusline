@@ -25,10 +25,16 @@ type Theme struct {
 	PathColor string
 	Reset     string
 
+	BranchColor   string
+	WorktreeColor string
+
 	Full        string
 	Partials    [7]string
 	Empty       string
 	MarkerGlyph string
+
+	BranchGlyph   string
+	WorktreeGlyph string
 
 	// Gradient draws whole cells colored by position along Ramp, with the
 	// pace color on the percentage text. Ramp holds the good, warn and bad
@@ -43,6 +49,7 @@ type Theme struct {
 func (t *Theme) WithoutColor() Theme {
 	c := *t
 	c.TextColor, c.Muted, c.Good, c.WarnColor, c.BadColor, c.Marker, c.PathColor, c.Reset = "", "", "", "", "", "", "", ""
+	c.BranchColor, c.WorktreeColor = "", ""
 	c.Ramp, c.EmptyColor, c.MarkerColor = nil, "", ""
 	return c
 }
@@ -66,6 +73,15 @@ func (t *Theme) Bad(s string) string { return t.Paint(t.BadColor, s) }
 
 // Path paints s in the path color.
 func (t *Theme) Path(s string) string { return t.Paint(t.PathColor, s) }
+
+// Branch paints s in the branch color.
+func (t *Theme) Branch(s string) string { return t.Paint(t.BranchColor, s) }
+
+// Worktree paints s in the worktree color.
+func (t *Theme) Worktree(s string) string { return t.Paint(t.WorktreeColor, s) }
+
+// Glyphs returns the branch and worktree glyphs.
+func (t *Theme) Glyphs() (branch, worktree string) { return t.BranchGlyph, t.WorktreeGlyph }
 
 // RampColor is the escape sequence for a cell of a width-cell gradient bar, or
 // "" when the theme has no ramp. The first cell takes the good stop, the middle

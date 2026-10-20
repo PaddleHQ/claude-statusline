@@ -11,6 +11,10 @@ colors:
   bad: red
   marker: bold
   path: bold 33
+  # Optional. The branch in the path segment; defaults to the path color.
+  branch: bold 33
+  # Optional. The branch of a linked worktree; defaults to bold 208.
+  worktree: bold 208
 
 bar:
   style: gradient
@@ -22,3 +26,8 @@ bar:
   # Unfilled cells and the pace marker.
   empty_color: "#4a4a4a"
   marker_color: bold
+
+# Optional. Emoji shown before a branch and a worktree in the path segment.
+glyphs:
+  branch: "🌿"
+  worktree: "🌳"

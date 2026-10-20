@@ -26,7 +26,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `internal/transcript` | Reads the few facts the line takes from the session transcript. |
 | `internal/ratecache` | Shares rate-limit readings between sessions through a small cache file. |
 | `internal/hook` | Runs custom segment scripts with a timeout and a per-session cache, and sanitises their output. |
-| `internal/gitbranch` | Finds the branch by reading `.git` files, without running `git`. |
+| `internal/gitbranch` | Finds the branch, and a linked worktree's main repository, by reading `.git` files, without running `git`. |
 | `internal/bar` | Draws a usage bar with an optional pace marker. |
 | `internal/theme` | Loads themes from YAML, compiles colour specs, and provides the colour-free variant used for `NO_COLOR`. It reads the built-in themes from `themes/`. |
 | `themes` | The built-in themes: one YAML file each, embedded in the binary by a tiny package that only exports them. |
@@ -223,7 +223,7 @@ ctx: ▰▰▰▰▰▰▱▱▱▱ 62%
 Some more rules:
 
 - Every row has a style line, even a row with no styling, which has an empty one. A blank line in the place where a text row would start is what begins the legend, so a text row itself cannot be empty in an output that has styles. If nothing in the output has a style, use `Then the text is:` instead.
-- A wide character, one that takes two columns such as an East Asian character or an emoji, is written with its style character and then `_` under it, or with two spaces if it has no style. Characters that take no column, such as a zero-width joiner, share the column of the character before them. The status line itself counts every character as one column; the widths only keep the style line aligned in your editor.
+- A wide character, one that takes two columns such as an East Asian character or an emoji (including a narrow character that the emoji selector U+FE0F turns into one, like `❤️`), is written with its style character and then `_` under it, or with two spaces if it has no style. Characters that take no column, such as a zero-width joiner, share the column of the character before them. The status line counts wide characters as two columns too, so the widths in expected output match the terminal.
 - Trailing spaces are not significant, so a short style line means the columns after it have no styling. The comparison also ignores unstyled spaces at the end of a row. A styled space at the end of a row is kept: write it in the text line, or leave the text line short and the style line long.
 - The comparison is of the style in effect for each column, not of the bytes, so a redundant reset or a repeated code does not matter. The output may only use colour and style sequences the harness understands (reset, bold, dim, the 16 colours, 256 colour and true colour, for the foreground and the background). Any other escape sequence, or any style code it does not know, fails the scenario with a message that names it, and a scenario like that belongs on `Then the raw output is:`.
 - The scenario's temporary directory is written `@TMP@`, as in a `Given` block, in the output as well. It is five columns wide.

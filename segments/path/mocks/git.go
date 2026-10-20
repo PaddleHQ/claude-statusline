@@ -63,6 +63,76 @@ func (_c *Git_Branch_Call) RunAndReturn(run func(string) string) *Git_Branch_Cal
 	return _c
 }
 
+// Checkout provides a mock function with given fields: dir
+func (_m *Git) Checkout(dir string) (string, string, string, string) {
+	ret := _m.Called(dir)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Checkout")
+	}
+
+	var r0 string
+	var r1 string
+	var r2 string
+	var r3 string
+	if rf, ok := ret.Get(0).(func(string) (string, string, string, string)); ok {
+		return rf(dir)
+	}
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(dir)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string) string); ok {
+		r1 = rf(dir)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(string) string); ok {
+		r2 = rf(dir)
+	} else {
+		r2 = ret.Get(2).(string)
+	}
+
+	if rf, ok := ret.Get(3).(func(string) string); ok {
+		r3 = rf(dir)
+	} else {
+		r3 = ret.Get(3).(string)
+	}
+
+	return r0, r1, r2, r3
+}
+
+// Git_Checkout_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Checkout'
+type Git_Checkout_Call struct {
+	*mock.Call
+}
+
+// Checkout is a helper method to define mock.On call
+//   - dir string
+func (_e *Git_Expecter) Checkout(dir interface{}) *Git_Checkout_Call {
+	return &Git_Checkout_Call{Call: _e.mock.On("Checkout", dir)}
+}
+
+func (_c *Git_Checkout_Call) Run(run func(dir string)) *Git_Checkout_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *Git_Checkout_Call) Return(branch string, worktreeRoot string, mainRoot string, project string) *Git_Checkout_Call {
+	_c.Call.Return(branch, worktreeRoot, mainRoot, project)
+	return _c
+}
+
+func (_c *Git_Checkout_Call) RunAndReturn(run func(string) (string, string, string, string)) *Git_Checkout_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewGit creates a new instance of Git. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewGit(t interface {

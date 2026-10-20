@@ -1,8 +1,9 @@
 # classic: the built-in theme. Basic ANSI colors and a bold default-foreground
 # marker read well on light and dark terminals.
 #
-# A theme file uses this same format. Every field below is required, so copy a
-# built-in theme and edit it. Unknown keys make the theme invalid.
+# A theme file uses this same format. Every field below is required except
+# colors.branch, colors.worktree and glyphs, so copy a built-in theme and edit
+# it. Unknown keys make the theme invalid.
 
 # Color roles. Each value is space-separated tokens: bold, dim, italic,
 # underline, a color name (black, red, green, yellow, blue, magenta, cyan,
@@ -16,6 +17,10 @@ colors:
   bad: red
   marker: bold
   path: bold 33
+  # Optional. The branch in the path segment; defaults to the path color.
+  branch: bold 33
+  # Optional. The branch of a linked worktree; defaults to bold 208.
+  worktree: bold 208
 
 bar:
   # solid: eighth-block fill colored by pace. gradient: whole cells colored
@@ -26,3 +31,8 @@ bar:
   partials: ["▏", "▎", "▍", "▌", "▋", "▊", "▉"]
   empty: "░"
   marker: "┃"
+
+# Optional. Emoji shown before a branch and a worktree in the path segment.
+glyphs:
+  branch: "🌿"
+  worktree: "🌳"

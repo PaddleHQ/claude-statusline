@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/PaddleHQ/claude-statusline/internal/layout"
 )
 
 var legendLine = regexp.MustCompile(`^(\S) = (.+)$`)
@@ -112,10 +114,10 @@ func parseRow(text, styles string, legend map[rune]Style, used map[rune]bool) (R
 		col int
 	)
 	for _, r := range text {
-		w := columns.RuneWidth(r)
+		w := layout.RuneWidth(r)
 		if w == 0 {
 			var err error
-			if row, err = row.appendRune(r, Style{}); err != nil {
+			if row, col, err = line.appendZeroWidth(row, r, col); err != nil {
 				return nil, err
 			}
 			continue
@@ -141,6 +143,23 @@ func parseRow(text, styles string, legend map[rune]Style, used map[rune]bool) (R
 		row = append(row, Cell{Text: " ", Width: 1, Style: s})
 	}
 	return row, nil
+}
+
+// appendZeroWidth joins r to the cell before it. An emoji selector can widen that cell, which moves the
+// column on and makes the style line give the cell its continuation character.
+func (l styleLine) appendZeroWidth(row Row, r rune, col int) (Row, int, error) {
+	before := row.lastWidth()
+	row, err := row.appendRune(r, Style{})
+	if err != nil {
+		return nil, col, err
+	}
+	grown := row.lastWidth() - before
+	if grown > 0 {
+		if err := l.checkContinuation(col-before, row[len(row)-1].Style); err != nil {
+			return nil, col, err
+		}
+	}
+	return row, col + grown, nil
 }
 
 func (l styleLine) checkContinuation(col int, s Style) error {

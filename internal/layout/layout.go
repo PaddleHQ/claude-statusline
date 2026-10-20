@@ -4,7 +4,8 @@ package layout
 import (
 	"regexp"
 	"strings"
-	"unicode/utf8"
+
+	"github.com/mattn/go-runewidth"
 )
 
 // Group says where a segment goes when the line has to wrap.
@@ -40,9 +41,48 @@ const minRoom = 24
 
 var sgr = regexp.MustCompile("\x1b\\[[0-9;]*m")
 
-// Width is the number of columns s occupies once color sequences are removed, counting every rune as one column.
+// columns ignores the locale, so wrapping does not change under a CJK locale that would widen ambiguous characters.
+var columns = func() *runewidth.Condition {
+	c := runewidth.NewCondition()
+	c.EastAsianWidth = false
+	return c
+}()
+
+// RuneWidth is the number of columns r occupies on its own. A rune followed by a variation selector takes more,
+// which only Width sees.
+func RuneWidth(r rune) int {
+	return columns.RuneWidth(r)
+}
+
+const (
+	variationSelector16 = '️'
+	zeroWidthJoiner     = '‍'
+)
+
+// Width is the number of columns s occupies once color sequences are removed, counting wide characters as two.
+// The feature-test harness measures its cells with it too, so there is one rule.
 func Width(s string) int {
-	return utf8.RuneCountInString(sgr.ReplaceAllString(s, ""))
+	plain := sgr.ReplaceAllString(s, "")
+	return columns.StringWidth(plain) + emojiSelectorColumns(plain)
+}
+
+// emojiSelectorColumns is the extra columns for each narrow base character that U+FE0F turns into an emoji.
+// go-runewidth counts such a pair as one column, but string-width (which Claude Code measures with) and
+// terminals that draw the emoji use two.
+func emojiSelectorColumns(s string) int {
+	runes := []rune(s)
+	extra := 0
+	for i := 1; i < len(runes); i++ {
+		if runes[i] != variationSelector16 || columns.RuneWidth(runes[i-1]) != 1 {
+			continue
+		}
+		// Inside a joined sequence such as a heart on fire, go-runewidth already counts the whole emoji.
+		if i+1 < len(runes) && runes[i+1] == zeroWidthJoiner {
+			continue
+		}
+		extra++
+	}
+	return extra
 }
 
 // Render joins the items on one row when they fit within o.Columns, and otherwise wraps them into rows.
