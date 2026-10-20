@@ -35,7 +35,7 @@ Feature: Subagent rows
     When the subagent rows render
     Then the output is:
       """
-      "task_1"\treviewer · sonnet-4-5 [high] · ctx: ████▎░░░░░ 42% · 84.5k · Review the payment retry change
+      "task_1"\treviewer · Sonnet 4.5 [high] · ctx: ████▎░░░░░ 42% · 84.5k · Review the payment retry change
                 BBBBBBBB d           ddddddd d      gggggddddd ggg d       d ddddddddddddddddddddddddddddddd
       """
 
@@ -88,12 +88,12 @@ Feature: Subagent rows
     When the subagent rows render
     Then the output is:
       """
-      "a"\texplorer · haiku-4-5 [low] · ctx: ▋░░░░░░░░░ 6% · 12.0k · Map the config package
+      "a"\texplorer · Haiku 4.5 [low] · ctx: ▋░░░░░░░░░ 6% · 12.0k · Map the config package
            BBBBBBBB d          dddddd d      gddddddddd gg d       d dddddddddddddddddddddd
-      "b"\tlocal_agent · opus-4-7 [xhigh] · ctx: █████▏░░░░ 51% · 512.3k · Draft the migration
+      "b"\tlocal_agent · Opus 4.7 [xhigh] · ctx: █████▏░░░░ 51% · 512.3k · Draft the migration
            BBBBBBBBBBB d         dddddddd d      yyyyyydddd yyy d        d ddddddddddddddddddd
-      "c"\ttester · fable-5 · ctx: █████████▎ 92% · 185.0k · Run the suite
+      "c"\ttester · Fable 5 · ctx: █████████▎ 92% · 185.0k · Run the suite
            BBBBBB d         d      rrrrrrrrrr rrr d        d ddddddddddddd
-      "d"\ttiny · sonnet-4-5 · ctx: ░░░░░░░░░░ 0% · 950 · Just started
+      "d"\ttiny · Sonnet 4.5 · ctx: ░░░░░░░░░░ 0% · 950 · Just started
            BBBB d            d      dddddddddd gg d     d dddddddddddd
       """

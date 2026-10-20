@@ -1,8 +1,9 @@
-// Package path provides the path segment: the working directory, shortened, with the git branch when there is one.
+// Package path provides the path segment: the working directory, shortened, with the git branch, and a worktree as its main repository.
 package path
 
 import (
 	_ "embed"
+	"path/filepath"
 	"strings"
 )
 
@@ -30,17 +31,25 @@ type Config interface {
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Painter
 
-// Painter colors text.
+// Painter colors text and supplies the branch and worktree glyphs.
 type Painter interface {
 	Path(s string) string
+	Branch(s string) string
+	Worktree(s string) string
+	// Glyphs are the emoji for a regular branch and for a worktree branch.
+	Glyphs() (branch, worktree string)
 }
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Git
 
-// Git finds the branch of a directory.
+// Git reads the checkout a directory is in.
 type Git interface {
 	// Branch is the printable branch name, or "" when there is none.
 	Branch(dir string) string
+	// Checkout gives the printable branch name, and for a linked worktree its root, the main
+	// repository's root and the main repository's name, all "" when unknown. The roots are in
+	// dir's own spelling, and mainRoot is "" when that spelling cannot be reconciled.
+	Checkout(dir string) (branch, worktreeRoot, mainRoot, project string)
 }
 
 // Deps is everything the segment is built from.
@@ -70,11 +79,15 @@ func (p *Path) Help() string {
 	if p.d.Config.Bool("branch") {
 		help += ", followed by the git branch in brackets"
 	}
-	return help + "."
+	help += "."
+	if dirs := p.d.Config.Strings("worktrees"); len(dirs) > 0 {
+		help += " A git worktree under " + strings.Join(dirs, ", ") + " is shown as the main repository's name."
+	}
+	return help
 }
 
 // Keys lists the config keys the segment reads, relative to its section.
-func (p *Path) Keys() []string { return []string{"strip", "branch"} }
+func (p *Path) Keys() []string { return []string{"strip", "branch", "worktrees", "emoji"} }
 
 // Render returns the segment's text, or "" to hide it.
 func (p *Path) Render() string {
@@ -82,13 +95,79 @@ func (p *Path) Render() string {
 	if dir == "" {
 		return ""
 	}
-	out := displayPath(dir, p.d.Home, p.d.Config.Strings("strip"))
-	if p.d.Config.Bool("branch") {
-		if branch := p.d.Git.Branch(dir); branch != "" {
-			out += " (" + branch + ")"
+	showBranch := p.d.Config.Bool("branch")
+	worktrees := p.d.Config.Strings("worktrees")
+	strip := p.d.Config.Strings("strip")
+	if !showBranch && len(worktrees) == 0 {
+		return p.d.Paint.Path(displayPath(dir, p.d.Home, strip))
+	}
+
+	var branch, shown string
+	var isWorktree bool
+	if len(worktrees) == 0 {
+		// Checkout costs extra stats and symlink resolution on every render, so the default stays on the cheap call.
+		branch = p.d.Git.Branch(dir)
+	} else {
+		var root, mainRoot, project string
+		branch, root, mainRoot, project = p.d.Git.Checkout(dir)
+		shown, isWorktree = p.worktreePath(dir, root, mainRoot, project, worktrees)
+	}
+	if !isWorktree {
+		shown = displayPath(dir, p.d.Home, strip)
+	}
+	if !showBranch || branch == "" {
+		return p.d.Paint.Path(shown)
+	}
+	return p.d.Paint.Path(shown+" (") + p.paintBranch(branch, isWorktree) + p.d.Paint.Path(")")
+}
+
+// worktreePath is dir with everything up to the worktree root collapsed to the project name.
+func (p *Path) worktreePath(dir, root, mainRoot, project string, entries []string) (string, bool) {
+	if project == "" || !underWorktrees(root, mainRoot, p.d.Home, entries) {
+		return "", false
+	}
+	// Git does not promise that root is an ancestor of dir, and a misbehaving reader must not corrupt the path.
+	rest, ok := strings.CutPrefix(filepath.Clean(dir), root)
+	if !ok || (rest != "" && rest[0] != '/') {
+		return "", false
+	}
+	return project + rest, true
+}
+
+func (p *Path) paintBranch(branch string, isWorktree bool) string {
+	paint := p.d.Paint.Branch
+	if isWorktree {
+		paint = p.d.Paint.Worktree
+	}
+	if p.d.Config.Bool("emoji") {
+		glyph, worktreeGlyph := p.d.Paint.Glyphs()
+		if isWorktree {
+			glyph = worktreeGlyph
+		}
+		branch = glyph + " " + branch
+	}
+	return paint(branch)
+}
+
+// underWorktrees reports whether root sits strictly under one of the entries. A relative entry
+// is taken from the main repository and cannot match when that is unknown.
+func underWorktrees(root, mainRoot, home string, entries []string) bool {
+	for _, entry := range entries {
+		entry, ok := expandHome(entry, strings.TrimRight(home, "/"))
+		if !ok {
+			continue
+		}
+		if !filepath.IsAbs(entry) {
+			if mainRoot == "" {
+				continue
+			}
+			entry = mainRoot + "/" + entry
+		}
+		if entry = filepath.Clean(entry); strings.HasPrefix(root, entry+"/") {
+			return true
 		}
 	}
-	return p.d.Paint.Path(out)
+	return false
 }
 
 // displayPath strips the longest matching prefix, else abbreviates home to ~, else returns dir.
@@ -111,11 +190,9 @@ func displayPath(dir, home string, prefixes []string) string {
 func longestPrefix(dir, home string, prefixes []string) string {
 	var best string
 	for _, prefix := range prefixes {
-		if rest, ok := strings.CutPrefix(prefix, "~"); ok && (rest == "" || rest[0] == '/') {
-			if home == "" {
-				continue
-			}
-			prefix = home + rest
+		prefix, ok := expandHome(prefix, home)
+		if !ok {
+			continue
 		}
 		prefix = strings.TrimRight(prefix, "/")
 		if prefix != "" && len(prefix) > len(best) && strings.HasPrefix(dir, prefix+"/") {
@@ -123,4 +200,12 @@ func longestPrefix(dir, home string, prefixes []string) string {
 		}
 	}
 	return best
+}
+
+// expandHome turns a leading ~ or ~/ into home. It reports false for such an entry when home is unknown.
+func expandHome(entry, home string) (string, bool) {
+	if rest, ok := strings.CutPrefix(entry, "~"); ok && (rest == "" || rest[0] == '/') {
+		return home + rest, home != ""
+	}
+	return entry, true
 }

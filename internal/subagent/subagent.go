@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"math"
-	"regexp"
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/bar"
@@ -14,6 +13,7 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments"
 	"github.com/PaddleHQ/claude-statusline/segments/ctx"
+	"github.com/PaddleHQ/claude-statusline/segments/model"
 	"github.com/PaddleHQ/claude-statusline/segments/tokens"
 
 	"github.com/tidwall/gjson"
@@ -28,10 +28,7 @@ const (
 	fallbackName   = "agent"
 )
 
-var (
-	dateSuffix = regexp.MustCompile(`-\d{8}$`)
-	ctxKeys    = []string{"ctx.width", "ctx.width_medium", "ctx.width_narrow", "ctx.warn", "ctx.bad"}
-)
+var ctxKeys = []string{"ctx.width", "ctx.width_medium", "ctx.width_narrow", "ctx.warn", "ctx.bad"}
 
 // Keys lists every config key the subagent rows read, for checking against defaults.yaml.
 func Keys() []string {
@@ -116,12 +113,12 @@ func taskName(task gjson.Result) string {
 }
 
 func (r *renderer) appendModel(parts []string, task gjson.Result) []string {
-	model := task.Get("model")
-	if !truthy(model) || model.Type != gjson.String {
+	id := task.Get("model")
+	if !truthy(id) || id.Type != gjson.String {
 		return parts
 	}
 	th := r.th
-	part := th.Paint(th.TextColor, shortModel(model.String()))
+	part := th.Paint(th.TextColor, model.Label(payload.Sanitize(id.String())))
 	if effort := scalar(task.Get("effort")); effort != nil {
 		part += th.Paint(th.Muted, " ["+*effort+"]")
 	}
@@ -181,11 +178,4 @@ func number(r gjson.Result) (float64, bool) {
 		return 0, false
 	}
 	return r.Num, true
-}
-
-// shortModel turns claude-haiku-4-5-20251001 into haiku-4-5.
-func shortModel(id string) string {
-	id = strings.TrimPrefix(id, "claude-")
-	id = dateSuffix.ReplaceAllString(id, "")
-	return payload.Sanitize(id)
 }

@@ -29,6 +29,8 @@ A setting you leave out keeps its default, including the other keys of a segment
 | `theme` | `classic` | Colour theme: a built-in name (`classic` or `gradient`) or the path to a theme file. Anything that cannot be used falls back to `classic`. See [Themes](#themes). |
 | `path.strip` | `[]` | Directory prefixes to strip from the path, as a list; an entry may contain spaces, and a leading `~` means your home directory. |
 | `path.branch` | `true` | Show the git branch after the path (`true` or `false`). |
+| `path.worktrees` | `[]` | Directories that hold git worktrees, as a list; relative entries are relative to the main repository, and a leading `~` means your home directory. Empty means off. |
+| `path.emoji` | `false` | Show the theme's emoji before the branch: 🌿 for a branch and 🌳 for a worktree in the built-in themes (`true` or `false`). |
 | `model.effort` | `true` | Show the effort level after the model name (`true` or `false`). |
 | `ctx.width`, `ctx.width_medium`, `ctx.width_narrow` | `10`, `8`, `6` | Context bar width in cells at 160 columns or more, below 160, and below 120. |
 | `ctx.warn` | `50` | Context usage percentage at or above which the fill turns amber. |
@@ -67,6 +69,15 @@ Reorder or drop segments by editing the list, for example `segments: [path, mode
 The `path` segment shows the working directory (`workspace.current_dir`, else `cwd`). If it starts with one of the prefixes in `path.strip`, that prefix is removed (the longest match wins, and a prefix only matches whole directory names). Otherwise your home directory is shown as `~`, and any other path is shown as it is. For example, `strip: ["~/code", "~/projects"]` in the `path` section turns `/home/you/code/team/app` into `team/app`.
 
 The branch comes from reading `.git` files, never from running `git`. The status line walks up from the directory to the first `.git`; if that is a file (a worktree or submodule) it follows its `gitdir:` pointer. A branch shows as `(main)` and a detached HEAD as the first seven characters of the commit. If the files cannot be read, the branch is left out.
+
+To collapse the long path of a git worktree, list where your worktrees live in `path.worktrees`, for example `worktrees: [.claude/worktrees, .worktrees]` (`.claude/worktrees` is where Claude Code puts its own). A session inside a linked worktree whose root sits under one of the entries shows the main repository's name instead of the path up to the worktree root, and keeps what follows it: `app (fix)` in `/home/you/app/.worktrees/fix`, and `app/pkg/sub (fix)` in its `pkg/sub`. The branch gets the theme's `worktree` colour, and `path.emoji` adds the theme's worktree glyph (`glyphs.worktree`, 🌳 in the built-in themes). `path.strip` is ignored for a worktree. A worktree outside the listed directories, and the main repository itself, are shown as usual.
+
+How entries are matched:
+
+- A relative entry is taken from the main repository's root.
+- Matching is lexical, so the working directory has to be spelled with the same case as the directories git recorded.
+- An absolute entry is compared with the working directory as Claude Code spells it, so write it the same way (for example `/tmp/...`, not `/private/tmp/...`); a relative entry matches in either spelling.
+- A relative entry needs the main repository's root in that spelling, and when it cannot be worked out, the worktree is shown as usual; an absolute entry still collapses.
 
 ### Context, tokens and cache
 
@@ -144,11 +155,11 @@ At 80 columns the same line as at the top of the README wraps into three rows:
 
 ## Subagent rows
 
-Claude Code's agent panel lists the subagents you have running. `claude-statusline subagent` is a `subagentStatusLine` command that draws each row as the agent's name (or its task kind when it has no name), its model without the `claude-` prefix and date suffix, the reasoning effort, a context bar with the percentage of the model's context window used, the token count and the task description:
+Claude Code's agent panel lists the subagents you have running. `claude-statusline subagent` is a `subagentStatusLine` command that draws each row as the agent's name (or its task kind when it has no name), its model as a family and version (`Opus 4.7`, with any date suffix dropped, or the id without its `claude-` prefix when it is not in that form), the reasoning effort, a context bar with the percentage of the model's context window used, the token count and the task description:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/subagent-dark.svg">
-  <img alt="Two agent panel rows: reviewer on sonnet-4-5 at high effort with a green context bar at 42%, and tester on opus-4-7 at xhigh effort with a red context bar at 92%, each followed by a token count and its task description" src="images/subagent-light.svg">
+  <img alt="Two agent panel rows: reviewer on Sonnet 4.5 at high effort with a green context bar at 42%, and tester on Opus 4.7 at xhigh effort with a red context bar at 92%, each followed by a token count and its task description" src="images/subagent-light.svg">
 </picture>
 
 Each part is left out when Claude Code does not send it, so older versions show fewer parts. The bar is the same as the `ctx` segment's: it uses the `ctx.*` widths, warning and bad thresholds, narrows with the panel's `columns`, and follows `theme`, `separator` and `NO_COLOR`. Control characters are stripped from everything Claude Code sends. The command prints nothing and exits 0 whatever it is given, so Claude Code falls back to its default rows. A task without an `id` keeps the default row.
@@ -181,7 +192,7 @@ Point `theme` at a YAML file. A value that contains `/` or starts with `~` is a 
 theme: "~/.config/claude-statusline/ocean.yaml"
 ```
 
-To write one, copy a built-in theme and edit it: [`classic.yaml`](../themes/classic.yaml) for solid bars or [`gradient.yaml`](../themes/gradient.yaml) for gradient ones. Both are commented, and the file you point `theme` at must be complete: every field below is required (except `bar.empty_color` and `bar.marker_color`, which a `gradient` bar can leave out), and a theme does not inherit from another.
+To write one, copy a built-in theme and edit it: [`classic.yaml`](../themes/classic.yaml) for solid bars or [`gradient.yaml`](../themes/gradient.yaml) for gradient ones. Both are commented, and the file you point `theme` at must be complete: every field below is required, with two exceptions. `colors.branch`, `colors.worktree` and the `glyphs` section can be left out, and so can `bar.empty_color` and `bar.marker_color` in a `gradient` bar. A theme does not inherit from another.
 
 ```yaml
 colors:
@@ -192,6 +203,12 @@ colors:
   bad: red
   marker: bold
   path: green
+  branch: green
+  worktree: bold 208
+
+glyphs:
+  branch: "🌿"
+  worktree: "🌳"
 
 bar:
   style: gradient
@@ -206,6 +223,8 @@ bar:
 | Field | Meaning |
 |---|---|
 | `colors.text`, `muted`, `good`, `warn`, `bad`, `marker`, `path` | A colour for each role. `text` is labels and figures, `muted` is separators and empty bar cells, `good`, `warn` and `bad` colour the bar fill, `marker` is the pace marker and `path` is the working directory. An empty string uses the terminal's own colour. |
+| `colors.branch`, `colors.worktree` | Optional. The branch, and the branch of a linked worktree, in the `path` segment. `branch` defaults to the `path` colour and `worktree` to `bold 208`. |
+| `glyphs.branch`, `glyphs.worktree` | Optional. The emoji shown before a branch and before a worktree, 🌿 and 🌳 by default. Each must be a non-empty string without control characters, and must take at least one column. A character followed by the emoji selector U+FE0F (such as `❤️`) counts as two columns, as it does in Claude Code. |
 | `bar.style` | `solid` or `gradient`. |
 | `bar.full`, `bar.empty`, `bar.marker` | The glyphs for a full cell, an empty cell and the pace marker. |
 | `bar.partials` | Seven glyphs for a cell filled by one to seven eighths. Required for `solid`; a `gradient` bar fills whole cells and leaves it out. |
@@ -214,4 +233,4 @@ bar:
 
 A colour is a space-separated list of tokens, applied in order: `bold`, `dim`, `italic`, `underline`, a name (`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, or `bright-` followed by one of those), a number from 0 to 255 for the 256-colour palette, or `#rrggbb` for a true colour. At most one token may be a colour, so `bold 33` and `underline #ff8800` are valid and `red blue` is not.
 
-A theme is checked strictly. An unknown theme name, an unreadable file, invalid YAML, an unknown key, a bad colour, a missing field or a wrong number of glyphs all make the status line use `classic` instead, silently, rather than applying half a theme. If your theme does not seem to apply, a typo in a key is the usual cause.
+A theme is checked strictly. An unknown theme name, an unreadable file, invalid YAML, an unknown key, a bad colour, a missing field, a wrong number of glyphs, or an empty, zero-width or control-character glyph all make the status line use `classic` instead, silently, rather than applying half a theme. If your theme does not seem to apply, a typo in a key is the usual cause.

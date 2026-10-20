@@ -17,6 +17,107 @@ func (_m *Painter) EXPECT() *Painter_Expecter {
 	return &Painter_Expecter{mock: &_m.Mock}
 }
 
+// Branch provides a mock function with given fields: s
+func (_m *Painter) Branch(s string) string {
+	ret := _m.Called(s)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Branch")
+	}
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(s)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
+// Painter_Branch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Branch'
+type Painter_Branch_Call struct {
+	*mock.Call
+}
+
+// Branch is a helper method to define mock.On call
+//   - s string
+func (_e *Painter_Expecter) Branch(s interface{}) *Painter_Branch_Call {
+	return &Painter_Branch_Call{Call: _e.mock.On("Branch", s)}
+}
+
+func (_c *Painter_Branch_Call) Run(run func(s string)) *Painter_Branch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *Painter_Branch_Call) Return(_a0 string) *Painter_Branch_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Painter_Branch_Call) RunAndReturn(run func(string) string) *Painter_Branch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Glyphs provides a mock function with no fields
+func (_m *Painter) Glyphs() (string, string) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Glyphs")
+	}
+
+	var r0 string
+	var r1 string
+	if rf, ok := ret.Get(0).(func() (string, string)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func() string); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	return r0, r1
+}
+
+// Painter_Glyphs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Glyphs'
+type Painter_Glyphs_Call struct {
+	*mock.Call
+}
+
+// Glyphs is a helper method to define mock.On call
+func (_e *Painter_Expecter) Glyphs() *Painter_Glyphs_Call {
+	return &Painter_Glyphs_Call{Call: _e.mock.On("Glyphs")}
+}
+
+func (_c *Painter_Glyphs_Call) Run(run func()) *Painter_Glyphs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Painter_Glyphs_Call) Return(branch string, worktree string) *Painter_Glyphs_Call {
+	_c.Call.Return(branch, worktree)
+	return _c
+}
+
+func (_c *Painter_Glyphs_Call) RunAndReturn(run func() (string, string)) *Painter_Glyphs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Path provides a mock function with given fields: s
 func (_m *Painter) Path(s string) string {
 	ret := _m.Called(s)
@@ -59,6 +160,52 @@ func (_c *Painter_Path_Call) Return(_a0 string) *Painter_Path_Call {
 }
 
 func (_c *Painter_Path_Call) RunAndReturn(run func(string) string) *Painter_Path_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Worktree provides a mock function with given fields: s
+func (_m *Painter) Worktree(s string) string {
+	ret := _m.Called(s)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Worktree")
+	}
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(s)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
+// Painter_Worktree_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Worktree'
+type Painter_Worktree_Call struct {
+	*mock.Call
+}
+
+// Worktree is a helper method to define mock.On call
+//   - s string
+func (_e *Painter_Expecter) Worktree(s interface{}) *Painter_Worktree_Call {
+	return &Painter_Worktree_Call{Call: _e.mock.On("Worktree", s)}
+}
+
+func (_c *Painter_Worktree_Call) Run(run func(s string)) *Painter_Worktree_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *Painter_Worktree_Call) Return(_a0 string) *Painter_Worktree_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Painter_Worktree_Call) RunAndReturn(run func(string) string) *Painter_Worktree_Call {
 	_c.Call.Return(run)
 	return _c
 }
