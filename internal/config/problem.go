@@ -23,6 +23,7 @@ const (
 	reportNote       = "The line is where the parser noticed the problem; the mistake may be just before it."
 	contextBefore    = 3
 	contextAfter     = 2
+	maxContextRunes  = 200
 )
 
 var yamlLine = regexp.MustCompile(`line (\d+): `)
@@ -47,13 +48,44 @@ func (c *Config) Problem() *Problem {
 func (c *Config) UnknownKeys(pluginDefaults ...string) []string {
 	defaults := mergeDefaults(pluginDefaults)
 	var unknown []string
-	for key := range flatten(c.user) {
-		if _, ok := defaults[key]; !ok {
-			unknown = append(unknown, key)
+	for top, val := range c.user {
+		section := mapOf(val)
+		if section == nil {
+			// A dotted top-level key such as "ctx.warn" is never read: sections are nested.
+			if !knownTopLevel(defaults, top, val) {
+				unknown = append(unknown, top)
+			}
+			continue
+		}
+		for name := range section {
+			if _, ok := defaults[top+"."+name]; !ok {
+				unknown = append(unknown, top+"."+name)
+			}
 		}
 	}
 	slices.Sort(unknown)
 	return unknown
+}
+
+// knownTopLevel says whether a top-level key that is not a mapping is a setting or a bare section header.
+func knownTopLevel(defaults map[string]any, key string, val any) bool {
+	if strings.Contains(key, ".") {
+		return false
+	}
+	if _, ok := defaults[key]; ok {
+		return true
+	}
+	return val == nil && isSection(defaults, key)
+}
+
+// isSection says whether key is a section header in defaults, which the user may uncomment on its own.
+func isSection(defaults map[string]any, key string) bool {
+	for name := range defaults {
+		if strings.HasPrefix(name, key+".") {
+			return true
+		}
+	}
+	return false
 }
 
 // Report describes the problem for a person: the line and the reason, then the file's lines around it.
@@ -84,6 +116,10 @@ func (p *Problem) context(lines []string) string {
 		if n <= len(lines) {
 			// Clean drops tabs, and the parser may be complaining about one.
 			text = Clean(strings.ReplaceAll(lines[n-1], "\t", "→"))
+			// A file under the size limit can still hold lines of hundreds of kilobytes.
+			if r := []rune(text); len(r) > maxContextRunes {
+				text = string(r[:maxContextRunes]) + "…"
+			}
 		}
 		rows = append(rows, strings.TrimRight(fmt.Sprintf("%s %*d | %s", marker, width, n, text), " "))
 	}

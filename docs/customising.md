@@ -64,15 +64,18 @@ When `config.yaml` exists but cannot be used, the status line draws one red row 
 ~/.claude/claude-statusline/config.yaml:12 did not find expected key · run /statusline:config-check
 ```
 
-The file cannot be used when it is not valid YAML (a duplicate key counts), when its top level is not a mapping, when it is larger than 1 MiB, or when it cannot be read or is not a regular file. A missing file, an empty file and a file with only comments are fine. The row is never wrapped. On a narrow terminal it is trimmed from the path first, then the hint, then the reason. The agent panel rows never show it.
+The file cannot be used when it is not valid YAML (a duplicate key counts), when its top level is not a mapping, when it is larger than 1 MiB, or when it cannot be read or is not a regular file. A missing file, an empty file and a file with only comments are fine. The row is one row, never wrapped, and is trimmed to the terminal width counted in characters (a wide East Asian character counts as one), from the path first, then the hint, then the reason. The agent panel rows never show it.
 
 Run `/statusline:config-check` in Claude Code, or `claude-statusline config-check` in a terminal, for the full report. It starts with `Config file:` and the path, then says one of:
 
 - `Parsed without errors.`
 - `Does not exist, so the defaults apply.`
-- the line, the parser's reason, and the lines around it, with `>` marking the line the parser named.
+- the line, the parser's reason, and the lines around it, with `>` marking the line the parser named. Each context line is cut at 200 characters.
+- a reason with no line, when the file cannot be read, is not a regular file, is too large or is not a mapping.
 
-After a good parse it also lists the settings it does not know, such as a key you uncommented without its section header:
+With no config directory, the first line is `Config file: none` and the defaults apply.
+
+After a good parse it also lists the settings it does not know, such as a key you uncommented without its section header, or a dotted key like `ctx.warn` (a section header on its own is fine):
 
 ```text
 Unknown settings (ignored):

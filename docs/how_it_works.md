@@ -37,7 +37,7 @@ In order, a render:
 
 The `subagent` command is the same idea for Claude Code's agent panel; see [Subagent rows](customising.md#subagent-rows).
 
-The binary prints the line with no trailing newline and always exits 0. A config file that cannot be used never blanks the line: the defaults apply, and a red row above the line says why. `claude-statusline config-check` is the one command that exits 1 when the config cannot be used. Control characters are stripped from every string taken from the session, and any other unexpected input results in blank output rather than an error, because a blank status line is better than a broken one.
+The binary prints the line with no trailing newline, and the status line always exits 0. A config file that cannot be used never blanks the line: the defaults apply, and a red row above the line says why. `claude-statusline config-check` is the one command that exits 1 when the config cannot be used. Control characters are stripped from every string taken from the session, and any other unexpected input results in blank output rather than an error, because a blank status line is better than a broken one.
 
 ## Shared rate-limit cache
 

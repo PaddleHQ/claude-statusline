@@ -292,6 +292,15 @@ func TestProblemReportCleansText(t *testing.T) {
 		"\n"+reportNote, p.Report())
 }
 
+func TestProblemReportCutsLongLines(t *testing.T) {
+	t.Parallel()
+
+	long := strings.Repeat("x", 5000)
+	report := config.NewProblem(2, "reason", "a: 1\nb: "+long+"\nc: 3").Report()
+	assert.Contains(t, report, "> 2 | b: "+strings.Repeat("x", 197)+"…\n")
+	assert.Less(t, len(report), 500)
+}
+
 func TestProblemReportOutsideTheFile(t *testing.T) {
 	t.Parallel()
 
@@ -319,6 +328,9 @@ func TestUnknownKeys(t *testing.T) {
 		{name: "a key under the wrong section", text: "cache:\n  warn: 5\n  width: 20\n", want: []string{"cache.width"}},
 		{name: "a clean file", text: "separator: x\nhooks:\n  ttl: 5\ncache:\n  warn: 5\n", want: nil},
 		{name: "several, sorted", text: "zz: 1\nhooks:\n  nope: 1\naa: 2\n", want: []string{"aa", "hooks.nope", "zz"}},
+		{name: "dotted top-level keys", text: "ctx.warn: 1\nhooks.ttl: 5\n", want: []string{"ctx.warn", "hooks.ttl"}},
+		{name: "a section header on its own", text: "cache:\n", want: nil},
+		{name: "an empty key that is not a section", text: "ttl:\n", want: []string{"ttl"}},
 		{name: "a broken file", text: "ttl: 60\nttl: 61\n", want: nil},
 	}
 	for _, tt := range tests {
