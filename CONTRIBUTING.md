@@ -38,7 +38,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `internal/featuretest` | The step definitions behind the feature files, shared by the tests and the image generator. |
 | `tools/screenshots` | The command that regenerates the documentation images: it runs the `@screenshot` scenarios and draws what they print as SVG. It is one `main` package with its own tests. |
 | `docs/` | The user documentation, and the generated images in `docs/images/`. |
-| `commands/` | The plugin's slash commands: `help.md` is `/statusline:help`, which runs `claude-statusline help` and has Claude relay its output, and `uninstall.md` is `/statusline:uninstall`, which runs `claude-statusline uninstall`. Both go through `hooks/run.sh`, which looks in `CLAUDE_PLUGIN_DATA`, then in the plugin's data directory under the config directory, then in the legacy `claude-statusline/bin`. |
+| `commands/` | The plugin's slash commands: `help.md` is `/statusline:help`, which runs `claude-statusline help` and has Claude relay its output, and `uninstall.md` is `/statusline:uninstall`, which runs `claude-statusline uninstall` and then `claude plugin uninstall statusline@claude-statusline -s user`. Each command's `allowed-tools` lists the exact commands it may run without asking; Claude Code matches them with the quotes kept, so the script path is written `"*/hooks/run.sh"`. Both go through `hooks/run.sh`, which looks in `CLAUDE_PLUGIN_DATA`, then in the plugin's data directory under the config directory, then in the legacy `claude-statusline/bin`. |
 | `.claude-plugin/` | The plugin and marketplace manifests. |
 
 ## Verifying a change

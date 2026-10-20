@@ -1,6 +1,6 @@
 ---
-description: Remove the status line from your settings before uninstalling the plugin
-allowed-tools: Bash(sh *hooks/run.sh uninstall)
+description: Remove the status line from your settings and uninstall the plugin
+allowed-tools: Bash(sh "*/hooks/run.sh" uninstall), Bash(claude plugin uninstall statusline@claude-statusline *)
 disable-model-invocation: true
 ---
 
@@ -8,4 +8,14 @@ Output of the status line's uninstall command:
 
 !`sh "${CLAUDE_PLUGIN_ROOT}/hooks/run.sh" uninstall 2>&1`
 
-Tell the user what the output says was removed or left alone, in a few short lines, and that the lines will not be added back while the plugin is installed (`claude-statusline setup` turns them on again). Then tell them to run `/plugin uninstall statusline@claude-statusline` themselves to finish: that removes the plugin and its data directory, and you must not run it for them. Their `config.yaml`, `statusline.d` hooks and `usage-latest.json` are never deleted. If the output says NOT-INSTALLED, the status line binary is not installed, so there is nothing for this command to remove: tell them to run `/plugin uninstall statusline@claude-statusline`, and to delete any `statusLine` or `subagentStatusLine` entry of theirs that still points at claude-statusline from `~/.claude/settings.json`.
+Then run exactly this command, once, and nothing else:
+
+`claude plugin uninstall statusline@claude-statusline -s user --json`
+
+Read its JSON output and tell the user, in a few short lines:
+
+- What the first output says was removed from their settings or left alone. If it says NOT-INSTALLED, the status line binary was not installed, so nothing was removed from their settings: tell them to delete any `statusLine` or `subagentStatusLine` entry that still points at claude-statusline from `~/.claude/settings.json`.
+- If the uninstall succeeded (`"outcome":"ok"`): the plugin and its data directory are removed, and it takes full effect in their next session.
+- If it failed because the plugin is installed for a project (`installedScope` is `project`): do not run anything else, because uninstalling it edits the project's shared `.claude/settings.json`. Tell them it is installed for the project, and that they can run `/plugin uninstall statusline@claude-statusline` there if the team agrees, or disable it just for themselves with `claude plugin disable statusline@claude-statusline --scope local`.
+- If the `claude` command was not found or failed for another reason: tell them to run `/plugin uninstall statusline@claude-statusline` themselves to finish.
+- Their `config.yaml`, `statusline.d` hooks and `usage-latest.json` are never deleted.

@@ -1,6 +1,6 @@
 ---
 description: Explain what your status line shows, from your own settings
-allowed-tools: Bash(sh *hooks/run.sh help)
+allowed-tools: Bash(sh "*/hooks/run.sh" help)
 disable-model-invocation: true
 ---
 
