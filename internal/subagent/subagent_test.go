@@ -75,7 +75,7 @@ func TestBuild(t *testing.T) {
   warn: 20
   bad: 25
 separator: "|"`,
-			want: `"t1"\t\e[1mreviewer\e[0m \e[2m|\e[0m sonnet-4-5 \e[2m|\e[0m ctx: \e[31m█▌\e[0m\e[2m░░░\e[0m \e[31m30%\e[0m \e[2m|\e[0m 60.0k \e[2m|\e[0m \e[2mCustom thresholds\e[0m`,
+			want: `"t1"\t\e[1mreviewer\e[0m \e[2m|\e[0m Sonnet 4.5 \e[2m|\e[0m ctx: \e[31m█▌\e[0m\e[2m░░░\e[0m \e[31m30%\e[0m \e[2m|\e[0m 60.0k \e[2m|\e[0m \e[2mCustom thresholds\e[0m`,
 		},
 		{
 			name:    `Empty input prints no rows`,
@@ -91,35 +91,35 @@ separator: "|"`,
 			name:    `The gradient theme's context bars in a 100 column panel, at each color threshold`,
 			session: `{"columns":100,"tasks":[{"id":"ok","name":"ok","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":99999},{"id":"warn","name":"warn","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":100000},{"id":"bad","name":"bad","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":180000},{"id":"full","name":"full","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":200000},{"id":"over","name":"over","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":250000},{"id":"zero","name":"zero","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":0}]}`,
 			config:  `theme: gradient`,
-			want: `"ok"\t\e[1mok\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;188;226;173m▰\e[0m\e[38;2;228;226;174m▰\e[0m\e[38;2;74;74;74m▱▱▱\e[0m \e[32m49%\e[0m \e[2m·\e[0m 99.9k
-"warn"\t\e[1mwarn\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;188;226;173m▰\e[0m\e[38;2;228;226;174m▰\e[0m\e[38;2;74;74;74m▱▱▱\e[0m \e[33m50%\e[0m \e[2m·\e[0m 100.0k
-"bad"\t\e[1mbad\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;188;226;173m▰\e[0m\e[38;2;228;226;174m▰\e[0m\e[38;2;248;209;174m▰\e[0m\e[38;2;246;174;171m▰\e[0m\e[38;2;74;74;74m▱\e[0m \e[31m90%\e[0m \e[2m·\e[0m 180.0k
-"full"\t\e[1mfull\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;188;226;173m▰\e[0m\e[38;2;228;226;174m▰\e[0m\e[38;2;248;209;174m▰\e[0m\e[38;2;246;174;171m▰\e[0m\e[38;2;243;139;168m▰\e[0m \e[31m100%\e[0m \e[2m·\e[0m 200.0k
-"over"\t\e[1mover\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;188;226;173m▰\e[0m\e[38;2;228;226;174m▰\e[0m\e[38;2;248;209;174m▰\e[0m\e[38;2;246;174;171m▰\e[0m\e[38;2;243;139;168m▰\e[0m \e[31m125%\e[0m \e[2m·\e[0m 250.0k
-"zero"\t\e[1mzero\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[38;2;74;74;74m▱▱▱▱▱▱\e[0m \e[32m0%\e[0m \e[2m·\e[0m 0`,
+			want: `"ok"\t\e[1mok\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;188;226;173m▰\e[0m\e[38;2;228;226;174m▰\e[0m\e[38;2;74;74;74m▱▱▱\e[0m \e[32m49%\e[0m \e[2m·\e[0m 99.9k
+"warn"\t\e[1mwarn\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;188;226;173m▰\e[0m\e[38;2;228;226;174m▰\e[0m\e[38;2;74;74;74m▱▱▱\e[0m \e[33m50%\e[0m \e[2m·\e[0m 100.0k
+"bad"\t\e[1mbad\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;188;226;173m▰\e[0m\e[38;2;228;226;174m▰\e[0m\e[38;2;248;209;174m▰\e[0m\e[38;2;246;174;171m▰\e[0m\e[38;2;74;74;74m▱\e[0m \e[31m90%\e[0m \e[2m·\e[0m 180.0k
+"full"\t\e[1mfull\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;188;226;173m▰\e[0m\e[38;2;228;226;174m▰\e[0m\e[38;2;248;209;174m▰\e[0m\e[38;2;246;174;171m▰\e[0m\e[38;2;243;139;168m▰\e[0m \e[31m100%\e[0m \e[2m·\e[0m 200.0k
+"over"\t\e[1mover\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;188;226;173m▰\e[0m\e[38;2;228;226;174m▰\e[0m\e[38;2;248;209;174m▰\e[0m\e[38;2;246;174;171m▰\e[0m\e[38;2;243;139;168m▰\e[0m \e[31m125%\e[0m \e[2m·\e[0m 250.0k
+"zero"\t\e[1mzero\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[38;2;74;74;74m▱▱▱▱▱▱\e[0m \e[32m0%\e[0m \e[2m·\e[0m 0`,
 		},
 		{
 			name:    `The gradient theme with NO_COLOR keeps the block characters but drops every color in agent rows`,
 			session: `{"columns":200,"tasks":[{"id":"ok","name":"ok","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":99999},{"id":"warn","name":"warn","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":100000},{"id":"bad","name":"bad","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":180000},{"id":"full","name":"full","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":200000},{"id":"over","name":"over","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":250000},{"id":"zero","name":"zero","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":0}]}`,
 			config:  `theme: gradient`,
 			env:     map[string]string{`NO_COLOR`: `1`},
-			want: `"ok"\tok · opus-4-7 · ctx: ▰▰▰▰▰▱▱▱▱▱ 49% · 99.9k
-"warn"\twarn · opus-4-7 · ctx: ▰▰▰▰▰▱▱▱▱▱ 50% · 100.0k
-"bad"\tbad · opus-4-7 · ctx: ▰▰▰▰▰▰▰▰▰▱ 90% · 180.0k
-"full"\tfull · opus-4-7 · ctx: ▰▰▰▰▰▰▰▰▰▰ 100% · 200.0k
-"over"\tover · opus-4-7 · ctx: ▰▰▰▰▰▰▰▰▰▰ 125% · 250.0k
-"zero"\tzero · opus-4-7 · ctx: ▱▱▱▱▱▱▱▱▱▱ 0% · 0`,
+			want: `"ok"\tok · Opus 4.7 · ctx: ▰▰▰▰▰▱▱▱▱▱ 49% · 99.9k
+"warn"\twarn · Opus 4.7 · ctx: ▰▰▰▰▰▱▱▱▱▱ 50% · 100.0k
+"bad"\tbad · Opus 4.7 · ctx: ▰▰▰▰▰▰▰▰▰▱ 90% · 180.0k
+"full"\tfull · Opus 4.7 · ctx: ▰▰▰▰▰▰▰▰▰▰ 100% · 200.0k
+"over"\tover · Opus 4.7 · ctx: ▰▰▰▰▰▰▰▰▰▰ 125% · 250.0k
+"zero"\tzero · Opus 4.7 · ctx: ▱▱▱▱▱▱▱▱▱▱ 0% · 0`,
 		},
 		{
 			name:    `The gradient theme's context bars either side of the warning and bad thresholds`,
 			session: `{"columns":200,"tasks":[{"id":"ok","name":"ok","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":99999},{"id":"warn","name":"warn","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":100000},{"id":"bad","name":"bad","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":180000},{"id":"full","name":"full","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":200000},{"id":"over","name":"over","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":250000},{"id":"zero","name":"zero","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":0}]}`,
 			config:  `theme: gradient`,
-			want: `"ok"\t\e[1mok\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;170;226;173m▰\e[0m\e[38;2;192;226;173m▰\e[0m\e[38;2;215;226;174m▰\e[0m\e[38;2;237;226;174m▰\e[0m\e[38;2;74;74;74m▱▱▱▱▱\e[0m \e[32m49%\e[0m \e[2m·\e[0m 99.9k
-"warn"\t\e[1mwarn\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;170;226;173m▰\e[0m\e[38;2;192;226;173m▰\e[0m\e[38;2;215;226;174m▰\e[0m\e[38;2;237;226;174m▰\e[0m\e[38;2;74;74;74m▱▱▱▱▱\e[0m \e[33m50%\e[0m \e[2m·\e[0m 100.0k
-"bad"\t\e[1mbad\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;170;226;173m▰\e[0m\e[38;2;192;226;173m▰\e[0m\e[38;2;215;226;174m▰\e[0m\e[38;2;237;226;174m▰\e[0m\e[38;2;249;217;175m▰\e[0m\e[38;2;248;198;173m▰\e[0m\e[38;2;246;178;172m▰\e[0m\e[38;2;245;159;170m▰\e[0m\e[38;2;74;74;74m▱\e[0m \e[31m90%\e[0m \e[2m·\e[0m 180.0k
-"full"\t\e[1mfull\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;170;226;173m▰\e[0m\e[38;2;192;226;173m▰\e[0m\e[38;2;215;226;174m▰\e[0m\e[38;2;237;226;174m▰\e[0m\e[38;2;249;217;175m▰\e[0m\e[38;2;248;198;173m▰\e[0m\e[38;2;246;178;172m▰\e[0m\e[38;2;245;159;170m▰\e[0m\e[38;2;243;139;168m▰\e[0m \e[31m100%\e[0m \e[2m·\e[0m 200.0k
-"over"\t\e[1mover\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;170;226;173m▰\e[0m\e[38;2;192;226;173m▰\e[0m\e[38;2;215;226;174m▰\e[0m\e[38;2;237;226;174m▰\e[0m\e[38;2;249;217;175m▰\e[0m\e[38;2;248;198;173m▰\e[0m\e[38;2;246;178;172m▰\e[0m\e[38;2;245;159;170m▰\e[0m\e[38;2;243;139;168m▰\e[0m \e[31m125%\e[0m \e[2m·\e[0m 250.0k
-"zero"\t\e[1mzero\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[38;2;74;74;74m▱▱▱▱▱▱▱▱▱▱\e[0m \e[32m0%\e[0m \e[2m·\e[0m 0`,
+			want: `"ok"\t\e[1mok\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;170;226;173m▰\e[0m\e[38;2;192;226;173m▰\e[0m\e[38;2;215;226;174m▰\e[0m\e[38;2;237;226;174m▰\e[0m\e[38;2;74;74;74m▱▱▱▱▱\e[0m \e[32m49%\e[0m \e[2m·\e[0m 99.9k
+"warn"\t\e[1mwarn\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;170;226;173m▰\e[0m\e[38;2;192;226;173m▰\e[0m\e[38;2;215;226;174m▰\e[0m\e[38;2;237;226;174m▰\e[0m\e[38;2;74;74;74m▱▱▱▱▱\e[0m \e[33m50%\e[0m \e[2m·\e[0m 100.0k
+"bad"\t\e[1mbad\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;170;226;173m▰\e[0m\e[38;2;192;226;173m▰\e[0m\e[38;2;215;226;174m▰\e[0m\e[38;2;237;226;174m▰\e[0m\e[38;2;249;217;175m▰\e[0m\e[38;2;248;198;173m▰\e[0m\e[38;2;246;178;172m▰\e[0m\e[38;2;245;159;170m▰\e[0m\e[38;2;74;74;74m▱\e[0m \e[31m90%\e[0m \e[2m·\e[0m 180.0k
+"full"\t\e[1mfull\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;170;226;173m▰\e[0m\e[38;2;192;226;173m▰\e[0m\e[38;2;215;226;174m▰\e[0m\e[38;2;237;226;174m▰\e[0m\e[38;2;249;217;175m▰\e[0m\e[38;2;248;198;173m▰\e[0m\e[38;2;246;178;172m▰\e[0m\e[38;2;245;159;170m▰\e[0m\e[38;2;243;139;168m▰\e[0m \e[31m100%\e[0m \e[2m·\e[0m 200.0k
+"over"\t\e[1mover\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[38;2;148;226;173m▰\e[0m\e[38;2;170;226;173m▰\e[0m\e[38;2;192;226;173m▰\e[0m\e[38;2;215;226;174m▰\e[0m\e[38;2;237;226;174m▰\e[0m\e[38;2;249;217;175m▰\e[0m\e[38;2;248;198;173m▰\e[0m\e[38;2;246;178;172m▰\e[0m\e[38;2;245;159;170m▰\e[0m\e[38;2;243;139;168m▰\e[0m \e[31m125%\e[0m \e[2m·\e[0m 250.0k
+"zero"\t\e[1mzero\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[38;2;74;74;74m▱▱▱▱▱▱▱▱▱▱\e[0m \e[32m0%\e[0m \e[2m·\e[0m 0`,
 		},
 		{
 			name:    `Invalid JSON input prints no rows`,
@@ -129,7 +129,7 @@ separator: "|"`,
 		{
 			name:    `A long description is shown in full, not cut to fit the panel width`,
 			session: `{"columns":200,"tasks":[{"id":"t1","name":"writer","type":"local_agent","description":"Investigate why the nightly reconciliation job reports a mismatch between the ledger and the settlement files for accounts opened before the migration, then propose and implement a fix with tests","model":"claude-sonnet-4-5","effort":"medium","contextWindowSize":200000,"tokenCount":123456}]}`,
-			want:    `"t1"\t\e[1mwriter\e[0m \e[2m·\e[0m sonnet-4-5\e[2m [medium]\e[0m \e[2m·\e[0m ctx: \e[33m██████▏\e[0m\e[2m░░░\e[0m \e[33m61%\e[0m \e[2m·\e[0m 123.4k \e[2m·\e[0m \e[2mInvestigate why the nightly reconciliation job reports a mismatch between the ledger and the settlement files for accounts opened before the migration, then propose and implement a fix with tests\e[0m`,
+			want:    `"t1"\t\e[1mwriter\e[0m \e[2m·\e[0m Sonnet 4.5\e[2m [medium]\e[0m \e[2m·\e[0m ctx: \e[33m██████▏\e[0m\e[2m░░░\e[0m \e[33m61%\e[0m \e[2m·\e[0m 123.4k \e[2m·\e[0m \e[2mInvestigate why the nightly reconciliation job reports a mismatch between the ledger and the settlement files for accounts opened before the migration, then propose and implement a fix with tests\e[0m`,
 		},
 		{
 			name:    `Tasks from an older Claude Code without model or effort fields fall back to their type and token count`,
@@ -140,20 +140,28 @@ separator: "|"`,
 		{
 			name:    `Rows omit the token count or the context bar when the data for them is missing or zero`,
 			session: `{"tasks":[{"id":"t1","name":"a","type":"local_agent","description":"No token count","model":"claude-opus-4-7","effort":"high"},{"id":"t2","name":"b","type":"local_agent","model":"claude-opus-4-7","tokenCount":4200},{"id":"t3","name":"c","type":"local_agent","description":"Zero window","model":"claude-opus-4-7","contextWindowSize":0,"tokenCount":4200}]}`,
-			want: `"t1"\t\e[1ma\e[0m \e[2m·\e[0m opus-4-7\e[2m [high]\e[0m \e[2m·\e[0m \e[2mNo token count\e[0m
-"t2"\t\e[1mb\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m 4.2k
-"t3"\t\e[1mc\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m 4.2k \e[2m·\e[0m \e[2mZero window\e[0m`,
+			want: `"t1"\t\e[1ma\e[0m \e[2m·\e[0m Opus 4.7\e[2m [high]\e[0m \e[2m·\e[0m \e[2mNo token count\e[0m
+"t2"\t\e[1mb\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m 4.2k
+"t3"\t\e[1mc\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m 4.2k \e[2m·\e[0m \e[2mZero window\e[0m`,
 		},
 		{
 			name:    `A narrow 80 column panel uses the narrow context bar`,
 			session: `{"columns":80,"tasks":[{"id":"t1","name":"reviewer","description":"Narrow panel","model":"claude-sonnet-4-5","contextWindowSize":200000,"tokenCount":150000}]}`,
-			want:    `"t1"\t\e[1mreviewer\e[0m \e[2m·\e[0m sonnet-4-5 \e[2m·\e[0m ctx: \e[33m████▌\e[0m\e[2m░\e[0m \e[33m75%\e[0m \e[2m·\e[0m 150.0k \e[2m·\e[0m \e[2mNarrow panel\e[0m`,
+			want:    `"t1"\t\e[1mreviewer\e[0m \e[2m·\e[0m Sonnet 4.5 \e[2m·\e[0m ctx: \e[33m████▌\e[0m\e[2m░\e[0m \e[33m75%\e[0m \e[2m·\e[0m 150.0k \e[2m·\e[0m \e[2mNarrow panel\e[0m`,
+		},
+		{
+			name:    `A model id is shown as its family and version, and one that does not parse is shown as it is`,
+			session: `{"tasks":[{"id":"a","name":"a","model":"claude-haiku-4-5-20251001"},{"id":"b","name":"b","model":"sonnet"},{"id":"c","name":"c","model":"claude-opus-4-7\u0000"}]}`,
+			env:     map[string]string{`NO_COLOR`: `1`},
+			want: `"a"\ta · Haiku 4.5
+"b"\tb · sonnet
+"c"\tc · Opus 4.7`,
 		},
 		{
 			name:    `NO_COLOR removes every color from agent rows`,
 			session: `{"tasks":[{"id":"t1","name":"reviewer","type":"local_agent","description":"Plain text only","model":"claude-sonnet-4-5","effort":"high","contextWindowSize":200000,"tokenCount":150000}]}`,
 			env:     map[string]string{`NO_COLOR`: `1`},
-			want:    `"t1"\treviewer · sonnet-4-5 [high] · ctx: ███████▌░░ 75% · 150.0k · Plain text only`,
+			want:    `"t1"\treviewer · Sonnet 4.5 [high] · ctx: ███████▌░░ 75% · 150.0k · Plain text only`,
 		},
 		{
 			name:    `A payload with no tasks key prints no rows`,
@@ -178,12 +186,12 @@ separator: "|"`,
 		{
 			name:    `Context bars either side of the warning and bad thresholds`,
 			session: `{"columns":200,"tasks":[{"id":"ok","name":"ok","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":99999},{"id":"warn","name":"warn","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":100000},{"id":"bad","name":"bad","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":180000},{"id":"full","name":"full","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":200000},{"id":"over","name":"over","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":250000},{"id":"zero","name":"zero","model":"claude-opus-4-7","contextWindowSize":200000,"tokenCount":0}]}`,
-			want: `"ok"\t\e[1mok\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[32m████▉\e[0m\e[2m░░░░░\e[0m \e[32m49%\e[0m \e[2m·\e[0m 99.9k
-"warn"\t\e[1mwarn\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[33m█████\e[0m\e[2m░░░░░\e[0m \e[33m50%\e[0m \e[2m·\e[0m 100.0k
-"bad"\t\e[1mbad\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[31m█████████\e[0m\e[2m░\e[0m \e[31m90%\e[0m \e[2m·\e[0m 180.0k
-"full"\t\e[1mfull\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[31m██████████\e[0m \e[31m100%\e[0m \e[2m·\e[0m 200.0k
-"over"\t\e[1mover\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[31m██████████\e[0m \e[31m125%\e[0m \e[2m·\e[0m 250.0k
-"zero"\t\e[1mzero\e[0m \e[2m·\e[0m opus-4-7 \e[2m·\e[0m ctx: \e[2m░░░░░░░░░░\e[0m \e[32m0%\e[0m \e[2m·\e[0m 0`,
+			want: `"ok"\t\e[1mok\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[32m████▉\e[0m\e[2m░░░░░\e[0m \e[32m49%\e[0m \e[2m·\e[0m 99.9k
+"warn"\t\e[1mwarn\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[33m█████\e[0m\e[2m░░░░░\e[0m \e[33m50%\e[0m \e[2m·\e[0m 100.0k
+"bad"\t\e[1mbad\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[31m█████████\e[0m\e[2m░\e[0m \e[31m90%\e[0m \e[2m·\e[0m 180.0k
+"full"\t\e[1mfull\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[31m██████████\e[0m \e[31m100%\e[0m \e[2m·\e[0m 200.0k
+"over"\t\e[1mover\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[31m██████████\e[0m \e[31m125%\e[0m \e[2m·\e[0m 250.0k
+"zero"\t\e[1mzero\e[0m \e[2m·\e[0m Opus 4.7 \e[2m·\e[0m ctx: \e[2m░░░░░░░░░░\e[0m \e[32m0%\e[0m \e[2m·\e[0m 0`,
 		},
 	}
 	for i := range tests {

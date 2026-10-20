@@ -3,6 +3,7 @@ package model
 
 import (
 	_ "embed"
+	"regexp"
 	"strings"
 )
 
@@ -13,14 +14,18 @@ var Defaults string
 
 const name = "model"
 
-// families are the model families recognized by a substring of the model id, checked in order.
-var families = []struct{ key, label string }{
-	{"haiku", "Haiku"},
-	{"sonnet", "Sonnet"},
-	{"opus", "Opus"},
-	{"fable", "Fable"},
-	{"mythos", "Mythos"},
-}
+var (
+	// The same model reaches us with a context suffix (claude-opus-5-5[1m]), a provider prefix and version
+	// (us.anthropic.claude-sonnet-4-5-20250929-v1:0) or a Vertex date (claude-sonnet-4-5@20250929), so those are stripped first.
+	contextSuffix  = regexp.MustCompile(`\[[^\]]*\]$`)
+	providerPrefix = regexp.MustCompile(`^(?:[a-z0-9-]+\.)*anthropic\.`)
+	providerSuffix = regexp.MustCompile(`-v\d+(?::\d+)?$`)
+	dateSuffix     = regexp.MustCompile(`[-@]\d{8}$`)
+	// claude-<family words>[-<major>[-<minor>...]], so a new model needs no table entry.
+	modelID = regexp.MustCompile(`^claude-([a-z]+(?:-[a-z]+)*)(?:-(\d+(?:-\d+)*))?$`)
+	// claude-<major>[-<minor>...]-<family words>, the order the 3.x models used.
+	legacyModelID = regexp.MustCompile(`^claude-(\d+(?:-\d+)*)-([a-z]+(?:-[a-z]+)*)$`)
+)
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Session
 
@@ -76,11 +81,19 @@ func (m *Model) Help() string {
 	if m.d.Config.Bool("effort") {
 		help += " and its effort level, as in Opus 4.7 [high]"
 	}
-	return help + ". It reads Haiku (skill), for example, while a skill or subagent runs a different model than the session's."
+	return help + ". It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's."
 }
 
 // Keys lists the config keys the segment reads, relative to its section.
 func (m *Model) Keys() []string { return []string{"effort"} }
+
+// Label turns claude-opus-4-7-20251001 into Opus 4.7, and shows an id it cannot parse as it is minus the claude- prefix.
+func Label(id string) string {
+	if label, _, ok := parse(id); ok {
+		return label
+	}
+	return strings.TrimPrefix(id, "claude-")
+}
 
 // Render returns the segment's text, or "" to hide it.
 func (m *Model) Render() string {
@@ -88,9 +101,9 @@ func (m *Model) Render() string {
 	level := m.d.Session.EffortLevel()
 	// A skill or subagent can run a different model than the session's, which the payload does not reflect.
 	if m.d.Session.TranscriptFile() != "" {
-		if actual, ok := family(m.d.Transcript().LatestModel()); ok {
-			if session, _ := family(m.d.Session.ModelID()); actual.key != session.key {
-				display, level = actual.label+" (skill)", ""
+		if actualLabel, actualKey, ok := parse(m.d.Transcript().LatestModel()); ok {
+			if _, sessionKey, _ := parse(m.d.Session.ModelID()); actualKey != sessionKey {
+				display, level = actualLabel+" (skill)", ""
 			}
 		}
 	}
@@ -103,11 +116,27 @@ func (m *Model) Render() string {
 	return m.d.Paint.Text(display)
 }
 
-func family(id string) (f struct{ key, label string }, ok bool) {
-	for _, f := range families {
-		if strings.Contains(id, f.key) {
-			return f, true
-		}
+// parse reads a model id into its label and lower-case family.
+func parse(id string) (label, family string, ok bool) {
+	id = contextSuffix.ReplaceAllString(id, "")
+	id = providerPrefix.ReplaceAllString(id, "")
+	id = providerSuffix.ReplaceAllString(id, "")
+	id = dateSuffix.ReplaceAllString(id, "")
+	var words, version string
+	if m := modelID.FindStringSubmatch(id); m != nil {
+		family, version = m[1], m[2]
+	} else if m := legacyModelID.FindStringSubmatch(id); m != nil {
+		family, version = m[2], m[1]
+	} else {
+		return "", "", false
 	}
-	return f, false
+	parts := strings.Split(family, "-")
+	for i, w := range parts {
+		parts[i] = strings.ToUpper(w[:1]) + w[1:]
+	}
+	words = strings.Join(parts, " ")
+	if version != "" {
+		words += " " + strings.ReplaceAll(version, "-", ".")
+	}
+	return words, family, true
 }

@@ -80,7 +80,7 @@ There are three layers. Put a test in the lowest one that can show the behaviour
 
 - `tokens` abbreviating 999 as `999`, 1000 as `1.0k` and 1500000 as `1.5M`.
 - `cache` turning red below `cache.warn`, and hiding when the counts add up to zero.
-- `model` showing `Haiku (skill)` when the transcript says a different family ran.
+- `model` showing `Haiku 4.5 (skill)` when the transcript says a different family ran.
 
 **2. Provider unit tests**, in `internal/*` (and `segments/render_test.go` for the composition root). They cover the shared machinery that the plugins sit on: config layering and validation, theme loading, fallback and colour specs, the rate-limit cache's freshness rules, the transcript's bounded reads, the hook contract (output, time to live, timeout, placement), layout and wrapping, setup, the snapshot, the bars and the help command. They use real files in a temporary directory, never your `HOME`. For example:
 
