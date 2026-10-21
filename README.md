@@ -30,7 +30,7 @@ It removes the `statusLine` and `subagentStatusLine` entries this tool set up fr
 
 Use `/statusline:uninstall` rather than `/plugin uninstall` on its own: Claude Code leaves settings alone when a plugin is uninstalled, so the entries would stay behind pointing at a binary that is gone, and the status line would silently vanish. If the plugin is installed for a project rather than for you, the command does not uninstall it, because that edits the project's shared `.claude/settings.json`; it tells you what to run instead.
 
-To turn the status line back on without reinstalling the plugin, run `claude-statusline setup` from a terminal. Run by hand like this, it adds the entries again even after an uninstall.
+To turn the status line back on without reinstalling the plugin, run `"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/statusline-claude-statusline/bin/claude-statusline" setup` from a terminal (or `claude-statusline setup` if it is on your `PATH`). Run by hand like this, it adds the entries again even after an uninstall.
 
 Three things stay, because they are yours: `~/.claude/claude-statusline/config.yaml`, the hooks in `~/.claude/statusline.d/` and the usage snapshot `~/.claude/usage-latest.json` (all under `$CLAUDE_CONFIG_DIR` if you set it). Delete them by hand if you want them gone. A status line of yours that is not this tool's is never removed.
 

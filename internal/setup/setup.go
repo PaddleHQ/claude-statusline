@@ -37,6 +37,8 @@ const (
 	subagentScript   = "paddle-subagent-statusline.sh"
 	mainSentinelName = ".bootstrapped"
 	subSentinelName  = ".bootstrapped-subagent"
+
+	setupBinary = `"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/statusline-claude-statusline/bin/claude-statusline"`
 )
 
 // Locations says where setup reads and writes.
@@ -134,7 +136,7 @@ func (c *config) classify(key, command string) claim {
 		switch {
 		case path == filepath.Clean(c.Bin) && slices.Equal(args, wantArgs):
 			return current
-		case path == filepath.Clean(c.Bin), slices.Contains(c.legacyBins(), path), isPluginDataBin(path):
+		case path == filepath.Clean(c.Bin), isOwnBinary(path), isOwnBinary(resolveSymlinks(path)):
 			return ownedBinary
 		}
 	}
@@ -174,8 +176,13 @@ func isBinaryClaim(cl claim) bool {
 	return cl == current || cl == ownedBinary
 }
 
-func isPluginDataBin(path string) bool {
-	return filepath.Base(path) == binName && appconfig.PluginDataDir(path) != ""
+func isOwnBinary(path string) bool {
+	if !filepath.IsAbs(path) || filepath.Base(path) != binName {
+		return false
+	}
+	bin := filepath.Dir(path)
+	legacy := filepath.Base(bin) == "bin" && filepath.Base(filepath.Dir(bin)) == binName
+	return legacy || appconfig.PluginDataDir(path) != ""
 }
 
 func (c *config) sentinel(name string) string {
@@ -217,7 +224,7 @@ func apply(c config) string {
 		return ""
 	}
 	c.migrate(out)
-	return message(c, settings, status, sub)
+	return message(c, settings, target, status, sub)
 }
 
 func invalidMessage(c config, settings string) string {
@@ -325,6 +332,10 @@ func insertEntry(data []byte, key, command, entryFormat string, wantNew bool) (r
 	return inserted, out
 }
 
+func (c *config) mentionsForeign() bool {
+	return c.event == EventInstalled || c.event == EventManual
+}
+
 func (c *config) mayTakeOverScript() bool {
 	return c.event == EventInstalled || c.event == EventUpdated || c.event == EventManual
 }
@@ -353,7 +364,7 @@ func (c *config) migrate(settings []byte) {
 			return
 		}
 	}
-	for _, name := range []string{"bin", mainSentinelName, subSentinelName, "last-check", ".no-attestation-notice", "cache"} {
+	for _, name := range []string{mainSentinelName, subSentinelName, "last-check", ".no-attestation-notice", "cache"} {
 		_ = os.RemoveAll(filepath.Join(legacy, name))
 	}
 	if temps, err := filepath.Glob(filepath.Join(legacy, "tmp.*")); err == nil {
@@ -376,7 +387,7 @@ func (c *config) pointsIntoLegacy(settings []byte) bool {
 	return false
 }
 
-func message(c config, settings string, status, sub outcome) string {
+func message(c config, settings, target string, status, sub outcome) string {
 	lead := "claude-statusline v" + c.version
 	sentences := statusSentences(c, lead, settings, status)
 	sentences = subSentences(c, sentences, lead, settings, status, sub)
@@ -393,7 +404,7 @@ func message(c config, settings string, status, sub outcome) string {
 	}
 	if len(changed) > 0 {
 		sentences = append(sentences, fmt.Sprintf("Your previous settings are backed up at %s.bak. To remove %s, run /statusline:uninstall.",
-			settings, strings.Join(changed, " and ")))
+			target, strings.Join(changed, " and ")))
 	}
 	return strings.Join(sentences, " ")
 }
@@ -409,7 +420,7 @@ func statusSentences(c config, lead, settings string, status outcome) []string {
 			return []string{lead + " installed."}
 		}
 	case other:
-		if c.event != EventCurrent {
+		if c.mentionsForeign() {
 			return []string{fmt.Sprintf("%s installed, but you already have a statusLine so it was left unchanged. "+
 				"To switch, set statusLine.command in %s to %s.", lead, settings, c.Bin)}
 		}
@@ -426,7 +437,7 @@ func subSentences(c config, sentences []string, lead, settings string, status, s
 		}
 		return append(sentences, "claude-statusline now also styles the subagent rows.")
 	case other:
-		if c.event == EventCurrent {
+		if !c.mentionsForeign() {
 			return sentences
 		}
 		note := fmt.Sprintf("You already have a subagentStatusLine so it was left unchanged. "+
@@ -462,7 +473,7 @@ func Uninstall(w io.Writer, loc Locations) {
 		c.touchSentinels()
 	}
 	lines = append(lines,
-		"The lines will not be added back. To turn the status line on again, run claude-statusline setup.",
+		fmt.Sprintf("The lines will not be added back. To turn the status line on again, run %s setup.", setupBinary),
 		"Your config.yaml, your statusline.d hooks and usage-latest.json were left in place.",
 		"Next, run /plugin uninstall statusline@claude-statusline to remove the plugin and the binary it installed.")
 	_, _ = fmt.Fprintln(w, strings.Join(lines, "\n"))
@@ -476,6 +487,8 @@ func (c *config) uninstallSettings(settings, target string, data []byte) []strin
 		switch {
 		case !existing.Exists():
 			lines = append(lines, fmt.Sprintf("%s is not set.", key))
+		case memberCount(out, key) > 1:
+			lines = append(lines, fmt.Sprintf("%s appears more than once in %s, so it was left alone.", key, settings))
 		case isBinaryClaim(c.classify(key, existing.Get("command").String())):
 			next, ok := removeMember(out, key)
 			if !ok {
@@ -489,18 +502,20 @@ func (c *config) uninstallSettings(settings, target string, data []byte) []strin
 		}
 	}
 	if len(removed) > 0 {
-		mode := os.FileMode(0o600)
-		if fi, err := os.Stat(target); err == nil {
-			mode = fi.Mode().Perm()
-		}
-		if gjson.ValidBytes(out) && backUpAndWrite(target, data, out, mode) {
-			lines = append([]string{fmt.Sprintf("Removed %s from %s. The previous file is backed up at %s.bak.",
-				strings.Join(removed, " and "), settings, settings)}, lines...)
-		} else {
-			lines = append([]string{fmt.Sprintf("Could not update %s, so it was left alone.", settings)}, lines...)
-		}
+		lines = append([]string{c.writeRemoved(settings, target, data, out, removed)}, lines...)
 	}
 	return lines
+}
+
+func (c *config) writeRemoved(settings, target string, before, after []byte, removed []string) string {
+	mode := os.FileMode(0o600)
+	if fi, err := os.Stat(target); err == nil {
+		mode = fi.Mode().Perm()
+	}
+	if !gjson.ValidBytes(after) || !backUpAndWrite(target, before, after, mode) {
+		return fmt.Sprintf("Could not update %s, so it was left alone.", settings)
+	}
+	return fmt.Sprintf("Removed %s from %s. The previous file is backed up at %s.bak.", strings.Join(removed, " and "), settings, target)
 }
 
 // shellWords splits a command the way the shell would for the quoting this tool writes: whitespace separates words,
@@ -676,15 +691,16 @@ func prettyValue(raw []byte, indent, newline string) string {
 func removeMember(data []byte, key string) ([]byte, bool) {
 	type span struct{ start, end int }
 	var members []span
-	target := -1
+	target, count := -1, 0
 	gjson.ParseBytes(data).ForEach(func(k, v gjson.Result) bool {
 		if k.String() == key {
 			target = len(members)
+			count++
 		}
 		members = append(members, span{k.Index, v.Index + len(v.Raw)})
 		return true
 	})
-	if target < 0 {
+	if count != 1 {
 		return nil, false
 	}
 	m := members[target]
@@ -704,4 +720,15 @@ func removeMember(data []byte, key string) ([]byte, bool) {
 	out := make([]byte, 0, len(data))
 	out = append(out, data[:from]...)
 	return append(out, data[to:]...), true
+}
+
+func memberCount(data []byte, key string) int {
+	n := 0
+	gjson.ParseBytes(data).ForEach(func(k, _ gjson.Result) bool {
+		if k.String() == key {
+			n++
+		}
+		return true
+	})
+	return n
 }

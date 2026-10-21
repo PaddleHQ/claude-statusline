@@ -208,7 +208,7 @@ func TestExecuteSetupAndUninstall(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, exe, gjson.GetBytes(got, "statusLine.command").String())
 	assert.FileExists(t, filepath.Join(data, ".bootstrapped"))
-	assert.NoFileExists(t, legacy)
+	assert.FileExists(t, legacy)
 	assert.FileExists(t, filepath.Join(dir, "claude-statusline", "config.yaml"))
 
 	out.Reset()

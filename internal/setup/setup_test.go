@@ -489,6 +489,16 @@ func TestApplyOwnership(t *testing.T) {
 		})
 	}
 
+	t.Run("an update for someone else's lines only says it updated", func(t *testing.T) {
+		t.Parallel()
+		before := settingsWith("/usr/bin/mine", "/usr/bin/mine subagent")
+		dir, _ := newDir(t, &before)
+
+		msg := run(dir, setup.EventUpdated)
+
+		assert.Equal(t, "claude-statusline updated to v1.2.3.", msg)
+	})
+
 	t.Run("a second run writes nothing and says nothing", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
@@ -618,21 +628,23 @@ func TestApplyMigration(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, loc.Bin, gjson.GetBytes(got, "statusLine.command").String())
 		assert.Equal(t, loc.Bin+" subagent", gjson.GetBytes(got, "subagentStatusLine.command").String())
-		for _, gone := range []string{"bin", ".bootstrapped", ".bootstrapped-subagent", "last-check", ".no-attestation-notice", "cache", "tmp.abc"} {
+		assert.FileExists(t, filepath.Join(legacy, "bin", "claude-statusline"))
+		for _, gone := range []string{".bootstrapped", ".bootstrapped-subagent", "last-check", ".no-attestation-notice", "cache", "tmp.abc"} {
 			assert.NoDirExists(t, filepath.Join(legacy, gone))
 			assert.NoFileExists(t, filepath.Join(legacy, gone))
 		}
 		assert.FileExists(t, filepath.Join(legacy, "config.yaml"))
 	})
 
-	t.Run("removes the old directory when nothing else is in it", func(t *testing.T) {
+	t.Run("keeps the old binary even when nothing else is in the directory", func(t *testing.T) {
 		t.Parallel()
 		loc, legacy, _ := newLayout(t)
 		require.NoError(t, os.Remove(filepath.Join(legacy, "config.yaml")))
 
 		setup.Apply(loc, setup.EventInstalled, "1.2.3")
 
-		assert.NoDirExists(t, legacy)
+		assert.FileExists(t, filepath.Join(legacy, "bin", "claude-statusline"))
+		assert.NoFileExists(t, filepath.Join(legacy, "last-check"))
 	})
 
 	t.Run("leaves the old install while a setting still points at it", func(t *testing.T) {
@@ -703,7 +715,7 @@ func TestApplyMigrationCommandForms(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, loc.Bin, gjson.GetBytes(got, "statusLine.command").String())
 			assert.Equal(t, loc.Bin+" subagent", gjson.GetBytes(got, "subagentStatusLine.command").String())
-			assert.NoFileExists(t, legacyBin)
+			assert.FileExists(t, legacyBin)
 		})
 	}
 
@@ -788,6 +800,13 @@ func TestApplyManual(t *testing.T) {
 	})
 }
 
+func resolved(t *testing.T, path string) string {
+	t.Helper()
+	got, err := filepath.EvalSymlinks(path)
+	require.NoError(t, err)
+	return got
+}
+
 func TestSymlinkedSettings(t *testing.T) {
 	t.Parallel()
 
@@ -813,8 +832,10 @@ func TestSymlinkedSettings(t *testing.T) {
 		t.Parallel()
 		dir, link, target := link(t, prettySettings)
 
-		run(dir, setup.EventInstalled)
+		msg := run(dir, setup.EventInstalled)
 
+		assert.Contains(t, msg, "backed up at "+resolved(t, target)+".bak")
+		assert.NotContains(t, msg, link+".bak")
 		requireSymlink(t, link)
 		got, err := os.ReadFile(target)
 		require.NoError(t, err)
@@ -830,8 +851,11 @@ func TestSymlinkedSettings(t *testing.T) {
 		before := settingsWith(testBin, testBin+" subagent")
 		dir, link, target := link(t, before)
 
-		setup.Uninstall(&bytes.Buffer{}, locations(dir))
+		var out bytes.Buffer
+		setup.Uninstall(&out, locations(dir))
 
+		assert.Contains(t, out.String(), "backed up at "+resolved(t, target)+".bak")
+		assert.NotContains(t, out.String(), link+".bak")
 		requireSymlink(t, link)
 		got, err := os.ReadFile(target)
 		require.NoError(t, err)
@@ -840,6 +864,81 @@ func TestSymlinkedSettings(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, before, string(bak))
 		assert.NoFileExists(t, link+".bak")
+	})
+}
+
+func TestApplySymlinkTakeover(t *testing.T) {
+	t.Parallel()
+
+	data := func(dir string) setup.Locations {
+		state := filepath.Join(dir, "plugins", "data", "statusline-claude-statusline")
+		return setup.Locations{ConfigDir: dir, StateDir: state, Bin: filepath.Join(state, "bin", "claude-statusline")}
+	}
+
+	t.Run("a legacy path that links to the user's own binary does not make it ours", func(t *testing.T) {
+		t.Parallel()
+		home := resolved(t, t.TempDir())
+		dir := filepath.Join(home, ".claude")
+		mine := filepath.Join(home, "go", "bin", "claude-statusline")
+		legacy := filepath.Join(dir, "claude-statusline", "bin", "claude-statusline")
+		for _, d := range []string{filepath.Dir(mine), filepath.Dir(legacy)} {
+			require.NoError(t, os.MkdirAll(d, 0o700))
+		}
+		require.NoError(t, os.WriteFile(mine, []byte("x"), 0o700))
+		require.NoError(t, os.Symlink(mine, legacy))
+		loc := data(dir)
+		loc.Home = home
+		before := settingsWith("~/go/bin/claude-statusline", "~/go/bin/claude-statusline subagent")
+		path := filepath.Join(dir, "settings.json")
+		require.NoError(t, os.WriteFile(path, []byte(before), 0o600))
+
+		setup.Apply(loc, setup.EventCurrent, "1.2.3")
+
+		got, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, before, string(got))
+		assert.NoFileExists(t, path+".bak")
+	})
+
+	t.Run("a symlinked config directory still repoints", func(t *testing.T) {
+		t.Parallel()
+		root := t.TempDir()
+		dotfiles := filepath.Join(root, "dotfiles", "claude")
+		dir := filepath.Join(root, ".claude")
+		require.NoError(t, os.MkdirAll(filepath.Join(dotfiles, "claude-statusline", "bin"), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(dotfiles, "claude-statusline", "bin", "claude-statusline"), []byte("x"), 0o700))
+		require.NoError(t, os.Symlink(dotfiles, dir))
+		loc := data(dir)
+		viaLink := filepath.Join(dir, "claude-statusline", "bin", "claude-statusline")
+		require.NoError(t, os.WriteFile(filepath.Join(dotfiles, "settings.json"), []byte(settingsWith(viaLink, viaLink+" subagent")), 0o600))
+
+		setup.Apply(loc, setup.EventCurrent, "1.2.3")
+
+		got, err := os.ReadFile(filepath.Join(dotfiles, "settings.json"))
+		require.NoError(t, err)
+		assert.Equal(t, loc.Bin, gjson.GetBytes(got, "statusLine.command").String())
+	})
+
+	t.Run("an alias that links into the plugin data directory is ours", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		loc := data(dir)
+		alias := filepath.Join(dir, "alias", "cs")
+		require.NoError(t, os.MkdirAll(filepath.Dir(alias), 0o700))
+		require.NoError(t, os.MkdirAll(filepath.Dir(loc.Bin), 0o700))
+		require.NoError(t, os.WriteFile(loc.Bin, []byte("x"), 0o700))
+		path := filepath.Join(dir, "settings.json")
+		require.NoError(t, os.WriteFile(path, []byte(settingsWith(alias, "")), 0o600))
+		old := filepath.Join(dir, "old", "plugins", "data", "x", "bin")
+		require.NoError(t, os.MkdirAll(old, 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(old, "claude-statusline"), []byte("x"), 0o700))
+		require.NoError(t, os.Symlink(filepath.Join(old, "claude-statusline"), alias))
+
+		setup.Apply(loc, setup.EventCurrent, "1.2.3")
+
+		got, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, loc.Bin, gjson.GetBytes(got, "statusLine.command").String())
 	})
 }
 
@@ -914,7 +1013,7 @@ func TestUninstall(t *testing.T) {
 			assert.FileExists(t, filepath.Join(loc.StateDir, ".bootstrapped"))
 			assert.FileExists(t, filepath.Join(loc.StateDir, ".bootstrapped-subagent"))
 			assert.Contains(t, out.String(), "will not be added back")
-			assert.Contains(t, out.String(), "claude-statusline setup")
+			assert.Contains(t, out.String(), `"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/statusline-claude-statusline/bin/claude-statusline" setup`)
 		})
 	}
 
@@ -934,6 +1033,24 @@ func TestUninstall(t *testing.T) {
 		got, err := os.ReadFile(path)
 		require.NoError(t, err)
 		assert.Equal(t, string(after), string(got))
+	})
+
+	t.Run("refuses to edit a file with a duplicate key", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		loc := data(dir)
+		before := "{\n  \"statusLine\": {\"command\": " + quote("/usr/bin/mine") + "},\n  \"statusLine\": {\"command\": " + quote(loc.Bin) + "}\n}\n"
+		path := filepath.Join(dir, "settings.json")
+		require.NoError(t, os.WriteFile(path, []byte(before), 0o600))
+		var out bytes.Buffer
+
+		setup.Uninstall(&out, loc)
+
+		got, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, before, string(got))
+		assert.NoFileExists(t, path+".bak")
+		assert.Contains(t, out.String(), "statusLine appears more than once")
 	})
 
 	t.Run("copes with a missing settings file", func(t *testing.T) {
@@ -989,6 +1106,12 @@ func TestRemoveMember(t *testing.T) {
 			assert.True(t, gjson.ValidBytes(got))
 		})
 	}
+
+	t.Run("refuses a duplicated key", func(t *testing.T) {
+		t.Parallel()
+		_, ok := setup.RemoveMember([]byte(`{"a":1,"a":2}`), "a")
+		assert.False(t, ok)
+	})
 
 	t.Run("reports a missing key", func(t *testing.T) {
 		t.Parallel()
