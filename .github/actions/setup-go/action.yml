@@ -1,0 +1,21 @@
+# DO NOT EDIT: This file should only be modified in the `go-public-library-template` repo.
+
+name: Set up Go
+description: Install the latest patch release of the Go minor version declared in go.mod.
+
+runs:
+  using: composite
+  steps:
+    # go.mod pins an exact release such as 1.25.0; installing only that would miss the security
+    # patches govulncheck reports, so take the minor version and let setup-go find the latest patch.
+    - name: Read Go version from go.mod
+      id: go-version
+      shell: bash
+      run: echo "version=$(awk '/^go / { split($2, v, "."); print v[1] "." v[2]; exit }' go.mod)" >> "$GITHUB_OUTPUT"
+
+    - name: Install Go
+      uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      with:
+        go-version: ${{ steps.go-version.outputs.version }}
+        check-latest: true
+        cache-dependency-path: go.mod

@@ -1,0 +1,102 @@
+# DO NOT EDIT: This file should only be modified in the `go-public-library-template` repo.
+
+name: Run tests and validate coverage
+
+on:
+  merge_group:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run tests with coverage and race detector
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      coverage: ${{ steps.coverage.outputs.total }}
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            dl.google.com:443
+            github.com:443
+            go.dev:443
+            proxy.golang.org:443
+            release-assets.githubusercontent.com:443
+            storage.googleapis.com:443
+            sum.golang.org:443
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: ./.github/actions/setup-go
+
+      # -coverpkg credits code exercised by any package's tests, not only its own.
+      - name: Run tests
+        run: go test -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out ./...
+
+      - name: Remove generated files from coverage
+        run: |
+          module=$(go list -m)
+          generated=$(grep -rlE --include='*.go' '^// Code generated .* DO NOT EDIT\.$' . | sed "s|^\./|${module}/|; s|$|:|" || true)
+          if [ -n "$generated" ]; then
+            echo "Excluding generated files:"
+            echo "$generated"
+            grep -v -F -f <(echo "$generated") coverage.out > coverage.filtered.out
+            mv coverage.filtered.out coverage.out
+          fi
+
+      - name: Get total coverage
+        id: coverage
+        run: |
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ { sub("%", "", $NF); print $NF }')
+          echo "Total coverage: ${total}%"
+          echo "total=${total}" >> "$GITHUB_OUTPUT"
+
+  coverage:
+    name: Run tests and validate coverage
+    needs: [test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+
+      - name: Checkout build config
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: build-config.yaml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Validate coverage
+        env:
+          TOTAL: ${{ needs.test.outputs.coverage }}
+        run: |
+          # Fail closed: without a configured threshold, require full coverage.
+          required=100
+          if [ -f build-config.yaml ]; then
+            required=$(yq '.requiredCoverage // 100' build-config.yaml)
+          fi
+          echo "Total coverage: ${TOTAL}%, required: ${required}%"
+          if ! awk -v total="$TOTAL" -v required="$required" 'BEGIN { exit !(total + 0 >= required + 0) }'; then
+            echo "::error title=Coverage too low::Total coverage ${TOTAL}% is below the required ${required}% (requiredCoverage in build-config.yaml)"
+            exit 1
+          fi

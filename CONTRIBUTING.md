@@ -5,7 +5,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 ## Prerequisites
 
 - Go, at the version in `go.mod`.
-- [golangci-lint](https://golangci-lint.run/) v2, for the linters and formatters in `.golangci.yml` (the build uses v2.14.0).
+- [golangci-lint](https://golangci-lint.run/) v2, for the linters and formatters in `.golangci.yml` (CI uses v2.11.0).
 - [shellcheck](https://www.shellcheck.net/), for the shell scripts under `hooks/`.
 - [GoReleaser](https://goreleaser.com/) and [syft](https://github.com/anchore/syft), only if you want to build a snapshot release locally.
 
@@ -46,8 +46,9 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 CI runs the following on every pull request, and you can run the same commands locally.
 
 ```sh
+go build ./...
 go mod verify
-go mod tidy -diff             # go.mod and go.sum are tidy
+go mod tidy                   # go.mod and go.sum are tidy
 ! grep -q '^toolchain ' go.mod   # no toolchain directive
 test -z "$(gofmt -s -l .)"    # formatting
 go generate ./... && git diff --exit-code   # generated mocks are up to date
@@ -64,7 +65,21 @@ goreleaser release --snapshot --clean --skip=publish   # needs syft on your PATH
 claude plugin validate .                               # needs Claude Code installed
 ```
 
-The workflow files in `.github/workflows/` are the source of truth if this list and CI ever disagree. `golangci-lint run --fix` applies the formatters for you.
+### Workflows
+
+Most workflows are synced from [go-public-library-template](https://github.com/PaddleHQ/go-public-library-template), so do not edit them here: change the template instead, or the next sync overwrites the edit. They are `lint.yml`, `test.yml`, `validate.yml`, `check-semver.yml` and `release-on-push.yml`, together with the `setup-go` action in `.github/actions/`. Between them they build, lint (new issues only), test with the race detector and coverage, check that `go.mod` is tidy and the code is formatted and vetted, require a SemVer label and create the release.
+
+These workflows belong to this repository:
+
+| Workflow | What it covers |
+|---|---|
+| `ci.yml` | What the template does not: the tests on macOS, the generated mocks and the `toolchain` directive check, the GoReleaser config check and snapshot build, the plugin's shell scripts on Linux and macOS, and `claude plugin validate .`. |
+| `release-binaries.yml` | Publishes the archives, checksums, SBOMs and build provenance attestation to the release that `release-on-push.yml` created. It does nothing when the merge made no release. |
+| `fuzz.yml` | The weekly fuzzing run. |
+| `common-lint.yml` | `actionlint` and `editorconfig-checker`. |
+| `check-blocking-labels.yml` | Fails while a pull request carries a blocking label. |
+
+Every job in these workflows hardens its runner with `egress-policy: block` and an `allowed-endpoints` list. When a job starts needing a new host, add it to that job's list.
 
 Dependabot opens weekly pull requests for Go modules (labelled `release:patch`) and GitHub Actions (labelled `norelease`), so they pass the SemVer label check. A pull request carrying a blocking label, such as `do not merge`, fails the "Check for blocking labels" check until the label is removed.
 
@@ -99,14 +114,14 @@ Ask of a new test: is it about one plugin's output (layer 1), about how the prog
 
 ### Coverage
 
-CI's Coverage job runs the tests with `-coverpkg ./...`, so a package is credited for statements that other packages' tests run, and fails when total statement coverage is below `requiredCoverage` in `build-config.yaml`. It leaves out generated mocks (`/mocks/`), `tools/` and the feature-test harness (`internal/featuretest`), and writes a per-package table to the job summary. `main` is kept free of tests, because a test file there would pull its untested wiring into the total. When coverage is a point or more above the requirement, the job prints a notice with the value to raise it to; raising it is a ratchet, so do it in the pull request that earned it. To reproduce the job locally:
+The "Run tests and validate coverage" check runs the tests with `-coverpkg=./...`, so a package is credited for statements that other packages' tests run, and fails when total statement coverage is below `requiredCoverage` in `build-config.yaml`. No paths are excluded: it only drops generated files, which it finds by their `// Code generated ... DO NOT EDIT.` header, so the mocks leave the total and `tools/` and the feature-test harness (`internal/featuretest`) stay in it. `main` is kept free of tests, because a test file there would pull its untested wiring into the total. To reproduce the check locally:
 
 ```sh
-mkdir -p covdata
-go test -race -cover -covermode=atomic -coverpkg ./... ./... -args -test.gocoverdir="$PWD/covdata"
-go tool covdata textfmt -i=covdata -o cover.out
-grep -vE '/mocks/|/tools/|/internal/featuretest/' cover.out > cover.filtered.out
-go tool cover -func cover.filtered.out | tail -n 1
+go test -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out ./...
+module=$(go list -m)
+generated=$(grep -rlE --include='*.go' '^// Code generated .* DO NOT EDIT\.$' . | sed "s|^\./|${module}/|; s|$|:|")
+grep -v -F -f <(echo "$generated") coverage.out > coverage.filtered.out
+go tool cover -func=coverage.filtered.out | tail -n 1
 ```
 
 ### Fuzzing
@@ -319,7 +334,7 @@ Comments explain why, not what; code that reads clearly needs none. Code, identi
 
 ## Pull requests and releases
 
-Every pull request needs exactly one of these labels, checked by the `Check SemVer label` workflow:
+Every pull request needs exactly one of these labels, checked by the `Ensure SemVer Label is added` workflow:
 
 | Label | Effect on merge |
 |---|---|
@@ -328,7 +343,7 @@ Every pull request needs exactly one of these labels, checked by the `Check SemV
 | `release:patch` | Tags the next patch version and publishes it. |
 | `norelease` | Merges without a release, for changes such as documentation or tests. |
 
-On a pull request, a `release:*` label makes the release workflow do a dry run. On merge, the workflow tags the version and publishes archives for macOS and Linux on arm64 and amd64, with a checksum file, an SBOM per archive and a build provenance attestation.
+On a pull request, a `release:*` label makes `release-on-push.yml` do a dry run. On merge, it tags the version and creates the release, and then `release-binaries.yml` publishes archives for macOS and Linux on arm64 and amd64, with a checksum file, an SBOM per archive and a build provenance attestation.
 
 ### How the plugin picks up a release
 
