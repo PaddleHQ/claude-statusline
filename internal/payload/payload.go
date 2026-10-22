@@ -2,6 +2,7 @@
 package payload
 
 import (
+	"math"
 	"strings"
 
 	"github.com/tidwall/gjson"
@@ -177,7 +178,9 @@ func cost(r gjson.Result) *float64 {
 	if n == nil || *n > maxCost {
 		return nil
 	}
-	return n
+	// number lets -0 through, which would print as $-0.00.
+	usd := math.Abs(*n)
+	return &usd
 }
 
 func deref(n *int64) int64 {
