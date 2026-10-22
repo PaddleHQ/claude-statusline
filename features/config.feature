@@ -1,7 +1,7 @@
 @config
 Feature: Configuration
-  The config file is forgiving: an unknown segment name is dropped, and the values in it are shown as
-  text and never executed.
+  The config file is forgiving: an unknown segment name is dropped, segments_excluded leaves segments out
+  without copying the list, and the values in it are shown as text and never executed.
 
   Background:
     Given the environment variable "STATUSLINE_NOW" is "1760000000"
@@ -27,6 +27,53 @@ Feature: Configuration
     Then the text is:
       """
       Opus 4.7 [high]
+      """
+
+  Scenario: A segment named in segments_excluded is left out of the default list
+    Given the session:
+      """json
+      {
+        "model": {
+          "display_name": "Opus 4.7"
+        },
+        "context_window": {
+          "total_input_tokens": 1500,
+          "total_output_tokens": 23400
+        }
+      }
+      """
+    And the config:
+      """
+      segments_excluded: [model]
+      """
+    And the environment variable "NO_COLOR" is "1"
+    When the status line renders
+    Then the text is:
+      """
+      ↓ 1.5k · ↑ 23.4k
+      """
+
+  Scenario: The cost segment, excluded by default, is shown once segments_excluded is emptied
+    Given the session:
+      """json
+      {
+        "model": {
+          "display_name": "Opus 4.7"
+        },
+        "cost": {
+          "total_cost_usd": 1.84
+        }
+      }
+      """
+    And the config:
+      """
+      segments_excluded: []
+      """
+    And the environment variable "NO_COLOR" is "1"
+    When the status line renders
+    Then the text is:
+      """
+      Opus 4.7 · $1.84
       """
 
   Scenario: Shell metacharacters and command substitutions in config values are shown as text and never executed

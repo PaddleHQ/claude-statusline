@@ -17,6 +17,7 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/internal/transcript"
 	"github.com/PaddleHQ/claude-statusline/segments/cache"
+	"github.com/PaddleHQ/claude-statusline/segments/cost"
 	"github.com/PaddleHQ/claude-statusline/segments/ctx"
 	"github.com/PaddleHQ/claude-statusline/segments/diagnostics"
 	"github.com/PaddleHQ/claude-statusline/segments/model"
@@ -39,7 +40,7 @@ type Segment interface {
 
 // Defaults returns the text of every plugin's defaults.yaml, for layering under the user's config.
 func Defaults() []string {
-	return []string{path.Defaults, model.Defaults, ctx.Defaults, cache.Defaults, rate.Defaults}
+	return []string{path.Defaults, model.Defaults, ctx.Defaults, cache.Defaults, cost.Defaults, rate.Defaults}
 }
 
 // Env is one render's world, from which the segments are built. Transcript and RateLimits are called at most once per render,
@@ -123,7 +124,7 @@ func (e *Env) registrations() []registration {
 		}
 	}
 	names := diagnostics.Names()
-	regs := make([]registration, 0, 7+len(names))
+	regs := make([]registration, 0, 8+len(names))
 	regs = append(regs, []registration{
 		{"path", layout.Identity, func(cfg *config.Section) Segment {
 			return path.New(path.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Git: &gitbranch.Reader{}, Icons: &e.Icons, Home: e.Home})
@@ -152,6 +153,9 @@ func (e *Env) registrations() []registration {
 				Now:        e.Now,
 				Icons:      &e.Icons,
 			})
+		}},
+		{"cost", layout.Usage, func(cfg *config.Section) Segment {
+			return cost.New(cost.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme})
 		}},
 		{"rate5h", layout.Rates, func(cfg *config.Section) Segment { return rate.NewFiveHour(rates(cfg)) }},
 		{"rate7d", layout.Rates, func(cfg *config.Section) Segment { return rate.NewSevenDay(rates(cfg)) }},

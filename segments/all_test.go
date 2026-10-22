@@ -45,7 +45,7 @@ func TestEveryRegisteredNameIsUniqueAndFindable(t *testing.T) {
 		require.True(t, ok, seg.Name())
 		assert.Equal(t, seg.Name(), found.Name())
 	}
-	assert.Len(t, seen, 12)
+	assert.Len(t, seen, 13)
 	_, _, ok := env.Lookup("bogus")
 	assert.False(t, ok)
 }

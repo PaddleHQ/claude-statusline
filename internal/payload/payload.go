@@ -10,6 +10,9 @@ import (
 // maxCount bounds token counts so sums and percentages cannot overflow.
 const maxCount = 1e15
 
+// maxCost bounds the session cost so a bogus value cannot print as a figure wider than the terminal.
+const maxCost = 1e9
+
 // Payload holds the fields the status line reads. Strings are safe to print.
 type Payload struct {
 	Model      Model
@@ -20,6 +23,8 @@ type Payload struct {
 	SessionID      string
 	TranscriptPath string
 	ContextWindow  ContextWindow
+	// CostUSD is the session's total cost in US dollars; nil means the payload did not report it.
+	CostUSD *float64
 }
 
 // ContextWindow is the session's context and token usage; a nil field means the payload did not report it.
@@ -89,6 +94,7 @@ func Parse(data []byte) Payload {
 				CacheRead:     deref(count(root.Get("context_window.current_usage.cache_read_input_tokens"))),
 			},
 		},
+		CostUSD: cost(root.Get("cost.total_cost_usd")),
 	}
 }
 
@@ -121,6 +127,9 @@ func (p *Payload) TotalOutput() (int64, bool) { return reported(p.ContextWindow.
 
 // UsedPercentage is how full the context window is; false means the payload did not report it.
 func (p *Payload) UsedPercentage() (float64, bool) { return reported(p.ContextWindow.UsedPercentage) }
+
+// TotalCost is the session's total cost in US dollars; false means the payload did not report it.
+func (p *Payload) TotalCost() (float64, bool) { return reported(p.CostUSD) }
 
 func reported[T any](v *T) (T, bool) {
 	if v == nil {
@@ -161,6 +170,14 @@ func count(r gjson.Result) *int64 {
 	}
 	c := int64(*n)
 	return &c
+}
+
+func cost(r gjson.Result) *float64 {
+	n := number(r)
+	if n == nil || *n > maxCost {
+		return nil
+	}
+	return n
 }
 
 func deref(n *int64) int64 {
