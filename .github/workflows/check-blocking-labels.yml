@@ -1,6 +1,7 @@
 name: Check for blocking labels
 
 on:
+  merge_group:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
@@ -26,6 +27,8 @@ jobs:
             api.github.com:443
 
       - name: Fail if a blocking label is present
+        # The labels are checked on the PR; the merge queue re-runs the same commit.
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
