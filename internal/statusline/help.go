@@ -37,11 +37,12 @@ func Help(getenv func(string) string) string {
 	th = th.WithoutColor()
 	env := segments.NewEnv(segments.Env{Config: cfg, Theme: th, Home: getenv("HOME"), Columns: defaultColumns})
 
+	excluded := cfg.StringsOrNone(keyExcluded)
 	h := &helper{
 		env:        env,
 		hooks:      hook.Discover(hookDir(getenv)),
-		names:      segmentNames(cfg),
-		excluded:   cfg.StringsOrNone(keyExcluded),
+		names:      segmentNames(cfg, excluded),
+		excluded:   excluded,
 		configPath: path,
 		problem:    cfg.Problem(),
 		options:    cfg.PluginOptions(),
@@ -68,9 +69,9 @@ func (h *helper) text() string {
 		b.WriteString("  (nothing: your segments list names no known segment)\n")
 	}
 
-	if custom := h.custom(); len(custom) > 0 {
+	if len(h.hooks) > 0 {
 		b.WriteString("\nCustom segments:\n")
-		writeList(&b, custom)
+		writeList(&b, h.custom())
 	}
 
 	if left := h.unlisted(); len(left) > 0 {

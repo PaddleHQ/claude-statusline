@@ -1,7 +1,7 @@
 # Segments to render, in order.
 segments: [path, model, ctx, tokens, cache, cost, boot, skills, skills_stripped, agent_skills, mem, rate5h, rate7d]
 
-# Built-in segments to leave out of the segments list, so you can drop a few without copying the whole list; [] leaves out nothing. Custom segments cannot be excluded: remove the script, or make it not executable.
+# Built-in segments to leave out of the segments list; [] leaves out nothing. Custom segments cannot be excluded: remove or chmod -x the script.
 segments_excluded: [cost]
 
 # Glyph drawn between segments.
