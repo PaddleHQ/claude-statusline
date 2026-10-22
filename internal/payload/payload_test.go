@@ -1,6 +1,7 @@
 package payload_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
@@ -259,6 +260,7 @@ func TestParseCost(t *testing.T) {
 	}{
 		{"reported", `{"cost":{"total_cost_usd":0.42}}`, new(0.42)},
 		{"zero is reported", `{"cost":{"total_cost_usd":0}}`, new(0.0)},
+		{"negative zero is zero", `{"cost":{"total_cost_usd":-0}}`, new(0.0)},
 		{"at the bound", `{"cost":{"total_cost_usd":1e9}}`, new(1e9)},
 		{"above the bound", `{"cost":{"total_cost_usd":1.1e9}}`, nil},
 		{"negative", `{"cost":{"total_cost_usd":-1}}`, nil},
@@ -275,6 +277,7 @@ func TestParseCost(t *testing.T) {
 			}
 			require.NotNil(t, got)
 			assert.InDelta(t, *tt.want, *got, 0)
+			assert.False(t, math.Signbit(*got), "a cost never prints with a minus sign")
 		})
 	}
 }
