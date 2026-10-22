@@ -5,7 +5,7 @@
   <img alt="The status line on one row: working directory and git branch, model and effort, a context usage bar, token counts, prompt cache hit rate, boot and skill sizes, and 5 hour and 7 day rate-limit bars with pace markers" src="docs/images/hero-light.svg">
 </picture>
 
-An open-source status line for Claude Code, written in Go. It is at an early stage: for now it shows the working directory and git branch, model, context usage, token counts, prompt-cache hit rate and rate-limit usage bars. It wraps onto further rows when the terminal is narrow, and anything unexpected gives a blank line rather than an error.
+An open-source status line for Claude Code, written in Go. It is at an early stage: for now it shows the working directory and git branch, model, context usage, token counts, prompt-cache hit rate and rate-limit usage bars, and the session cost if you turn it on. On a Pro or Max plan the cost is what the session would have cost at API prices, not what you pay; see [Cost](docs/customising.md#cost). It wraps onto further rows when the terminal is narrow, and anything unexpected gives a blank line rather than an error.
 
 ## Install
 

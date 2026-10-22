@@ -18,13 +18,14 @@ ctx: {warn: 60, bad: 85}
 
 Lists are YAML lists, `true` and `false` are YAML booleans, numbers are whole numbers and everything else is a string. Quote a string that YAML would otherwise read as something else, such as a separator of `|` or a path starting with `~`. The file is parsed, never executed, so values are always plain text.
 
-A setting you leave out keeps its default, including the other keys of a segment you only partly set. If the file is not valid YAML (or is not a mapping), the whole file is ignored and the defaults apply. The status line then shows a [red row](#mistakes-in-the-config-file) above the line to say so. A key the status line does not know, a value of the wrong type (such as `width: wide`), an empty string or list, a string with control characters, or a number that is negative or has more than 12 digits is ignored on its own. That one key falls back to its default while the rest of the file still applies. None of these shows the row, but `config-check` lists the keys it does not know.
+A setting you leave out keeps its default, including the other keys of a segment you only partly set. If the file is not valid YAML (or is not a mapping), the whole file is ignored and the defaults apply. The status line then shows a [red row](#mistakes-in-the-config-file) above the line to say so. A key the status line does not know, a value of the wrong type (such as `width: wide`), an empty string or list, a string with control characters, or a number that is negative or has more than 12 digits is ignored on its own. That one key falls back to its default while the rest of the file still applies. The one exception is `segments_excluded`, where `[]` is kept and means leave out nothing. None of these shows the row, but `config-check` lists the keys it does not know.
 
 [`internal/config/defaults.yaml`](../internal/config/defaults.yaml) documents the global keys with a comment and their default values, and each segment's own `defaults.yaml` under [`segments/`](../segments) does the same for the keys in its section. In the table, `section.key` means `key` inside the `section` mapping. The current keys are:
 
 | Key | Default | Meaning |
 |---|---|---|
-| `segments` | `[path, model, ctx, tokens, cache, boot, skills, skills_stripped, agent_skills, mem, rate5h, rate7d]` | Segments to show, in order, as a list. Unknown names are skipped. |
+| `segments` | `[path, model, ctx, tokens, cache, cost, boot, skills, skills_stripped, agent_skills, mem, rate5h, rate7d]` | Segments to show, in order, as a list. Unknown names are skipped. |
+| `segments_excluded` | `[cost]` | Built-in segments to leave out of `segments`, as a list; `[]` leaves out nothing. See [Segments and order](#segments-and-order). |
 | `separator` | `·` | Glyph drawn between segments. |
 | `theme` | `classic` | Colour theme: a built-in name (`classic` or `gradient`) or the path to a theme file. Anything that cannot be used falls back to `classic`. See [Themes](#themes). |
 | `path.strip` | `[]` | Directory prefixes to strip from the path, as a list; an entry may contain spaces, and a leading `~` means your home directory. |
@@ -36,6 +37,8 @@ A setting you leave out keeps its default, including the other keys of a segment
 | `ctx.warn` | `50` | Context usage percentage at or above which the fill turns amber. |
 | `ctx.bad` | `90` | Context usage percentage at or above which the fill turns red. |
 | `cache.warn` | `5` | Prompt cache hit percentage below which the cache figure turns red. |
+| `cost.warn` | `5` | Session cost in whole US dollars at or above which the figure turns amber. |
+| `cost.bad` | `20` | Session cost in whole US dollars at or above which the figure turns red. |
 | `rate5h.label`, `rate7d.label` | `5h`, `7d` | Text shown before the bar. |
 | `rate5h.width`, `rate5h.width_medium`, `rate5h.width_narrow`, `rate7d.width`, `rate7d.width_medium`, `rate7d.width_narrow` | `20`, `14`, `10` | Bar width in cells at 160 columns or more, below 160, and below 120. |
 | `rate5h.warn`, `rate7d.warn` | `20`, `10` | Pace deviation, in percentage points, beyond which the fill turns amber. |
@@ -97,10 +100,15 @@ Set `NO_COLOR` to any non-empty value to turn colour and styling off; see [NO_CO
 | `ctx` | Context-window usage as a bar. |
 | `tokens` | Session input and output token totals. |
 | `cache` | The prompt cache hit rate. |
+| `cost` | What the session would cost at API prices; see [Cost](#cost). |
 | `boot`, `skills`, `skills_stripped`, `agent_skills`, `mem` | Facts read from the transcript; see [Transcript diagnostics](how_it_works.md#transcript-diagnostics). |
 | `rate5h`, `rate7d` | Your 5 hour and 7 day usage as bars. |
 
-Reorder or drop segments by editing the list, for example `segments: [path, model, rate5h]`. A segment is hidden, not wrong, when its data is missing. A name that is not a built-in segment is skipped unless a [custom segment](#custom-segments) has that name.
+Reorder or drop segments by editing the list, for example `segments: [path, model, rate5h]`.
+
+To drop a few segments without copying the whole list, name them in `segments_excluded` instead, for example `segments_excluded: [cost, boot]`. It applies to whatever `segments` holds, the default or your own, and it only turns off built-in segments. A [custom segment](#custom-segments) with an excluded name still runs, and goes to its slot as if its name were not in `segments`, so a script of your own called `cost.sh` keeps showing. Custom segments cannot be excluded: to stop one, remove its script from the hook directory, or make it not executable (`chmod -x`). Its default is `[cost]`, which is why the cost is not shown even though `cost` is in the default `segments`. Your `segments_excluded` replaces that default rather than adding to it, so to exclude `boot` and keep the cost hidden, write `segments_excluded: [cost, boot]`. `segments_excluded: []` leaves out nothing. `/statusline:help` lists what is left out under "Left out by segments_excluded".
+
+A segment is hidden, not wrong, when its data is missing. A name that is not a built-in segment is skipped unless a [custom segment](#custom-segments) has that name.
 
 ### Path and branch
 
@@ -120,6 +128,17 @@ How entries are matched:
 ### Context, tokens and cache
 
 The `ctx` segment draws context-window usage as a bar with no pace marker. The fill is green below `ctx.warn`, amber from `ctx.warn` and red from `ctx.bad`, and its width follows the terminal in the same way as the rate-limit bars. The `tokens` segment shows session input and output totals as `↓ 1.5k · ↑ 23.4k`, truncating to one decimal place (`999`, `1.0k`, `999.9k`, `1.0M`); either half is left out when the payload does not report it. The `cache` segment shows `⧉ NN%`, the share of the latest request's input read from the prompt cache, in red when it falls below `cache.warn`. It is hidden when the request reported no input. Each segment is hidden when its data is missing.
+
+### Cost
+
+The `cost` segment shows the session's cost in US dollars as `$1.23`: amber from `cost.warn` dollars and red from `cost.bad`. It is hidden when the payload reports no cost.
+
+It is off by default: `cost` is in the default `segments`, after `cache`, but also in the default `segments_excluded`. To show it, set `segments_excluded: []`, or list only what you do want left out.
+
+Claude Code reports this figure: its own estimate of the session's tokens priced at the public API rates. What it means depends on how you pay:
+
+- **API key (pay as you go):** it is roughly what the session has cost you. Your bill is the authority, so treat the figure as an estimate.
+- **Pro or Max subscription:** you pay a flat fee, so the figure is notional. It is what the same work would have cost on the API, not money you are charged, and it does not count against anything. It is still useful for comparing sessions and for spotting an expensive one. What limits a subscription is your 5 hour and 7 day usage, which `rate5h` and `rate7d` show.
 
 ### Bars and widths
 
@@ -163,9 +182,10 @@ Output is used as it is, so a hook chooses its own colours. Control characters a
 
 A hook's name is its filename without a leading `NN-` and without its extension, so `10-backup.sh` is `backup`.
 
+- A name in `segments_excluded` does not stop the hook: it still runs, in its slot. To stop it, remove the script or make it not executable; see [Segments and order](#segments-and-order).
 - If the name is in `segments`, the hook is drawn there: `segments: [backup, path, model, ctx, tokens, cache, rate5h, rate7d]` puts it first.
 - If the name is a built-in segment that is in `segments` (`model`, say), the hook replaces the built-in.
-- Any other hook goes to its slot, chosen by a comment in the first 20 lines of the script: `# statusline-slot: ctx` (the default) draws it straight after `ctx`, or after `model` when there is no `ctx`; `usage` draws it after `tokens` and `cache`; `end` draws it last. Any other slot name means `ctx`, so a typo shows up on the line.
+- Any other hook goes to its slot, chosen by a comment in the first 20 lines of the script: `# statusline-slot: ctx` (the default) draws it straight after `ctx`, or after `model` when there is no `ctx`; `usage` draws it after `tokens`, `cache` and `cost`; `end` draws it last. Any other slot name means `ctx`, so a typo shows up on the line.
 - A comment `# statusline-help: <text>` in the first 20 lines is the description that `/statusline:help` and `claude-statusline help` show for the hook. The text is cut at 200 characters. Without one, the help says "custom segment from" and the file name. Help only reads the script's header; it never runs it.
 
 ### Timeouts and caching
@@ -179,7 +199,7 @@ Results are cached in `cache/hooks/<session id>/` in the status line's state dir
 The line is one row whenever it fits in `$COLUMNS` (visible width, ignoring colour; an unset or zero width never wraps). Otherwise it is laid out in groups:
 
 - **Identity** (`path`, `model`, `ctx` and any hook in the `ctx` slot) packs into as few rows as it can.
-- **Usage** (`tokens`, `cache`) starts the next row at the left margin. The **rates** (`rate5h` and `rate7d`, which are never split) follow on the same row, padded so that they line up under the second identity segment, or on a row of their own with the same indent if they do not fit.
+- **Usage** (`tokens`, `cache`, `cost`) starts the next row at the left margin. The **rates** (`rate5h` and `rate7d`, which are never split) follow on the same row, padded so that they line up under the second identity segment, or on a row of their own with the same indent if they do not fit.
 - Hooks in the `usage` and `end` slots share one last row.
 
 Rows after the first of a group are indented to line up under the segment after the path. The indent starts with a dim `↳`, because Claude Code trims leading spaces but not a glyph. If the indent would leave fewer than 24 columns, rows are not indented.
