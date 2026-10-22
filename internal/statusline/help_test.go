@@ -19,6 +19,73 @@ func TestHelp(t *testing.T) {
 
 	tests := []scenario{
 		{
+			name:   `A custom segment named like a default-excluded built-in is shown in its place, not left out`,
+			config: `segments: [model, cost]`,
+			executables: map[string]string{
+				`statusline.d/50-cost.sh`: `#!/bin/sh
+# statusline-help: My own cost figure
+printf mine`,
+			},
+			want: `Your status line, as currently configured.
+
+Shown now, in order:
+  model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
+  cost: My own cost figure
+
+Custom segments:
+  cost (50-cost.sh, slot ctx): My own cost figure
+
+Also available, not in your segments list:
+  path: The working directory, with your home directory shown as ~, followed by the git branch in brackets.
+  ctx: How full the context window is. Amber from 50%, red from 90%.
+  tokens: Session token totals: input after the down arrow, output after the up arrow.
+  cache: How much of the latest request's input was read from the prompt cache. Red below 5%.
+  rate5h: Your 5 hour usage, with a marker at an even pace. Amber when more than 20 points off it, red beyond 40 points or from 95% used.
+  rate7d: Your 7 day usage, with a marker at an even pace. Amber when more than 10 points off it, red beyond 20 points or from 95% used.
+  boot: The prompt size on the first turn, before you said anything.
+  skills: The size of the always-loaded skill listing, in tokens.
+  skills_stripped: Red when skills lost their descriptions to fit the budget; shows how many.
+  agent_skills: Amber when a subagent lost skill descriptions; shows how many.
+  mem: Red when a SessionStart hook output was too large to inject.
+
+Config file: @TMP@/claude-statusline/config.yaml
+Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md`,
+		},
+		{
+			name: `An excluded custom segment is left out with its description, and an excluded name that stands for nothing is not mentioned`,
+			config: `segments: [path]
+segments_excluded: [backup, nothing]`,
+			executables: map[string]string{
+				`statusline.d/10-backup.sh`: `#!/bin/sh
+# statusline-help: Shows when the backup is stale
+printf stale`,
+			},
+			want: `Your status line, as currently configured.
+
+Shown now, in order:
+  path: The working directory, with your home directory shown as ~, followed by the git branch in brackets.
+
+Also available, not in your segments list:
+  model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
+  ctx: How full the context window is. Amber from 50%, red from 90%.
+  tokens: Session token totals: input after the down arrow, output after the up arrow.
+  cache: How much of the latest request's input was read from the prompt cache. Red below 5%.
+  cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
+  rate5h: Your 5 hour usage, with a marker at an even pace. Amber when more than 20 points off it, red beyond 40 points or from 95% used.
+  rate7d: Your 7 day usage, with a marker at an even pace. Amber when more than 10 points off it, red beyond 20 points or from 95% used.
+  boot: The prompt size on the first turn, before you said anything.
+  skills: The size of the always-loaded skill listing, in tokens.
+  skills_stripped: Red when skills lost their descriptions to fit the budget; shows how many.
+  agent_skills: Amber when a subagent lost skill descriptions; shows how many.
+  mem: Red when a SessionStart hook output was too large to inject.
+
+Left out by segments_excluded:
+  backup: Shows when the backup is stale
+
+Config file: @TMP@/claude-statusline/config.yaml
+Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md`,
+		},
+		{
 			name:   `A statusline-help directive after the first 20 lines is ignored`,
 			config: `segments: [path]`,
 			executables: map[string]string{
@@ -68,6 +135,9 @@ Also available, not in your segments list:
   agent_skills: Amber when a subagent lost skill descriptions; shows how many.
   mem: Red when a SessionStart hook output was too large to inject.
 
+Left out by segments_excluded:
+  cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
+
 Config file: @TMP@/claude-statusline/config.yaml
 Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md`,
 		},
@@ -104,6 +174,9 @@ Also available, not in your segments list:
   agent_skills: Amber when a subagent lost skill descriptions; shows how many.
   mem: Red when a SessionStart hook output was too large to inject.
 
+Left out by segments_excluded:
+  cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
+
 Config file: @TMP@/claude-statusline/config.yaml
 Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md`,
 		},
@@ -127,6 +200,9 @@ Also available, not in your segments list:
   skills_stripped: Red when skills lost their descriptions to fit the budget; shows how many.
   agent_skills: Amber when a subagent lost skill descriptions; shows how many.
   mem: Red when a SessionStart hook output was too large to inject.
+
+Left out by segments_excluded:
+  cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
 
 Config file: @TMP@/claude-statusline/config.yaml
 Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md`,
@@ -156,6 +232,9 @@ Also available, not in your segments list:
   skills_stripped: Red when skills lost their descriptions to fit the budget; shows how many.
   agent_skills: Amber when a subagent lost skill descriptions; shows how many.
   mem: Red when a SessionStart hook output was too large to inject.
+
+Left out by segments_excluded:
+  cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
 
 Config file: @TMP@/claude-statusline/config.yaml
 Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md`,

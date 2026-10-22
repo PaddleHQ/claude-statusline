@@ -213,7 +213,7 @@ func TestSessionAccessors(t *testing.T) {
 
 	p := payload.Parse([]byte(`{"model":{"id":"m","display_name":"M"},"effort":{"level":"high"},"cwd":"/w","transcript_path":"/t",` +
 		`"context_window":{"used_percentage":42,"total_input_tokens":7,"total_output_tokens":0,` +
-		`"current_usage":{"input_tokens":1,"cache_creation_input_tokens":2,"cache_read_input_tokens":3}}}`))
+		`"current_usage":{"input_tokens":1,"cache_creation_input_tokens":2,"cache_read_input_tokens":3}},"cost":{"total_cost_usd":1.25}}`))
 	assert.Equal(t, "M", p.DisplayName())
 	assert.Equal(t, "m", p.ModelID())
 	assert.Equal(t, "high", p.EffortLevel())
@@ -230,6 +230,9 @@ func TestSessionAccessors(t *testing.T) {
 	out, ok := p.TotalOutput()
 	assert.True(t, ok)
 	assert.Zero(t, out)
+	usd, ok := p.TotalCost()
+	assert.True(t, ok)
+	assert.InDelta(t, 1.25, usd, 0)
 }
 
 func TestSessionAccessorsReportWhatIsMissing(t *testing.T) {
@@ -242,4 +245,36 @@ func TestSessionAccessorsReportWhatIsMissing(t *testing.T) {
 	assert.False(t, ok)
 	_, ok = p.TotalOutput()
 	assert.False(t, ok)
+	_, ok = p.TotalCost()
+	assert.False(t, ok)
+}
+
+func TestParseCost(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  *float64
+	}{
+		{"reported", `{"cost":{"total_cost_usd":0.42}}`, new(0.42)},
+		{"zero is reported", `{"cost":{"total_cost_usd":0}}`, new(0.0)},
+		{"at the bound", `{"cost":{"total_cost_usd":1e9}}`, new(1e9)},
+		{"above the bound", `{"cost":{"total_cost_usd":1.1e9}}`, nil},
+		{"negative", `{"cost":{"total_cost_usd":-1}}`, nil},
+		{"a string", `{"cost":{"total_cost_usd":"1.00"}}`, nil},
+		{"missing", `{"cost":{}}`, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := payload.Parse([]byte(tt.input)).CostUSD
+			if tt.want == nil {
+				assert.Nil(t, got)
+				return
+			}
+			require.NotNil(t, got)
+			assert.InDelta(t, *tt.want, *got, 0)
+		})
+	}
 }

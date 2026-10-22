@@ -3,6 +3,7 @@ package statusline
 
 import (
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
@@ -19,6 +20,8 @@ import (
 )
 
 const (
+	keySegments    = "segments"
+	keyExcluded    = "segments_excluded"
 	keyTheme       = "theme"
 	keyHookTTL     = "hooks.ttl"
 	keyHookTimeout = "hooks.timeout"
@@ -29,7 +32,7 @@ const (
 
 // Keys lists every config key the status line reads, for checking against defaults.yaml.
 func Keys() []string {
-	keys := append(render.Keys(), keyTheme, keyHookTTL, keyHookTimeout, keySnapEnabled, keySnapPath)
+	keys := append(render.Keys(), keyExcluded, keyTheme, keyHookTTL, keyHookTimeout, keySnapEnabled, keySnapPath)
 	for _, seg := range segments.NewEnv(segments.Env{Config: config.New("")}).All() {
 		for _, k := range seg.Keys() {
 			keys = append(keys, seg.Name()+"."+k)
@@ -71,13 +74,15 @@ func Build(input []byte, getenv func(string) string) string {
 			return synced.Visible(at.Unix())
 		},
 	})
+	hooks := hook.Discover(hookDir(getenv))
+	excluded := excludedNames(cfg, hooks)
 	line := &render.Line{
-		Names:     cfg.Strings("segments"),
+		Names:     segmentNames(cfg, excluded),
 		Lookup:    lookup(env),
 		Columns:   env.Columns,
 		Separator: env.Separator(),
 		Anchor:    th.Paint(th.Muted, "↳"),
-		Hooks:     runHooks(input, p, cfg, at, getenv),
+		Hooks:     runHooks(withoutExcluded(hooks, excluded), input, p, cfg, at, getenv),
 	}
 	return withErrorRow(line.Render(), cfg.Problem(), &th, getenv("HOME"), env.Columns)
 }
@@ -128,9 +133,10 @@ func saveSnapshot(input []byte, cfg *config.Config, getenv func(string) string) 
 	_ = snapshot.New(path).Write(input)
 }
 
-// runHooks runs the scripts in the hook directory; STATUSLINE_HOOK_TTL and STATUSLINE_HOOK_TIMEOUT override the config.
-func runHooks(input []byte, p payload.Payload, cfg *config.Config, at time.Time, getenv func(string) string) []hook.Result {
-	hooks := hook.Discover(hookDir(getenv))
+// runHooks runs the hook scripts; STATUSLINE_HOOK_TTL and STATUSLINE_HOOK_TIMEOUT override the config.
+func runHooks(
+	hooks []hook.Hook, input []byte, p payload.Payload, cfg *config.Config, at time.Time, getenv func(string) string,
+) []hook.Result {
 	if len(hooks) == 0 {
 		return nil
 	}
@@ -148,6 +154,28 @@ func runHooks(input []byte, p payload.Payload, cfg *config.Config, at time.Time,
 		opts.CacheDir = filepath.Join(stateDir, "cache", "hooks")
 	}
 	return opts.Run(hooks)
+}
+
+// excludedNames is segments_excluded. While it is only the default, a name that a hook also has is kept,
+// so the default can turn off a built-in without hiding a user's own script of the same name.
+func excludedNames(cfg *config.Config, hooks []hook.Hook) []string {
+	excluded := cfg.StringsOrNone(keyExcluded)
+	if cfg.HasUserList(keyExcluded) {
+		return excluded
+	}
+	return slices.DeleteFunc(excluded, func(name string) bool {
+		return slices.ContainsFunc(hooks, func(h hook.Hook) bool { return h.Name == name })
+	})
+}
+
+// segmentNames is the segments list less the excluded names.
+func segmentNames(cfg *config.Config, excluded []string) []string {
+	return slices.DeleteFunc(cfg.Strings(keySegments), func(name string) bool { return slices.Contains(excluded, name) })
+}
+
+// withoutExcluded drops excluded hooks, which would otherwise fall back to their slot once their name left the segments list.
+func withoutExcluded(hooks []hook.Hook, excluded []string) []hook.Hook {
+	return slices.DeleteFunc(hooks, func(h hook.Hook) bool { return slices.Contains(excluded, h.Name) })
 }
 
 func hookDir(getenv func(string) string) string {

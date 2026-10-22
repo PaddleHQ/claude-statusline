@@ -1,5 +1,8 @@
 # Segments to render, in order.
-segments: [path, model, ctx, tokens, cache, boot, skills, skills_stripped, agent_skills, mem, rate5h, rate7d]
+segments: [path, model, ctx, tokens, cache, cost, boot, skills, skills_stripped, agent_skills, mem, rate5h, rate7d]
+
+# Segments to leave out of the segments list, built-in or custom, so you can drop a few without copying the whole list; [] leaves out nothing.
+segments_excluded: [cost]
 
 # Glyph drawn between segments.
 separator: "·"

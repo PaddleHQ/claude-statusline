@@ -17,7 +17,7 @@ func TestDefaultsParse(t *testing.T) {
 	t.Parallel()
 
 	c := config.New("")
-	assert.Equal(t, []string{"path", "model", "ctx", "tokens", "cache", "boot", "skills", "skills_stripped", "agent_skills", "mem", "rate5h", "rate7d"}, c.Strings("segments"))
+	assert.Equal(t, []string{"path", "model", "ctx", "tokens", "cache", "cost", "boot", "skills", "skills_stripped", "agent_skills", "mem", "rate5h", "rate7d"}, c.Strings("segments"))
 	assert.Equal(t, "·", c.String("separator"))
 	assert.Equal(t, "classic", c.String("theme"))
 	assert.Equal(t, 60, c.Int("hooks.ttl"))
@@ -29,7 +29,7 @@ func TestDefaultKeys(t *testing.T) {
 
 	keys := config.DefaultKeys()
 	slices.Sort(keys)
-	want := []string{"hooks.timeout", "hooks.ttl", "segments", "separator", "snapshot.enabled", "snapshot.path", "theme"}
+	want := []string{"hooks.timeout", "hooks.ttl", "segments", "segments_excluded", "separator", "snapshot.enabled", "snapshot.path", "theme"}
 	assert.Equal(t, want, keys)
 }
 
@@ -136,6 +136,55 @@ func TestStrings(t *testing.T) {
 	}
 
 	assert.Nil(t, config.New("", def).Strings("absent"), "Strings() of an unknown key")
+}
+
+func TestStringsOrNone(t *testing.T) {
+	t.Parallel()
+
+	const def = "excluded: [a, b]\n"
+	tests := []struct {
+		name string
+		user string
+		want []string
+	}{
+		{"user list wins", "excluded: [x]", []string{"x"}},
+		{"an empty list is kept", "excluded: []", nil},
+		{"only empty entries falls back", "excluded: ['']", []string{"a", "b"}},
+		{"a null falls back", "excluded: ~", []string{"a", "b"}},
+		{"a scalar falls back", "excluded: x", []string{"a", "b"}},
+		{"missing falls back", "", []string{"a", "b"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, config.New(tt.user, def).StringsOrNone("excluded"))
+		})
+	}
+}
+
+func TestHasUserList(t *testing.T) {
+	t.Parallel()
+
+	const def = "excluded: [a]\n"
+	tests := []struct {
+		name string
+		user string
+		want bool
+	}{
+		{"a list", "excluded: [x]", true},
+		{"an empty list", "excluded: []", true},
+		{"missing", "", false},
+		{"only empty entries", "excluded: ['']", false},
+		{"a scalar", "excluded: x", false},
+		{"a null", "excluded: ~", false},
+		{"a non-string entry", "excluded: [x, 5]", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, config.New(tt.user, def).HasUserList("excluded"))
+		})
+	}
 }
 
 func TestParseNumber(t *testing.T) {

@@ -213,6 +213,25 @@ func (c *Config) Strings(key string) []string {
 	return l
 }
 
+// StringsOrNone is Strings, except that an empty list in the user's config is kept as no strings rather than falling back,
+// so a user can clear a list whose default is not empty.
+func (c *Config) StringsOrNone(key string) []string {
+	if items, ok := c.lookupUser(key).([]any); ok && len(items) == 0 {
+		return nil
+	}
+	return c.Strings(key)
+}
+
+// HasUserList reports whether the user's config sets key to a list that StringsOrNone keeps, rather than leaving the default.
+func (c *Config) HasUserList(key string) bool {
+	v := c.lookupUser(key)
+	if items, ok := v.([]any); ok && len(items) == 0 {
+		return true
+	}
+	_, ok := stringsOf(v)
+	return ok
+}
+
 // Int returns a whole number from 0 to 999999999999.
 func (c *Config) Int(key string) int {
 	if n, ok := intOf(c.lookupUser(key)); ok {

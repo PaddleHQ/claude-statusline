@@ -2,6 +2,7 @@ package statusline
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
@@ -17,6 +18,7 @@ type helper struct {
 	env        *segments.Env
 	hooks      []hook.Hook
 	names      []string
+	excluded   []string
 	configPath string
 	problem    *config.Problem
 }
@@ -34,10 +36,13 @@ func Help(getenv func(string) string) string {
 	th = th.WithoutColor()
 	env := segments.NewEnv(segments.Env{Config: cfg, Theme: th, Home: getenv("HOME"), Columns: defaultColumns})
 
+	hooks := hook.Discover(hookDir(getenv))
+	excluded := excludedNames(cfg, hooks)
 	h := &helper{
 		env:        env,
-		hooks:      hook.Discover(hookDir(getenv)),
-		names:      cfg.Strings("segments"),
+		hooks:      hooks,
+		names:      segmentNames(cfg, excluded),
+		excluded:   excluded,
 		configPath: path,
 		problem:    cfg.Problem(),
 	}
@@ -60,9 +65,9 @@ func (h *helper) text() string {
 		b.WriteString("  (nothing: your segments list names no known segment)\n")
 	}
 
-	if len(h.hooks) > 0 {
+	if custom := h.custom(); len(custom) > 0 {
 		b.WriteString("\nCustom segments:\n")
-		writeList(&b, h.custom())
+		writeList(&b, custom)
 	}
 
 	if left := h.unlisted(); len(left) > 0 {
@@ -70,12 +75,17 @@ func (h *helper) text() string {
 		writeList(&b, left)
 	}
 
+	if excluded := h.excludedLines(); len(excluded) > 0 {
+		b.WriteString("\nLeft out by segments_excluded:\n")
+		writeList(&b, excluded)
+	}
+
 	b.WriteString("\n" + h.configFooter())
 	b.WriteString("Documentation: " + docsURL + "\n")
 	return b.String()
 }
 
-// shown describes what the name stands for in the segments list: the hooks of that name, which replace a built-in, else the built-in.
+// shown describes what a segment name stands for: the hooks of that name, which replace a built-in, else the built-in.
 func (h *helper) shown(name string) []string {
 	var lines []string
 	for i := range h.hooks {
@@ -95,6 +105,9 @@ func (h *helper) shown(name string) []string {
 func (h *helper) custom() []string {
 	lines := make([]string, 0, len(h.hooks))
 	for i := range h.hooks {
+		if slices.Contains(h.excluded, h.hooks[i].Name) {
+			continue
+		}
 		lines = append(lines, fmt.Sprintf("%s (%s, slot %s): %s", h.hooks[i].Name, h.hooks[i].File, h.hooks[i].Slot, hookHelp(&h.hooks[i])))
 	}
 	return lines
@@ -107,9 +120,18 @@ func (h *helper) unlisted() []string {
 	}
 	var lines []string
 	for _, seg := range h.env.All() {
-		if !listed[seg.Name()] {
+		if !listed[seg.Name()] && !slices.Contains(h.excluded, seg.Name()) {
 			lines = append(lines, seg.Name()+": "+seg.Help())
 		}
+	}
+	return lines
+}
+
+// excludedLines describes each excluded name that stands for a hook or a built-in; other names describe nothing.
+func (h *helper) excludedLines() []string {
+	lines := make([]string, 0, len(h.excluded))
+	for _, name := range h.excluded {
+		lines = append(lines, h.shown(name)...)
 	}
 	return lines
 }
