@@ -21,8 +21,9 @@ jobs:
       - name: Harden the runner
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
-          use-policy-store: true
-          api-key: ${{ secrets.STEPSECURITY_POLICY_STORE_API_KEY }}
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
 
       - name: Fail if a blocking label is present
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0

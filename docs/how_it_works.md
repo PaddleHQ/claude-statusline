@@ -109,7 +109,7 @@ Any other command is somebody else's, so it is left as it is, and only the first
 
 All of these are under `$CLAUDE_CONFIG_DIR` if you set it. The status line command does not receive the plugin's environment, so the binary finds its own state from where it is installed: when it runs from `<config dir>/plugins/data/<plugin>/bin/`, that plugin data directory is its state directory. Anywhere else, including a [manual install](#manual-install), its caches stay in `~/.claude/claude-statusline` next to `config.yaml`.
 
-Every release is published from this repository's release workflow, so you can check what you download. The commands under [From a release](#from-a-release) verify the archive against the published checksums and against its build provenance attestation. The plugin does the checksum check for you and, when `gh` is installed and logged in, the provenance check too.
+Every release is published from this repository's `release-binaries.yml` workflow, so you can check what you download. The commands under [From a release](#from-a-release) verify the archive against the published checksums and against its build provenance attestation. The plugin does the checksum check for you and, when `gh` is installed and logged in, the provenance check too.
 
 ## Manual install
 
@@ -132,7 +132,7 @@ mkdir -p ~/.local/bin
 tar -xzf "$ARCHIVE" -C ~/.local/bin claude-statusline
 ```
 
-`shasum` checks the archive against the published checksums. `gh attestation verify` proves it was built by this repository's release workflow.
+`shasum` checks the archive against the published checksums. `gh attestation verify` proves it was built by this repository's `release-binaries.yml` workflow.
 
 ### With Go
 

@@ -13,18 +13,24 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: Test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+  test_macos:
+    name: Test (macos-latest)
+    runs-on: macos-latest
+    timeout-minutes: 20
     steps:
       - name: Harden the runner
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
-          use-policy-store: true
-          api-key: ${{ secrets.STEPSECURITY_POLICY_STORE_API_KEY }}
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            dl.google.com:443
+            github.com:443
+            go.dev:443
+            proxy.golang.org:443
+            release-assets.githubusercontent.com:443
+            storage.googleapis.com:443
+            sum.golang.org:443
 
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -32,125 +38,29 @@ jobs:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: go.mod
-
-      - name: Check formatting
-        run: test -z "$(gofmt -s -l .)"
-
-      - name: Vet
-        run: go vet ./...
-
-      - name: Check generated mocks are up to date
-        run: |
-          go generate ./...
-          git diff --exit-code
+        uses: ./.github/actions/setup-go
 
       - name: Test
         run: go test -race ./...
 
-  coverage:
-    name: Coverage
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      # Paths matched by this extended regex are left out of the coverage total: generated mocks, developer tooling and the feature-test harness.
-      COVERAGE_EXCLUDE: /mocks/|/tools/|/internal/featuretest/
-    steps:
-      - name: Harden the runner
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
-        with:
-          use-policy-store: true
-          api-key: ${{ secrets.STEPSECURITY_POLICY_STORE_API_KEY }}
-
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: go.mod
-
-      - name: Run tests with coverage
-        run: |
-          mkdir -p "${GITHUB_WORKSPACE}/covdata"
-          go test -race -cover -covermode=atomic -coverpkg ./... ./... -args -test.gocoverdir="${GITHUB_WORKSPACE}/covdata"
-
-      - name: Merge coverage data
-        run: |
-          if [ -n "$(ls -A covdata 2>/dev/null)" ]; then
-            go tool covdata textfmt -i=covdata -o cover.out
-          else
-            echo "mode: atomic" > cover.out
-          fi
-
-      - name: Remove mocks and tools from coverage
-        run: grep -vE "${COVERAGE_EXCLUDE}" cover.out > cover.filtered.out
-
-      - name: Get total coverage
-        run: |
-          total=$(go tool cover -func cover.filtered.out | tail -n 1 | awk '{print substr($3, 1, length($3)-1)}')
-          echo "TOTAL_COVERAGE=${total}" >> "$GITHUB_ENV"
-
-      - name: Read required coverage
-        run: |
-          required=$(yq '.requiredCoverage' build-config.yaml)
-          case "$required" in
-            ''|*[!0-9]*) echo "::error::requiredCoverage in build-config.yaml must be a whole number, got '${required}'"; exit 1 ;;
-          esac
-          echo "REQUIRED_COVERAGE=${required}" >> "$GITHUB_ENV"
-
-      - name: Write coverage summary
-        run: |
-          result=$(awk -v t="$TOTAL_COVERAGE" -v r="$REQUIRED_COVERAGE" 'BEGIN { print (t + 0 >= r + 0) ? "pass" : "fail" }')
-          {
-            echo "## Coverage"
-            echo
-            echo "| Total | Required | Result |"
-            echo "|---|---|---|"
-            echo "| ${TOTAL_COVERAGE}% | ${REQUIRED_COVERAGE}% | ${result} |"
-            echo
-            echo "| Package | Statements | Coverage |"
-            echo "|---|---|---|"
-            awk 'NR > 1 {
-              split($1, loc, ":")
-              file = loc[1]
-              sub(/\/[^\/]*$/, "", file)
-              total[file] += $2
-              if ($3 > 0) covered[file] += $2
-            }
-            END {
-              for (p in total) printf "| %s | %d | %.1f%% |\n", p, total[p], 100 * covered[p] / total[p]
-            }' cover.filtered.out | sort
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Suggest a higher required coverage
-        run: |
-          suggested=$(awk -v t="$TOTAL_COVERAGE" 'BEGIN { print int(t) }')
-          if [ "$suggested" -ge $((REQUIRED_COVERAGE + 1)) ]; then
-            echo "::notice::Coverage is ${TOTAL_COVERAGE}%, at least a point above the required ${REQUIRED_COVERAGE}%. Raise requiredCoverage in build-config.yaml to ${suggested}."
-          fi
-
-      - name: Fail if coverage is too low
-        run: |
-          if awk -v t="$TOTAL_COVERAGE" -v r="$REQUIRED_COVERAGE" 'BEGIN { exit !(t + 0 < r + 0) }'; then
-            echo "::error::Total coverage is ${TOTAL_COVERAGE}% but the required coverage is ${REQUIRED_COVERAGE}%. Add tests to increase it."
-            exit 1
-          fi
-
-  validate:
-    name: Validate Go module
+  repo_checks:
+    name: Check mocks and go.mod
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Harden the runner
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
-          use-policy-store: true
-          api-key: ${{ secrets.STEPSECURITY_POLICY_STORE_API_KEY }}
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            dl.google.com:443
+            github.com:443
+            go.dev:443
+            proxy.golang.org:443
+            release-assets.githubusercontent.com:443
+            storage.googleapis.com:443
+            sum.golang.org:443
 
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -158,21 +68,12 @@ jobs:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: go.mod
+        uses: ./.github/actions/setup-go
 
-      - name: Verify dependencies
-        run: go mod verify
-
-      - name: Check go.mod and go.sum are tidy
-        env:
-          GOTOOLCHAIN: local
+      - name: Check generated mocks are up to date
         run: |
-          go mod tidy -diff || {
-            echo '::error file=go.mod,line=1,endLine=1,title=Incorrect dependencies::Please run "go mod tidy"'
-            exit 1
-          }
+          go generate ./...
+          git diff --exit-code
 
       - name: Check go.mod has no toolchain directive
         run: |
@@ -182,31 +83,6 @@ jobs:
             exit 1
           fi
 
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Harden the runner
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
-        with:
-          use-policy-store: true
-          api-key: ${{ secrets.STEPSECURITY_POLICY_STORE_API_KEY }}
-
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: go.mod
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
-        with:
-          version: v2.14.0
-
   release_check:
     name: Release check
     runs-on: ubuntu-latest
@@ -215,8 +91,17 @@ jobs:
       - name: Harden the runner
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
-          use-policy-store: true
-          api-key: ${{ secrets.STEPSECURITY_POLICY_STORE_API_KEY }}
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            dl.google.com:443
+            github.com:443
+            go.dev:443
+            goreleaser.com:443
+            proxy.golang.org:443
+            release-assets.githubusercontent.com:443
+            storage.googleapis.com:443
+            sum.golang.org:443
 
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -225,9 +110,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: go.mod
+        uses: ./.github/actions/setup-go
 
       - name: Install syft
         uses: step-security/action-install-gh-release@fcc32674e8d9158ed77bb8ec6d54b7d49ed259b9 # v3.0.0
@@ -259,8 +142,11 @@ jobs:
       - name: Harden the runner
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
-          use-policy-store: true
-          api-key: ${{ secrets.STEPSECURITY_POLICY_STORE_API_KEY }}
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+            release-assets.githubusercontent.com:443
 
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -280,7 +166,14 @@ jobs:
 
       - name: Install shellcheck
         if: runner.os == 'macOS'
-        run: brew install shellcheck
+        env:
+          SHELLCHECK_VERSION: v0.11.0
+          SHELLCHECK_SHA256: 339b930feb1ea764467013cc1f72d09cd6b869ebf1013296ba9055ab2ffbd26f
+        run: |
+          curl -fsSL -o shellcheck.tar.gz "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.darwin.aarch64.tar.gz"
+          echo "${SHELLCHECK_SHA256}  shellcheck.tar.gz" | shasum -a 256 -c -
+          tar -xzf shellcheck.tar.gz
+          echo "$PWD/shellcheck-${SHELLCHECK_VERSION}" >> "$GITHUB_PATH"
 
       - name: Lint shell scripts
         run: shellcheck -s sh hooks/bootstrap.sh hooks/bootstrap_test.sh hooks/run.sh
@@ -296,8 +189,14 @@ jobs:
       - name: Harden the runner
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
-          use-policy-store: true
-          api-key: ${{ secrets.STEPSECURITY_POLICY_STORE_API_KEY }}
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+            nodejs.org:443
+            raw.githubusercontent.com:443
+            registry.npmjs.org:443
+            release-assets.githubusercontent.com:443
 
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -313,4 +212,7 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code
 
       - name: Validate plugin and marketplace
+        env:
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+          DISABLE_AUTOUPDATER: "1"
         run: claude plugin validate .
