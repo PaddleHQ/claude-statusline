@@ -5,7 +5,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 ## Prerequisites
 
 - Go, at the version in `go.mod`.
-- [golangci-lint](https://golangci-lint.run/) v2, for the linters and formatters in `.golangci.yml` (CI uses v2.11.0).
+- [golangci-lint](https://golangci-lint.run/) v2, for the linters and formatters in `.golangci.yml` (CI uses v2.14.0).
 - [shellcheck](https://www.shellcheck.net/), for the shell scripts under `hooks/`.
 - [GoReleaser](https://goreleaser.com/) and [syft](https://github.com/anchore/syft), only if you want to build a snapshot release locally.
 
