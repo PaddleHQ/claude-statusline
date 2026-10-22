@@ -32,7 +32,7 @@ const (
 
 // Keys lists every config key the status line reads, for checking against defaults.yaml.
 func Keys() []string {
-	keys := append(render.Keys(), keyExcluded, keyTheme, keyHookTTL, keyHookTimeout, keySnapEnabled, keySnapPath)
+	keys := append(render.Keys(), keySegments, keyExcluded, keyTheme, keyHookTTL, keyHookTimeout, keySnapEnabled, keySnapPath)
 	for _, seg := range segments.NewEnv(segments.Env{Config: config.New("")}).All() {
 		for _, k := range seg.Keys() {
 			keys = append(keys, seg.Name()+"."+k)
@@ -75,12 +75,12 @@ func Build(input []byte, getenv func(string) string) string {
 		},
 	})
 	line := &render.Line{
-		Names:     segmentNames(cfg),
+		Names:     segmentNames(cfg, cfg.StringsOrNone(keyExcluded)),
 		Lookup:    lookup(env),
 		Columns:   env.Columns,
 		Separator: env.Separator(),
 		Anchor:    th.Paint(th.Muted, "↳"),
-		Hooks:     runHooks(hook.Discover(hookDir(getenv)), input, p, cfg, at, getenv),
+		Hooks:     runHooks(input, p, cfg, at, getenv),
 	}
 	return withErrorRow(line.Render(), cfg.Problem(), &th, getenv("HOME"), env.Columns)
 }
@@ -131,10 +131,9 @@ func saveSnapshot(input []byte, cfg *config.Config, getenv func(string) string) 
 	_ = snapshot.New(path).Write(input)
 }
 
-// runHooks runs the hook scripts; STATUSLINE_HOOK_TTL and STATUSLINE_HOOK_TIMEOUT override the config.
-func runHooks(
-	hooks []hook.Hook, input []byte, p payload.Payload, cfg *config.Config, at time.Time, getenv func(string) string,
-) []hook.Result {
+// runHooks runs the scripts in the hook directory; STATUSLINE_HOOK_TTL and STATUSLINE_HOOK_TIMEOUT override the config.
+func runHooks(input []byte, p payload.Payload, cfg *config.Config, at time.Time, getenv func(string) string) []hook.Result {
+	hooks := hook.Discover(hookDir(getenv))
 	if len(hooks) == 0 {
 		return nil
 	}
@@ -154,10 +153,9 @@ func runHooks(
 	return opts.Run(hooks)
 }
 
-// segmentNames is the segments list less the built-ins in segments_excluded. A hook of an excluded name is placed
-// as if its name were not listed, so excluding cost never hides a user's own cost script.
-func segmentNames(cfg *config.Config) []string {
-	excluded := cfg.StringsOrNone(keyExcluded)
+// segmentNames is the segments list less the excluded names. A hook of the same name is not hidden: with its name
+// gone from the list, the renderer places it in its slot.
+func segmentNames(cfg *config.Config, excluded []string) []string {
 	return slices.DeleteFunc(cfg.Strings(keySegments), func(name string) bool { return slices.Contains(excluded, name) })
 }
 

@@ -25,7 +25,7 @@ A setting you leave out keeps its default, including the other keys of a segment
 | Key | Default | Meaning |
 |---|---|---|
 | `segments` | `[path, model, ctx, tokens, cache, cost, boot, skills, skills_stripped, agent_skills, mem, rate5h, rate7d]` | Segments to show, in order, as a list. Unknown names are skipped. |
-| `segments_excluded` | `[cost]` | Built-in segments to leave out of `segments`, as a list. Your own list replaces the default, and `[]` leaves out nothing. Custom segments cannot be excluded. See [Segments and order](#segments-and-order). |
+| `segments_excluded` | `[cost]` | Built-in segments to leave out of `segments`, as a list; `[]` leaves out nothing. See [Segments and order](#segments-and-order). |
 | `separator` | `·` | Glyph drawn between segments. |
 | `theme` | `classic` | Colour theme: a built-in name (`classic` or `gradient`) or the path to a theme file. Anything that cannot be used falls back to `classic`. See [Themes](#themes). |
 | `path.strip` | `[]` | Directory prefixes to strip from the path, as a list; an entry may contain spaces, and a leading `~` means your home directory. |
@@ -182,7 +182,7 @@ Output is used as it is, so a hook chooses its own colours. Control characters a
 
 A hook's name is its filename without a leading `NN-` and without its extension, so `10-backup.sh` is `backup`.
 
-- If the name is in `segments_excluded`, the hook still runs, and goes to its slot as if its name were not in `segments`. `segments_excluded` only turns off built-in segments. To stop a hook, remove its script or make it not executable (`chmod -x`).
+- A name in `segments_excluded` does not stop the hook: it still runs, in its slot. To stop it, remove the script or make it not executable; see [Segments and order](#segments-and-order).
 - If the name is in `segments`, the hook is drawn there: `segments: [backup, path, model, ctx, tokens, cache, rate5h, rate7d]` puts it first.
 - If the name is a built-in segment that is in `segments` (`model`, say), the hook replaces the built-in.
 - Any other hook goes to its slot, chosen by a comment in the first 20 lines of the script: `# statusline-slot: ctx` (the default) draws it straight after `ctx`, or after `model` when there is no `ctx`; `usage` draws it after `tokens`, `cache` and `cost`; `end` draws it last. Any other slot name means `ctx`, so a typo shows up on the line.

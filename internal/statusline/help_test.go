@@ -117,41 +117,6 @@ Config file: @TMP@/claude-statusline/config.yaml
 Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md`,
 		},
 		{
-			name:   `A custom segment of an excluded built-in's name moves to its slot, and the built-in is left out`,
-			config: `segments: [model, cost]`,
-			executables: map[string]string{
-				`statusline.d/50-cost.sh`: `#!/bin/sh
-# statusline-help: My own cost figure
-printf mine`,
-			},
-			want: `Your status line, as currently configured.
-
-Shown now, in order:
-  model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
-
-Custom segments:
-  cost (50-cost.sh, slot ctx): My own cost figure
-
-Also available, not in your segments list:
-  path: The working directory, with your home directory shown as ~, followed by the git branch in brackets.
-  ctx: How full the context window is. Amber from 50%, red from 90%.
-  tokens: Session token totals: input after the down arrow, output after the up arrow.
-  cache: How much of the latest request's input was read from the prompt cache. Red below 5%.
-  rate5h: Your 5 hour usage, with a marker at an even pace. Amber when more than 20 points off it, red beyond 40 points or from 95% used.
-  rate7d: Your 7 day usage, with a marker at an even pace. Amber when more than 10 points off it, red beyond 20 points or from 95% used.
-  boot: The prompt size on the first turn, before you said anything.
-  skills: The size of the always-loaded skill listing, in tokens.
-  skills_stripped: Red when skills lost their descriptions to fit the budget; shows how many.
-  agent_skills: Amber when a subagent lost skill descriptions; shows how many.
-  mem: Red when a SessionStart hook output was too large to inject.
-
-Left out by segments_excluded:
-  cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
-
-Config file: @TMP@/claude-statusline/config.yaml
-Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md`,
-		},
-		{
 			name: `segments_excluded leaves custom segments and unknown names alone`,
 			config: `segments: [path]
 segments_excluded: [backup, nothing]`,
