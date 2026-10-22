@@ -75,14 +75,14 @@ func Build(input []byte, getenv func(string) string) string {
 		},
 	})
 	hooks := hook.Discover(hookDir(getenv))
-	excluded := excludedNames(cfg, hooks)
+	fromList, fromHooks := exclusions(cfg, hooks)
 	line := &render.Line{
-		Names:     segmentNames(cfg, excluded),
+		Names:     segmentNames(cfg, fromList),
 		Lookup:    lookup(env),
 		Columns:   env.Columns,
 		Separator: env.Separator(),
 		Anchor:    th.Paint(th.Muted, "↳"),
-		Hooks:     runHooks(withoutExcluded(hooks, excluded), input, p, cfg, at, getenv),
+		Hooks:     runHooks(withoutExcluded(hooks, fromHooks), input, p, cfg, at, getenv),
 	}
 	return withErrorRow(line.Render(), cfg.Problem(), &th, getenv("HOME"), env.Columns)
 }
@@ -156,16 +156,20 @@ func runHooks(
 	return opts.Run(hooks)
 }
 
-// excludedNames is segments_excluded. While it is only the default, a name that a hook also has is kept,
-// so the default can turn off a built-in without hiding a user's own script of the same name.
-func excludedNames(cfg *config.Config, hooks []hook.Hook) []string {
+// exclusions splits segments_excluded into the names to leave out of the segments list and the hooks not to run.
+// The default only turns off built-ins: a user's own script of the same name is placed as if nothing were excluded,
+// in its slot under the default segments list, or where the user's own list names it.
+func exclusions(cfg *config.Config, hooks []hook.Hook) (fromList, fromHooks []string) {
 	excluded := cfg.StringsOrNone(keyExcluded)
-	if cfg.HasUserList(keyExcluded) {
-		return excluded
+	if cfg.HasUserList(keyExcluded) || len(excluded) == 0 {
+		return excluded, excluded
+	}
+	if !cfg.HasUserList(keySegments) {
+		return excluded, nil
 	}
 	return slices.DeleteFunc(excluded, func(name string) bool {
 		return slices.ContainsFunc(hooks, func(h hook.Hook) bool { return h.Name == name })
-	})
+	}), nil
 }
 
 // segmentNames is the segments list less the excluded names.

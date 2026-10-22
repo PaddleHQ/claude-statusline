@@ -19,6 +19,68 @@ func TestHelp(t *testing.T) {
 
 	tests := []scenario{
 		{
+			name:   `Under the default lists a custom segment named cost keeps its slot, and only the built-in cost is left out`,
+			config: `theme: classic`,
+			executables: map[string]string{
+				`statusline.d/50-cost.sh`: `#!/bin/sh
+# statusline-slot: end
+# statusline-help: My own cost figure
+printf mine`,
+			},
+			want: `Your status line, as currently configured.
+
+Shown now, in order:
+  path: The working directory, with your home directory shown as ~, followed by the git branch in brackets.
+  model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
+  ctx: How full the context window is. Amber from 50%, red from 90%.
+  tokens: Session token totals: input after the down arrow, output after the up arrow.
+  cache: How much of the latest request's input was read from the prompt cache. Red below 5%.
+  boot: The prompt size on the first turn, before you said anything.
+  skills: The size of the always-loaded skill listing, in tokens.
+  skills_stripped: Red when skills lost their descriptions to fit the budget; shows how many.
+  agent_skills: Amber when a subagent lost skill descriptions; shows how many.
+  mem: Red when a SessionStart hook output was too large to inject.
+  rate5h: Your 5 hour usage, with a marker at an even pace. Amber when more than 20 points off it, red beyond 40 points or from 95% used.
+  rate7d: Your 7 day usage, with a marker at an even pace. Amber when more than 10 points off it, red beyond 20 points or from 95% used.
+
+Custom segments:
+  cost (50-cost.sh, slot end): My own cost figure
+
+Left out by segments_excluded:
+  cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
+
+Config file: @TMP@/claude-statusline/config.yaml
+Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md`,
+		},
+		{
+			name: `A name given twice in segments_excluded is left out once`,
+			config: `segments: [path]
+segments_excluded: [cost, cost]`,
+			want: `Your status line, as currently configured.
+
+Shown now, in order:
+  path: The working directory, with your home directory shown as ~, followed by the git branch in brackets.
+
+Also available, not in your segments list:
+  model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
+  ctx: How full the context window is. Amber from 50%, red from 90%.
+  tokens: Session token totals: input after the down arrow, output after the up arrow.
+  cache: How much of the latest request's input was read from the prompt cache. Red below 5%.
+  rate5h: Your 5 hour usage, with a marker at an even pace. Amber when more than 20 points off it, red beyond 40 points or from 95% used.
+  rate7d: Your 7 day usage, with a marker at an even pace. Amber when more than 10 points off it, red beyond 20 points or from 95% used.
+  boot: The prompt size on the first turn, before you said anything.
+  skills: The size of the always-loaded skill listing, in tokens.
+  skills_stripped: Red when skills lost their descriptions to fit the budget; shows how many.
+  agent_skills: Amber when a subagent lost skill descriptions; shows how many.
+  mem: Red when a SessionStart hook output was too large to inject.
+
+Left out by segments_excluded:
+  cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
+
+Config file: @TMP@/claude-statusline/config.yaml
+Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md`,
+		},
+		{
 			name:   `A custom segment named like a default-excluded built-in is shown in its place, not left out`,
 			config: `segments: [model, cost]`,
 			executables: map[string]string{

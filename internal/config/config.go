@@ -222,13 +222,9 @@ func (c *Config) StringsOrNone(key string) []string {
 	return c.Strings(key)
 }
 
-// HasUserList reports whether the user's config sets key to a list that StringsOrNone keeps, rather than leaving the default.
+// HasUserList reports whether the user's config sets key to a list that Strings uses rather than the default.
 func (c *Config) HasUserList(key string) bool {
-	v := c.lookupUser(key)
-	if items, ok := v.([]any); ok && len(items) == 0 {
-		return true
-	}
-	_, ok := stringsOf(v)
+	_, ok := stringsOf(c.lookupUser(key))
 	return ok
 }
 

@@ -172,7 +172,7 @@ func TestHasUserList(t *testing.T) {
 		want bool
 	}{
 		{"a list", "excluded: [x]", true},
-		{"an empty list", "excluded: []", true},
+		{"an empty list, which Strings ignores", "excluded: []", false},
 		{"missing", "", false},
 		{"only empty entries", "excluded: ['']", false},
 		{"a scalar", "excluded: x", false},
