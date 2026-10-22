@@ -166,7 +166,14 @@ jobs:
 
       - name: Install shellcheck
         if: runner.os == 'macOS'
-        run: brew install shellcheck
+        env:
+          SHELLCHECK_VERSION: v0.11.0
+          SHELLCHECK_SHA256: 339b930feb1ea764467013cc1f72d09cd6b869ebf1013296ba9055ab2ffbd26f
+        run: |
+          curl -fsSL -o shellcheck.tar.gz "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.darwin.aarch64.tar.gz"
+          echo "${SHELLCHECK_SHA256}  shellcheck.tar.gz" | shasum -a 256 -c -
+          tar -xzf shellcheck.tar.gz
+          echo "$PWD/shellcheck-${SHELLCHECK_VERSION}" >> "$GITHUB_PATH"
 
       - name: Lint shell scripts
         run: shellcheck -s sh hooks/bootstrap.sh hooks/bootstrap_test.sh hooks/run.sh

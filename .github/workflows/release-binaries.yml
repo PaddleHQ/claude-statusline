@@ -56,7 +56,7 @@ jobs:
         run: |
           tag=$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
           if [ -z "$tag" ]; then
-            echo "No release tag points at ${GITHUB_SHA}, so there is nothing to publish."
+            echo "No release tag points at $(git rev-parse HEAD), so there is nothing to publish."
           fi
           echo "name=${tag}" >> "$GITHUB_OUTPUT"
 
