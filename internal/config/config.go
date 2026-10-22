@@ -222,12 +222,6 @@ func (c *Config) StringsOrNone(key string) []string {
 	return c.Strings(key)
 }
 
-// HasUserList reports whether the user's config sets key to a list that Strings uses rather than the default.
-func (c *Config) HasUserList(key string) bool {
-	_, ok := stringsOf(c.lookupUser(key))
-	return ok
-}
-
 // Int returns a whole number from 0 to 999999999999.
 func (c *Config) Int(key string) int {
 	if n, ok := intOf(c.lookupUser(key)); ok {

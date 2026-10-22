@@ -15,14 +15,12 @@ const docsURL = "https://github.com/PaddleHQ/claude-statusline/blob/main/docs/cu
 
 // helper describes the status line as the user has configured it. It never runs a hook script.
 type helper struct {
-	env   *segments.Env
-	hooks []hook.Hook
-	names []string
-	// excluded and excludedHooks are what segments_excluded leaves out of the segments list and of the hooks.
-	excluded      []string
-	excludedHooks []string
-	configPath    string
-	problem       *config.Problem
+	env        *segments.Env
+	hooks      []hook.Hook
+	names      []string
+	excluded   []string
+	configPath string
+	problem    *config.Problem
 }
 
 // Help describes the user's status line in plain text: what is shown now, the custom segments and the built-ins left out.
@@ -38,16 +36,13 @@ func Help(getenv func(string) string) string {
 	th = th.WithoutColor()
 	env := segments.NewEnv(segments.Env{Config: cfg, Theme: th, Home: getenv("HOME"), Columns: defaultColumns})
 
-	hooks := hook.Discover(hookDir(getenv))
-	fromList, fromHooks := exclusions(cfg, hooks)
 	h := &helper{
-		env:           env,
-		hooks:         hooks,
-		names:         segmentNames(cfg, fromList),
-		excluded:      fromList,
-		excludedHooks: fromHooks,
-		configPath:    path,
-		problem:       cfg.Problem(),
+		env:        env,
+		hooks:      hook.Discover(hookDir(getenv)),
+		names:      segmentNames(cfg),
+		excluded:   cfg.StringsOrNone(keyExcluded),
+		configPath: path,
+		problem:    cfg.Problem(),
 	}
 	return h.text()
 }
@@ -108,9 +103,6 @@ func (h *helper) shown(name string) []string {
 func (h *helper) custom() []string {
 	lines := make([]string, 0, len(h.hooks))
 	for i := range h.hooks {
-		if slices.Contains(h.excludedHooks, h.hooks[i].Name) {
-			continue
-		}
 		lines = append(lines, fmt.Sprintf("%s (%s, slot %s): %s", h.hooks[i].Name, h.hooks[i].File, h.hooks[i].Slot, hookHelp(&h.hooks[i])))
 	}
 	return lines
@@ -130,18 +122,13 @@ func (h *helper) unlisted() []string {
 	return lines
 }
 
-// excludedLines describes each excluded name once: as its hooks when they are left out too, else as the built-in.
+// excludedLines describes each excluded built-in once; segments_excluded leaves hooks and unknown names alone.
 func (h *helper) excludedLines() []string {
 	lines := make([]string, 0, len(h.excluded))
 	seen := map[string]bool{}
 	for _, name := range h.excluded {
-		if seen[name] {
-			continue
-		}
-		seen[name] = true
-		if slices.Contains(h.excludedHooks, name) {
-			lines = append(lines, h.shown(name)...)
-		} else if seg, ok := h.builtin(name); ok {
+		if seg, ok := h.builtin(name); ok && !seen[name] {
+			seen[name] = true
 			lines = append(lines, name+": "+seg.Help())
 		}
 	}

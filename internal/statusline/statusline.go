@@ -74,15 +74,13 @@ func Build(input []byte, getenv func(string) string) string {
 			return synced.Visible(at.Unix())
 		},
 	})
-	hooks := hook.Discover(hookDir(getenv))
-	fromList, fromHooks := exclusions(cfg, hooks)
 	line := &render.Line{
-		Names:     segmentNames(cfg, fromList),
+		Names:     segmentNames(cfg),
 		Lookup:    lookup(env),
 		Columns:   env.Columns,
 		Separator: env.Separator(),
 		Anchor:    th.Paint(th.Muted, "↳"),
-		Hooks:     runHooks(withoutExcluded(hooks, fromHooks), input, p, cfg, at, getenv),
+		Hooks:     runHooks(hook.Discover(hookDir(getenv)), input, p, cfg, at, getenv),
 	}
 	return withErrorRow(line.Render(), cfg.Problem(), &th, getenv("HOME"), env.Columns)
 }
@@ -156,30 +154,11 @@ func runHooks(
 	return opts.Run(hooks)
 }
 
-// exclusions splits segments_excluded into the names to leave out of the segments list and the hooks not to run.
-// The default only turns off built-ins: a user's own script of the same name is placed as if nothing were excluded,
-// in its slot under the default segments list, or where the user's own list names it.
-func exclusions(cfg *config.Config, hooks []hook.Hook) (fromList, fromHooks []string) {
+// segmentNames is the segments list less the built-ins in segments_excluded. A hook of an excluded name is placed
+// as if its name were not listed, so excluding cost never hides a user's own cost script.
+func segmentNames(cfg *config.Config) []string {
 	excluded := cfg.StringsOrNone(keyExcluded)
-	if cfg.HasUserList(keyExcluded) || len(excluded) == 0 {
-		return excluded, excluded
-	}
-	if !cfg.HasUserList(keySegments) {
-		return excluded, nil
-	}
-	return slices.DeleteFunc(excluded, func(name string) bool {
-		return slices.ContainsFunc(hooks, func(h hook.Hook) bool { return h.Name == name })
-	}), nil
-}
-
-// segmentNames is the segments list less the excluded names.
-func segmentNames(cfg *config.Config, excluded []string) []string {
 	return slices.DeleteFunc(cfg.Strings(keySegments), func(name string) bool { return slices.Contains(excluded, name) })
-}
-
-// withoutExcluded drops excluded hooks, which would otherwise fall back to their slot once their name left the segments list.
-func withoutExcluded(hooks []hook.Hook, excluded []string) []hook.Hook {
-	return slices.DeleteFunc(hooks, func(h hook.Hook) bool { return slices.Contains(excluded, h.Name) })
 }
 
 func hookDir(getenv func(string) string) string {

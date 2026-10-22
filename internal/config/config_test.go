@@ -162,31 +162,6 @@ func TestStringsOrNone(t *testing.T) {
 	}
 }
 
-func TestHasUserList(t *testing.T) {
-	t.Parallel()
-
-	const def = "excluded: [a]\n"
-	tests := []struct {
-		name string
-		user string
-		want bool
-	}{
-		{"a list", "excluded: [x]", true},
-		{"an empty list, which Strings ignores", "excluded: []", false},
-		{"missing", "", false},
-		{"only empty entries", "excluded: ['']", false},
-		{"a scalar", "excluded: x", false},
-		{"a null", "excluded: ~", false},
-		{"a non-string entry", "excluded: [x, 5]", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, config.New(tt.user, def).HasUserList("excluded"))
-		})
-	}
-}
-
 func TestParseNumber(t *testing.T) {
 	t.Parallel()
 
