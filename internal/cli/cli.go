@@ -4,8 +4,12 @@ package cli
 import (
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 
+	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/setup"
 	"github.com/PaddleHQ/claude-statusline/internal/statusline"
 	"github.com/PaddleHQ/claude-statusline/internal/subagent"
@@ -29,12 +33,13 @@ func (b *Build) String() string {
 
 // App is the claude-statusline command.
 type App struct {
-	build Build
+	build      Build
+	executable func() (string, error)
 }
 
 // New returns the command for a binary with the given build stamps.
 func New(build Build) *App {
-	return &App{build: build}
+	return &App{build: build, executable: os.Executable}
 }
 
 // Execute runs the command the first argument selects, or the status line itself, and returns the exit status. It
@@ -44,11 +49,17 @@ func (a *App) Execute(args []string, stdin io.Reader, stdout io.Writer, getenv f
 	if len(args) > 0 {
 		command = args[0]
 	}
-	switch command {
-	case "--version":
+	if command == "--version" {
 		_, _ = fmt.Fprintln(stdout, a.build.String())
+		return 0
+	}
+	exe := a.resolvedExecutable()
+	getenv = withStateDir(getenv, exe)
+	switch command {
 	case "setup":
-		setup.Run(stdout, eventFlag(args[1:]), a.build.Version)
+		a.runSetup(args[1:], stdout, locations(exe, getenv))
+	case "uninstall":
+		setup.Uninstall(stdout, locations(exe, getenv))
 	case "subagent":
 		runSubagent(stdin, stdout, getenv)
 	case "help":
@@ -61,6 +72,46 @@ func (a *App) Execute(args []string, stdin io.Reader, stdout io.Writer, getenv f
 		run(stdin, stdout, getenv)
 	}
 	return 0
+}
+
+// runSetup wires the status line into settings.json. Without an --event flag it was run by hand, which re-adds the
+// lines even after an uninstall.
+func (a *App) runSetup(args []string, stdout io.Writer, loc setup.Locations) {
+	event := eventFlag(args)
+	if !slices.ContainsFunc(args, func(a string) bool { return strings.HasPrefix(a, "--event=") }) {
+		event = setup.EventManual
+	}
+	setup.Run(stdout, event, a.build.Version, loc)
+}
+
+func (a *App) resolvedExecutable() string {
+	exe, err := a.executable()
+	if err != nil {
+		return ""
+	}
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		return resolved
+	}
+	return exe
+}
+
+// withStateDir makes the binary's own location, not the environment, decide where its private state lives: inside
+// the plugin data directory it was installed into, and next to the user's config file otherwise.
+func withStateDir(getenv func(string) string, exe string) func(string) string {
+	state := ""
+	if exe != "" {
+		state = config.PluginDataDir(exe)
+	}
+	return func(name string) string {
+		if name == config.StateDirEnv {
+			return state
+		}
+		return getenv(name)
+	}
+}
+
+func locations(exe string, getenv func(string) string) setup.Locations {
+	return setup.Locations{ConfigDir: config.Dir(getenv), StateDir: config.StateDir(getenv), Bin: exe, Home: getenv("HOME")}
 }
 
 func eventFlag(args []string) string {

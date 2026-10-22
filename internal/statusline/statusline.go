@@ -130,7 +130,6 @@ func saveSnapshot(input []byte, cfg *config.Config, getenv func(string) string) 
 
 // runHooks runs the scripts in the hook directory; STATUSLINE_HOOK_TTL and STATUSLINE_HOOK_TIMEOUT override the config.
 func runHooks(input []byte, p payload.Payload, cfg *config.Config, at time.Time, getenv func(string) string) []hook.Result {
-	configDir := config.Dir(getenv)
 	hooks := hook.Discover(hookDir(getenv))
 	if len(hooks) == 0 {
 		return nil
@@ -145,8 +144,8 @@ func runHooks(input []byte, p payload.Payload, cfg *config.Config, at time.Time,
 	if opts.Timeout <= 0 {
 		opts.Timeout = time.Duration(cfg.Int(keyHookTimeout)) * time.Second
 	}
-	if configDir != "" {
-		opts.CacheDir = filepath.Join(configDir, "claude-statusline", "cache", "hooks")
+	if stateDir := config.StateDir(getenv); stateDir != "" {
+		opts.CacheDir = filepath.Join(stateDir, "cache", "hooks")
 	}
 	return opts.Run(hooks)
 }
@@ -170,11 +169,11 @@ func seconds(override string, fallback int) time.Duration {
 }
 
 func cachePath(getenv func(string) string) string {
-	path := config.Path(getenv)
-	if path == "" {
+	dir := config.StateDir(getenv)
+	if dir == "" {
 		return ""
 	}
-	return filepath.Join(filepath.Dir(path), "cache", "ratelimits")
+	return filepath.Join(dir, "cache", "ratelimits")
 }
 
 func now(getenv func(string) string) time.Time {

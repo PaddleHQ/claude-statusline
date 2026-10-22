@@ -16,7 +16,23 @@ As a Claude Code plugin:
 /plugin install statusline@claude-statusline
 ```
 
-On your next session start, a hook installs the latest release for your platform, checks it, and sets up the status line if you do not already have one. To install by hand from a release or with Go, see [Manual install](docs/how_it_works.md#manual-install).
+On your next session start, a hook installs the latest release for your platform, checks it, and sets up the status line. It adds `statusLine` and `subagentStatusLine` to your `settings.json` if you have none, and takes over the ones that already run an earlier install of this tool. It also takes over the old Paddle shell status line (`paddle-statusline.sh`), but only on the session after an install or update, and only when that script is the whole command. Any other status line of yours is left alone. To install by hand from a release or with Go, see [Manual install](docs/how_it_works.md#manual-install).
+
+## Uninstall
+
+Run this in Claude Code:
+
+```text
+/statusline:uninstall
+```
+
+It removes the `statusLine` and `subagentStatusLine` entries this tool set up from your `settings.json`, after backing it up to `settings.json.bak`, and then runs `claude plugin uninstall statusline@claude-statusline -s user`, which removes the plugin and its data directory, where the binary and its caches live. The change takes full effect in your next session. If `settings.json` is a symlink, the file it points to is the one that is edited and backed up.
+
+Use `/statusline:uninstall` rather than `/plugin uninstall` on its own: Claude Code leaves settings alone when a plugin is uninstalled, so the entries would stay behind pointing at a binary that is gone, and the status line would silently vanish. If the plugin is installed for a project rather than for you, the command does not uninstall it, because that edits the project's shared `.claude/settings.json`; it tells you what to run instead.
+
+To turn the status line back on without reinstalling the plugin, run `"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/statusline-claude-statusline/bin/claude-statusline" setup` from a terminal (or `claude-statusline setup` if it is on your `PATH`). Run by hand like this, it adds the entries again even after an uninstall.
+
+Three things stay, because they are yours: `~/.claude/claude-statusline/config.yaml`, the hooks in `~/.claude/statusline.d/` and the usage snapshot `~/.claude/usage-latest.json` (all under `$CLAUDE_CONFIG_DIR` if you set it). Delete them by hand if you want them gone. A status line of yours that is not this tool's is never removed.
 
 ## Configure
 

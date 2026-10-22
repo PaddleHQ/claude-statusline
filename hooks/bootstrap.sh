@@ -3,7 +3,7 @@
 
 REPO="PaddleHQ/claude-statusline"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-APP_DIR="$CLAUDE_DIR/claude-statusline"
+if [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then APP_DIR="$CLAUDE_PLUGIN_DATA"; else APP_DIR="$CLAUDE_DIR/claude-statusline"; fi
 BIN="$APP_DIR/bin/claude-statusline"
 CHECK_FILE="$APP_DIR/last-check"
 NOTICE_FILE="$APP_DIR/.no-attestation-notice"
@@ -94,7 +94,7 @@ ARCHIVE="claude-statusline_${V}_${OS}_${ARCH}.tar.gz"
 
 mkdir -p "$APP_DIR/bin" || fail "could not create the install directory."
 find "$APP_DIR" -maxdepth 1 -name 'tmp.*' -mmin +10 -exec rm -rf {} + 2>/dev/null
-TMP=$(mktemp -d "$APP_DIR/tmp.XXXXXX") || fail "could not create a temporary directory under the Claude config directory."
+TMP=$(mktemp -d "$APP_DIR/tmp.XXXXXX") || fail "could not create a temporary directory in the install directory."
 trap 'rm -rf "$TMP"' EXIT
 curl -fsSL --proto '=https,file' --proto-redir '=https' --max-time 20 -o "$TMP/$ARCHIVE" "$BASE/$TAG/$ARCHIVE" 2>/dev/null || soft_fail "downloading $TAG failed; will retry next session."
 curl -fsSL --proto '=https,file' --proto-redir '=https' --max-time 10 -o "$TMP/checksums.txt" "$BASE/$TAG/checksums.txt" 2>/dev/null || soft_fail "downloading the checksums for $TAG failed; will retry next session."
@@ -114,7 +114,7 @@ fi
 mkdir "$TMP/x" && tar -xzf "$TMP/$ARCHIVE" -C "$TMP/x" claude-statusline 2>/dev/null && [ -f "$TMP/x/claude-statusline" ] && [ ! -L "$TMP/x/claude-statusline" ] || fail "could not extract the binary from the $TAG archive; nothing was installed."
 chmod 755 "$TMP/x/claude-statusline"
 [ "$(reported_version "$TMP/x/claude-statusline")" = "$V" ] || fail "the downloaded binary did not report version $V; nothing was installed."
-mv -f "$TMP/x/claude-statusline" "$BIN" || fail "could not place the binary in the Claude config directory."
+mv -f "$TMP/x/claude-statusline" "$BIN" || fail "could not place the binary in the install directory."
 
 rm -rf "$TMP"
 record_check

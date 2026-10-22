@@ -54,7 +54,7 @@ A setting you leave out keeps its default, including the other keys of a segment
 claude-statusline config > ~/.claude/claude-statusline/config.yaml
 ```
 
-Every line is commented out, so an editor's toggle-comment command on a selected block turns the settings into live ones and leaves the explanations commented. A setting inside a section needs the section header uncommented as well (`hooks:` above `ttl: 60`), or the key lands at the top level and is ignored. Delete the settings you do not change: a setting you leave in the file keeps its current default even when a later release changes it. An untouched copy changes nothing. `config` reads no environment or config, so it prints the same text everywhere. Plugin users, who may not have `claude-statusline` on their `PATH`, can use the binary under `claude-statusline/bin/` in the Claude config directory.
+Every line is commented out, so an editor's toggle-comment command on a selected block turns the settings into live ones and leaves the explanations commented. A setting inside a section needs the section header uncommented as well (`hooks:` above `ttl: 60`), or the key lands at the top level and is ignored. Delete the settings you do not change: a setting you leave in the file keeps its current default even when a later release changes it. An untouched copy changes nothing. `config` reads no environment or config, so it prints the same text everywhere. Plugin users, who may not have `claude-statusline` on their `PATH`, can use the binary under `plugins/data/statusline-claude-statusline/bin/` in the Claude config directory.
 
 ### Mistakes in the config file
 
@@ -172,7 +172,7 @@ A hook's name is its filename without a leading `NN-` and without its extension,
 
 A hook runs at most once per TTL, per session. The default is `hooks.ttl` (60 seconds), and a hook can set its own with `# statusline-ttl: <seconds>` in its first 20 lines. A hook that takes longer than `hooks.timeout` (2 seconds) is killed. `STATUSLINE_HOOK_TTL` and `STATUSLINE_HOOK_TIMEOUT` override both settings.
 
-Results are cached in `~/.claude/claude-statusline/cache/hooks/<session id>/` (under `$CLAUDE_CONFIG_DIR` if set), one file per hook, because a hook is given the session JSON and its output may differ from one session to the next. Cache directories untouched for 7 days are removed when a new session's is created. The files are private state and may change between versions.
+Results are cached in `cache/hooks/<session id>/` in the status line's state directory (the plugin data directory for a plugin install; see [Where the files live](how_it_works.md#where-the-files-live)), one file per hook, because a hook is given the session JSON and its output may differ from one session to the next. Cache directories untouched for 7 days are removed when a new session's is created. The files are private state and may change between versions.
 
 ## Wrapping
 

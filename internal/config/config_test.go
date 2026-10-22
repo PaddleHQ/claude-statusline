@@ -279,6 +279,52 @@ func TestPath(t *testing.T) {
 	}
 }
 
+func TestStateDir(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		env  map[string]string
+		want string
+	}{
+		{"the injected directory wins", map[string]string{config.StateDirEnv: "/data/x", "CLAUDE_CONFIG_DIR": "/c"}, "/data/x"},
+		{"defaults to the config file's directory", map[string]string{"CLAUDE_CONFIG_DIR": "/c"}, "/c/claude-statusline"},
+		{"empty injected directory falls back", map[string]string{config.StateDirEnv: "", "HOME": "/h"}, "/h/.claude/claude-statusline"},
+		{"nothing set", map[string]string{}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, config.StateDir(func(k string) string { return tt.env[k] }))
+		})
+	}
+}
+
+func TestPluginDataDir(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		exe  string
+		want string
+	}{
+		{"a plugin data install", "/c/plugins/data/statusline-claude-statusline/bin/claude-statusline", "/c/plugins/data/statusline-claude-statusline"},
+		{"any binary name in a plugin data bin", "/c/plugins/data/x/bin/other", "/c/plugins/data/x"},
+		{"the legacy layout", "/c/claude-statusline/bin/claude-statusline", ""},
+		{"a manual install in a bin directory", "/home/u/.local/bin/claude-statusline", ""},
+		{"a bin directory under plugins but not data", "/c/plugins/cache/x/bin/claude-statusline", ""},
+		{"not in a bin directory", "/c/plugins/data/x/claude-statusline", ""},
+		{"a relative path", "claude-statusline", ""},
+		{"empty", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, config.PluginDataDir(tt.exe))
+		})
+	}
+}
+
 func TestPluginDefaults(t *testing.T) {
 	t.Parallel()
 

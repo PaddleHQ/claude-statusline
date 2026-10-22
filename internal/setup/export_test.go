@@ -3,8 +3,10 @@ package setup
 var (
 	Touch        = touch
 	InsertMember = insertMember
+	RemoveMember = removeMember
+	ShellWords   = shellWords
 )
 
-func Apply(dir, bin, event, version string) string {
-	return apply(config{dir: dir, bin: bin, event: event, version: version})
+func Apply(loc Locations, event, version string) string {
+	return apply(config{Locations: loc, event: event, version: version})
 }
