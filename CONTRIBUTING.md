@@ -79,6 +79,8 @@ These workflows belong to this repository:
 | `common-lint.yml` | `actionlint` and `editorconfig-checker`. |
 | `check-blocking-labels.yml` | Fails while a pull request carries a blocking label. |
 
+Pull requests merge through a merge queue, which runs the checks again on the queued commit. A workflow whose checks can be required must therefore run on `merge_group` as well as `pull_request`, as all of these do except the scheduled `fuzz.yml` and `release-binaries.yml`. A step that needs the pull request itself, such as reading its labels, runs only on `pull_request` and is skipped in the queue.
+
 Every job in these workflows hardens its runner with `egress-policy: block` and an `allowed-endpoints` list. When a job starts needing a new host, add it to that job's list.
 
 Dependabot opens weekly pull requests for Go modules (labelled `release:patch`) and GitHub Actions (labelled `norelease`), so they pass the SemVer label check. A pull request carrying a blocking label, such as `do not merge`, fails the "Check for blocking labels" check until the label is removed.

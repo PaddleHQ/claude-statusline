@@ -1,6 +1,7 @@
 name: Ensure code passes common linting rules
 
 on:
+  merge_group:
   pull_request:
   push:
     branches: [main]
