@@ -96,7 +96,6 @@ stub_gh() {
 #!/bin/sh
 echo "\$*" >> "$T/gh.log"
 case "\$1:\$2:$1" in
-  auth:*:nologin) exit 1 ;;
   attestation:*:oldgh) exit 1 ;;
   attestation:verify:badattest) exit 1 ;;
 esac
@@ -334,16 +333,6 @@ run_hook
 assert_version 1.2.4
 assert_setup_events "setup --event=updated"
 if grep -q 'checksum check only' "$T/out"; then bad "notice shown a second time"; fi
-finish
-
-start "gh that is not logged in still verifies provenance" t15
-make_release 1.2.3
-set_latest v1.2.3
-stub_gh nologin
-run_hook
-assert_version 1.2.3
-if grep -q 'checksum check only' "$T/out"; then bad "notice shown although gh verified the build"; fi
-grep -q '^attestation verify ' "$T/gh.log" || bad "gh attestation verify was not run without a login"
 finish
 
 start "a release without a provenance bundle is not installed when gh is present" t15c

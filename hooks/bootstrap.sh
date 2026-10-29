@@ -109,7 +109,7 @@ PROVENANCE=0
 if command -v gh >/dev/null 2>&1 && gh attestation --help >/dev/null 2>&1; then
   # With the release's bundle gh calls no API, so a token GitHub rejects cannot block the install.
   curl -fsSL --proto '=https,file' --proto-redir '=https' --max-time 10 -o "$TMP/provenance.jsonl" "$BASE/$TAG/provenance.jsonl" 2>/dev/null || soft_fail "downloading the provenance bundle for $TAG failed; will retry next session."
-  gh attestation verify "$TMP/$ARCHIVE" --bundle "$TMP/provenance.jsonl" --repo "$REPO" >/dev/null 2>&1 || fail "provenance verification of $TAG FAILED and it was NOT installed."
+  GH_HOST=github.com gh attestation verify "$TMP/$ARCHIVE" --bundle "$TMP/provenance.jsonl" --repo "$REPO" >/dev/null 2>&1 || fail "provenance verification of $TAG FAILED and it was NOT installed."
   PROVENANCE=1
 fi
 
