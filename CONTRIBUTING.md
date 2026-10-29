@@ -74,7 +74,7 @@ These workflows belong to this repository:
 | Workflow | What it covers |
 |---|---|
 | `ci.yml` | What the template does not: the tests on macOS, the generated mocks and the `toolchain` directive check, the GoReleaser config check and snapshot build, the plugin's shell scripts on Linux and macOS, and `claude plugin validate .`. |
-| `release-binaries.yml` | Publishes the archives, checksums, SBOMs and build provenance attestation to the release that `release-on-push.yml` created. It does nothing when the merge made no release. |
+| `release-binaries.yml` | Publishes the archives, checksums, SBOMs, build provenance attestation and its bundle (`provenance.jsonl`) to the release that `release-on-push.yml` created. It does nothing when the merge made no release. |
 | `fuzz.yml` | The weekly fuzzing run. |
 | `common-lint.yml` | `actionlint` and `editorconfig-checker`. |
 | `check-blocking-labels.yml` | Fails while a pull request carries a blocking label. |
@@ -345,10 +345,10 @@ Every pull request needs exactly one of these labels, checked by the `Ensure Sem
 | `release:patch` | Tags the next patch version and publishes it. |
 | `norelease` | Merges without a release, for changes such as documentation or tests. |
 
-On a pull request, a `release:*` label makes `release-on-push.yml` do a dry run. On merge, it tags the version and creates the release, and then `release-binaries.yml` publishes archives for macOS and Linux on arm64 and amd64, with a checksum file, an SBOM per archive and a build provenance attestation.
+On a pull request, a `release:*` label makes `release-on-push.yml` do a dry run. On merge, it tags the version and creates the release, and then `release-binaries.yml` publishes archives for macOS and Linux on arm64 and amd64, with a checksum file, an SBOM per archive and a build provenance attestation, whose bundle it also uploads as `provenance.jsonl`.
 
 ### How the plugin picks up a release
 
-Merging a `release:*` pull request publishes the release, and plugin users pick it up within a day: there is no second step. The hook resolves the latest release from the redirect at `https://github.com/PaddleHQ/claude-statusline/releases/latest`, so it does not use the API or its rate limit. It verifies the archive against the release's `checksums.txt` and, when `gh` is installed and logged in, runs `gh attestation verify`.
+Merging a `release:*` pull request publishes the release, and plugin users pick it up within a day: there is no second step. The hook resolves the latest release from the redirect at `https://github.com/PaddleHQ/claude-statusline/releases/latest`, so it does not use the API or its rate limit. It verifies the archive against the release's `checksums.txt` and, when `gh` is installed, runs `gh attestation verify` against the release's `provenance.jsonl`, which needs no GitHub login.
 
 For tests only, `CLAUDE_STATUSLINE_LATEST_URL` replaces the latest-release URL (a `file://` URL whose content is the tag, for example `v1.2.3`), and `CLAUDE_STATUSLINE_DOWNLOAD_BASE` replaces the download base URL.
