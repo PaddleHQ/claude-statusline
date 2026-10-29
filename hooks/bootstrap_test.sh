@@ -315,6 +315,7 @@ assert_message 'stub --event=installed'
 if grep -q 'provenance' "$T/out"; then bad "notice shown although gh verified the build"; fi
 [ ! -e "$NOTICE" ] || bad "sentinel written although gh verified the build"
 grep -q '^attestation verify .* --bundle .*/provenance.jsonl ' "$T/gh.log" || bad "gh attestation verify was not run against the release's bundle"
+grep -q ' --signer-workflow PaddleHQ/claude-statusline/.github/workflows/release-binaries.yml ' "$T/gh.log" || bad "gh attestation verify did not pin the release workflow"
 finish
 
 start "without gh it installs on the checksum and shows the notice once" t14

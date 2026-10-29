@@ -126,7 +126,8 @@ ARCHIVE="claude-statusline_${VERSION}_${OS}_${ARCH}.tar.gz"
 gh release download "v${VERSION}" --repo PaddleHQ/claude-statusline \
   --pattern "$ARCHIVE" --pattern checksums.txt
 shasum -a 256 -c checksums.txt --ignore-missing
-gh attestation verify "$ARCHIVE" --repo PaddleHQ/claude-statusline
+gh attestation verify "$ARCHIVE" --repo PaddleHQ/claude-statusline \
+  --signer-workflow PaddleHQ/claude-statusline/.github/workflows/release-binaries.yml
 
 mkdir -p ~/.local/bin
 tar -xzf "$ARCHIVE" -C ~/.local/bin claude-statusline

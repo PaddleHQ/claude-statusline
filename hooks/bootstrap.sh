@@ -2,6 +2,7 @@
 # Must never fail the session: always exits 0 and prints at most one JSON systemMessage.
 
 REPO="PaddleHQ/claude-statusline"
+SIGNER_WORKFLOW="$REPO/.github/workflows/release-binaries.yml"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 if [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then APP_DIR="$CLAUDE_PLUGIN_DATA"; else APP_DIR="$CLAUDE_DIR/claude-statusline"; fi
 BIN="$APP_DIR/bin/claude-statusline"
@@ -109,7 +110,7 @@ PROVENANCE=0
 if command -v gh >/dev/null 2>&1 && gh attestation --help >/dev/null 2>&1; then
   # With the release's bundle gh calls no API, so a token GitHub rejects cannot block the install.
   curl -fsSL --proto '=https,file' --proto-redir '=https' --max-time 10 -o "$TMP/provenance.jsonl" "$BASE/$TAG/provenance.jsonl" 2>/dev/null || soft_fail "downloading the provenance bundle for $TAG failed; will retry next session."
-  GH_HOST=github.com gh attestation verify "$TMP/$ARCHIVE" --bundle "$TMP/provenance.jsonl" --repo "$REPO" >/dev/null 2>&1 || fail "provenance verification of $TAG FAILED and it was NOT installed."
+  GH_HOST=github.com gh attestation verify "$TMP/$ARCHIVE" --bundle "$TMP/provenance.jsonl" --signer-workflow "$SIGNER_WORKFLOW" --repo "$REPO" >/dev/null 2>&1 || fail "provenance verification of $TAG FAILED and it was NOT installed."
   PROVENANCE=1
 fi
 
