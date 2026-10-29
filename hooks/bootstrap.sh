@@ -106,8 +106,10 @@ GOT=$(sha256_of "$TMP/$ARCHIVE")
 
 PROVENANCE=0
 # A gh older than the attestation command counts as no gh, not as a failed verification.
-if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1 && gh attestation --help >/dev/null 2>&1; then
-  gh attestation verify "$TMP/$ARCHIVE" --repo "$REPO" >/dev/null 2>&1 || fail "provenance verification of $TAG FAILED and it was NOT installed."
+if command -v gh >/dev/null 2>&1 && gh attestation --help >/dev/null 2>&1; then
+  # With the release's bundle gh calls no API, so a token GitHub rejects cannot block the install.
+  curl -fsSL --proto '=https,file' --proto-redir '=https' --max-time 10 -o "$TMP/provenance.jsonl" "$BASE/$TAG/provenance.jsonl" 2>/dev/null || soft_fail "downloading the provenance bundle for $TAG failed; will retry next session."
+  GH_HOST=github.com gh attestation verify "$TMP/$ARCHIVE" --bundle "$TMP/provenance.jsonl" --repo "$REPO" >/dev/null 2>&1 || fail "provenance verification of $TAG FAILED and it was NOT installed."
   PROVENANCE=1
 fi
 
@@ -120,7 +122,7 @@ rm -rf "$TMP"
 record_check
 OUT=$("$BIN" setup --event="$EVENT" 2>/dev/null)
 if [ "$PROVENANCE" = 0 ] && [ ! -e "$NOTICE_FILE" ]; then
-  NOTICE="Installed $TAG after a checksum check only. Install the GitHub CLI (gh) and run gh auth login to also verify build provenance on future updates."
+  NOTICE="Installed $TAG after a checksum check only. Install the GitHub CLI (gh) to also verify build provenance on future updates."
   : > "$NOTICE_FILE"
   case "$OUT" in
     '') printf '{"systemMessage":"claude-statusline: %s"}\n' "$NOTICE" ;;

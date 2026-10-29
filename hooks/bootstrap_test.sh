@@ -73,6 +73,7 @@ make_release() {
   tar -czf "$T/releases/v$v/$archive" -C "$d" claude-statusline
   printf '%s  %s\n' "$(sha256_of "$T/releases/v$v/$archive")" "$archive" > "$T/releases/v$v/checksums.txt"
   printf '%064d  claude-statusline_%s_other_arch.tar.gz\n' 0 "$v" >> "$T/releases/v$v/checksums.txt"
+  printf '{}\n' > "$T/releases/v$v/provenance.jsonl"
 }
 
 set_latest() {
@@ -95,7 +96,6 @@ stub_gh() {
 #!/bin/sh
 echo "\$*" >> "$T/gh.log"
 case "\$1:\$2:$1" in
-  auth:*:nologin) exit 1 ;;
   attestation:*:oldgh) exit 1 ;;
   attestation:verify:badattest) exit 1 ;;
 esac
@@ -314,7 +314,7 @@ assert_version 1.2.3
 assert_message 'stub --event=installed'
 if grep -q 'provenance' "$T/out"; then bad "notice shown although gh verified the build"; fi
 [ ! -e "$NOTICE" ] || bad "sentinel written although gh verified the build"
-grep -q '^attestation verify ' "$T/gh.log" || bad "gh attestation verify was not run"
+grep -q '^attestation verify .* --bundle .*/provenance.jsonl ' "$T/gh.log" || bad "gh attestation verify was not run against the release's bundle"
 finish
 
 start "without gh it installs on the checksum and shows the notice once" t14
@@ -324,7 +324,7 @@ set_latest v1.2.3
 rm -rf "$T/gh"
 run_hook
 assert_version 1.2.3
-assert_message 'stub --event=installed.*checksum check only.*gh auth login'
+assert_message 'stub --event=installed.*checksum check only'
 [ -e "$NOTICE" ] || bad "sentinel not written"
 set_latest v1.2.4
 age_check 90000
@@ -335,14 +335,14 @@ assert_setup_events "setup --event=updated"
 if grep -q 'checksum check only' "$T/out"; then bad "notice shown a second time"; fi
 finish
 
-start "gh that is not logged in is treated as no gh" t15
+start "a release without a provenance bundle is not installed when gh is present" t15c
 make_release 1.2.3
 set_latest v1.2.3
-stub_gh nologin
+rm "$T/releases/v1.2.3/provenance.jsonl"
+stub_gh login
 run_hook
-assert_version 1.2.3
-assert_message 'checksum check only'
-if grep -q '^attestation' "$T/gh.log"; then bad "attestation was attempted without a login"; fi
+assert_message 'downloading the provenance bundle'
+assert_not_installed
 finish
 
 start "gh without the attestation command is treated as no gh, not as a failed verification" t15b
