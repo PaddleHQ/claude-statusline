@@ -52,7 +52,7 @@ type Meter interface {
 	Pace(usage, target, warn, bad, hardCap int) string
 }
 
-// Deps is everything the segments are built from. Limits is a function so that the rate cache is only read when a bar is drawn.
+// Deps is everything the segments are built from.
 type Deps struct {
 	Config Config
 	Paint  Painter
