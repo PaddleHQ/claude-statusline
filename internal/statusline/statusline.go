@@ -3,6 +3,7 @@ package statusline
 
 import (
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
@@ -19,6 +20,8 @@ import (
 )
 
 const (
+	keySegments    = "segments"
+	keyExcluded    = "segments_excluded"
 	keyTheme       = "theme"
 	keyHookTTL     = "hooks.ttl"
 	keyHookTimeout = "hooks.timeout"
@@ -29,7 +32,7 @@ const (
 
 // Keys lists every config key the status line reads, for checking against defaults.yaml.
 func Keys() []string {
-	keys := append(render.Keys(), keyTheme, keyHookTTL, keyHookTimeout, keySnapEnabled, keySnapPath)
+	keys := append(render.Keys(), keySegments, keyExcluded, keyTheme, keyHookTTL, keyHookTimeout, keySnapEnabled, keySnapPath)
 	for _, seg := range segments.NewEnv(segments.Env{Config: config.New("")}).All() {
 		for _, k := range seg.Keys() {
 			keys = append(keys, seg.Name()+"."+k)
@@ -72,7 +75,7 @@ func Build(input []byte, getenv func(string) string) string {
 		},
 	})
 	line := &render.Line{
-		Names:     cfg.Strings("segments"),
+		Names:     segmentNames(cfg, cfg.StringsOrNone(keyExcluded)),
 		Lookup:    lookup(env),
 		Columns:   env.Columns,
 		Separator: env.Separator(),
@@ -148,6 +151,12 @@ func runHooks(input []byte, p payload.Payload, cfg *config.Config, at time.Time,
 		opts.CacheDir = filepath.Join(stateDir, "cache", "hooks")
 	}
 	return opts.Run(hooks)
+}
+
+// segmentNames is the segments list less the excluded names. A hook of the same name is not hidden: with its name
+// gone from the list, the renderer places it in its slot.
+func segmentNames(cfg *config.Config, excluded []string) []string {
+	return slices.DeleteFunc(cfg.Strings(keySegments), func(name string) bool { return slices.Contains(excluded, name) })
 }
 
 func hookDir(getenv func(string) string) string {

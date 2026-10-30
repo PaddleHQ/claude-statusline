@@ -114,6 +114,39 @@ func TestBuild(t *testing.T) {
 	}
 }
 
+func TestBuildExcludesSegments(t *testing.T) {
+	t.Parallel()
+
+	const input = `{"model":{"display_name":"Opus"},"cost":{"total_cost_usd":1},"session_id":"sess1"}`
+
+	tests := []struct {
+		name   string
+		config string
+		hook   string
+		want   string
+	}{
+		{"cost is excluded by default", "", "", "Opus"},
+		{"an empty list excludes nothing", "segments_excluded: []", "", "Opus · $1.00"},
+		{"a built-in is dropped from the user's own list", "segments: [cost, model]\nsegments_excluded: [model]", "", "$1.00"},
+		{"a name that is not listed changes nothing", "segments: [model]\nsegments_excluded: [path]", "", "Opus"},
+		{"the user's list replaces the default, so cost comes back", "segments_excluded: [path]", "", "Opus · $1.00"},
+		{"excluding every listed built-in leaves an empty line", "segments: [model]\nsegments_excluded: [model]", "", ""},
+		{"a custom segment of an excluded name still runs, in its slot", "segments: [cost, model]", "cost", "Opus · mine"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			require.NoError(t, os.MkdirAll(filepath.Join(dir, "claude-statusline"), 0o700))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "claude-statusline", "config.yaml"), []byte(tt.config), 0o600))
+			if tt.hook != "" {
+				writeHook(t, filepath.Join(dir, "statusline.d"), "10-"+tt.hook+".sh", "# statusline-slot: end\nprintf mine")
+			}
+			assert.Equal(t, tt.want, statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir, "NO_COLOR": "1"})))
+		})
+	}
+}
+
 func writeHook(t *testing.T, dir, name, body string) {
 	t.Helper()
 	require.NoError(t, os.MkdirAll(dir, 0o700))
