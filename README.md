@@ -12,6 +12,12 @@ An open-source status line for Claude Code, written in Go. It is at an early sta
 As a Claude Code plugin:
 
 ```text
+/plugin install statusline --marketplace PaddleHQ/claude-statusline
+```
+
+On Claude Code before 2.1.275, add the marketplace first:
+
+```text
 /plugin marketplace add PaddleHQ/claude-statusline
 /plugin install statusline@claude-statusline
 ```
