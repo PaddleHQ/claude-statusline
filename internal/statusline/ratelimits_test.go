@@ -8,6 +8,13 @@ func TestBuildSharesRateLimits(t *testing.T) {
 
 	tests := []scenario{
 		{
+			name:      `The shared cache is still written when no rate segment is shown, so other tools keep a fresh reading`,
+			session:   `{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"rate_limits":{"five_hour":{"used_percentage":45,"resets_at":1760009000},"seven_day":{"used_percentage":40,"resets_at":1760302400}},"session_id":"abc123"}`,
+			config:    `segments: [model]`,
+			want:      `Opus 4.7 [high]`,
+			wantCache: `{"five_hour":{"used":45,"resets_at":1760009000},"seven_day":{"used":40,"resets_at":1760302400},"sessions":{"abc123":{"five_hour":{"used":45,"resets_at":1760009000},"seven_day":{"used":40,"resets_at":1760302400}}}}`,
+		},
+		{
 			name:      `The first rate-limit reading is written to the shared cache file`,
 			session:   `{"model":{"display_name":"Opus 4.7"},"effort":{"level":"high"},"rate_limits":{"five_hour":{"used_percentage":45,"resets_at":1760009000},"seven_day":{"used_percentage":40,"resets_at":1760302400}},"session_id":"abc123"}`,
 			want:      `Opus 4.7 [high] \e[2m·\e[0m 5h: \e[32m█████████\e[0m\e[2m░\e[0m\e[1m┃\e[0m\e[2m░░░░░░░░░\e[0m 45% \e[2m·\e[0m 7d: \e[32m████████\e[0m\e[2m░░\e[0m\e[1m┃\e[0m\e[2m░░░░░░░░░\e[0m 40%`,

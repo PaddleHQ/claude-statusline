@@ -55,6 +55,8 @@ func Build(input []byte, getenv func(string) string) string {
 
 	p := payload.Parse(input)
 	at := now(getenv)
+	// Synced on every run, not only when a rate segment renders: other tools read the shared cache.
+	limits := ratecache.NewCache(cachePath(getenv)).Sync(p.SessionID, ratecache.FromPayload(p.RateLimits))
 
 	env := segments.NewEnv(segments.Env{
 		Payload: p,
@@ -67,8 +69,7 @@ func Build(input []byte, getenv func(string) string) string {
 			return transcript.Read(p.TranscriptPath)
 		},
 		RateLimits: func() ratecache.Limits {
-			synced := ratecache.NewCache(cachePath(getenv)).Sync(p.SessionID, ratecache.FromPayload(p.RateLimits))
-			return synced.Visible(at.Unix())
+			return limits.Visible(at.Unix())
 		},
 	})
 	line := &render.Line{
