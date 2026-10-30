@@ -11,12 +11,20 @@ import (
 	"path/filepath"
 	"reflect"
 	"syscall"
+	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 )
 
 // maxValue keeps readings within 12 digits, like every other number the status line accepts.
 const maxValue = 1e12
+
+// lockWait bounds how long a render waits for another session's lock before syncing
+// without it, so a stalled holder can never freeze every status line.
+const (
+	lockWait = time.Second
+	lockPoll = 5 * time.Millisecond
+)
 
 // Reading is one window's usage percentage and the Unix time it resets.
 type Reading struct {
@@ -257,9 +265,13 @@ func (c *Cache) lock() func() {
 	if err != nil {
 		return unlocked
 	}
-	if syscall.Flock(int(f.Fd()), syscall.LOCK_EX) != nil { //nolint:gosec // G115: a file descriptor fits in an int
-		_ = f.Close()
-		return unlocked
+	deadline := time.Now().Add(lockWait)
+	for syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB) != nil { //nolint:gosec // G115: a file descriptor fits in an int
+		if time.Now().After(deadline) {
+			_ = f.Close()
+			return unlocked
+		}
+		time.Sleep(lockPoll)
 	}
 	return func() {
 		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:gosec // G115: a file descriptor fits in an int

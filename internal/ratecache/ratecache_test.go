@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
@@ -207,6 +209,20 @@ func TestSyncWithoutLock(t *testing.T) {
 		require.NoError(t, os.WriteFile(blocker, nil, 0o600))
 		got := ratecache.NewCache(filepath.Join(blocker, "sub", "ratelimits")).Sync("a", ratecache.Limits{FiveHour: r(45, 100)})
 		assert.Equal(t, ratecache.Limits{FiveHour: r(45, 100)}, got)
+	})
+	t.Run("a lock held by a stalled session", func(t *testing.T) {
+		t.Parallel()
+		path := filepath.Join(t.TempDir(), "ratelimits")
+		held, err := os.OpenFile(path+".lock", os.O_CREATE|os.O_RDWR, 0o600)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = held.Close() })
+		require.NoError(t, syscall.Flock(int(held.Fd()), syscall.LOCK_EX)) //nolint:gosec // G115: a file descriptor fits in an int
+
+		start := time.Now()
+		got := ratecache.NewCache(path).Sync("a", ratecache.Limits{FiveHour: r(45, 100)})
+		assert.Less(t, time.Since(start), 3*time.Second, "Sync waited on a held lock")
+		assert.Equal(t, ratecache.Limits{FiveHour: r(45, 100)}, got)
+		assert.Equal(t, got, ratecache.NewCache(path).Load())
 	})
 }
 
