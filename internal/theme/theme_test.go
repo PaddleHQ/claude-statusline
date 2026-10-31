@@ -357,7 +357,7 @@ func TestOpenRejectsFIFO(t *testing.T) {
 func TestBranchRolesAndGlyphs(t *testing.T) {
 	t.Parallel()
 
-	for _, name := range []string{"classic", "gradient"} {
+	for _, name := range []string{"classic", "gradient", "saber"} {
 		d := theme.Load(name, "", "")
 		assert.Equal(t, d.PathColor, d.BranchColor, name)
 		assert.Equal(t, "\033[1m\033[38;5;208m", d.WorktreeColor, name)

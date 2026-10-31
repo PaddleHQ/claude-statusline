@@ -54,6 +54,7 @@ func TestGenerateRendersTheRealStatusLine(t *testing.T) {
 	assert.Contains(t, byName["subagent-dark.svg"], "reviewer")
 	assert.Contains(t, byName["narrow-dark.svg"], "↳")
 	assert.NotRegexp(t, `<tspan[^>]*fill=`, byName["gradient-no-color-dark.svg"], "NO_COLOR must remove every color from the text")
+	assert.NotRegexp(t, `<tspan[^>]*fill=`, byName["saber-no-color-dark.svg"], "NO_COLOR must remove every color from the text")
 }
 
 func TestGenerateIsRepeatable(t *testing.T) {

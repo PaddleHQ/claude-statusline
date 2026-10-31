@@ -69,6 +69,13 @@ Set `NO_COLOR` to any non-empty value to turn colour and styling off. A [gradien
   <img alt="A gradient 5 hour rate-limit bar with no colour, drawn in filled and empty glyphs with a slash for the pace marker, at 75%" src="images/gradient-no-color-light.svg">
 </picture>
 
+A `saber` bar does the same, keeping its blade, tip and marker glyphs:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/saber-no-color-dark.svg">
+  <img alt="A saber 5 hour rate-limit bar with no colour, drawn as a line of heavy and light strokes with a vertical bar for the pace marker, at 75%" src="images/saber-no-color-light.svg">
+</picture>
+
 ## How the plugin installs and updates
 
 The plugin route adds a step before any of this, so that the binary is installed and wired in without you doing it by hand:

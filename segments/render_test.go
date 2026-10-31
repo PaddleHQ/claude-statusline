@@ -189,6 +189,22 @@ func TestSegmentsDrawnWithTheRealTheme(t *testing.T) {
 			want: `5h: \e[38;2;148;226;173m▰\e[0m\e[38;2;158;226;173m▰\e[0m\e[38;2;169;226;173m▰\e[0m\e[38;2;179;226;173m▰\e[0m\e[38;2;190;226;173m▰\e[0m\e[38;2;201;226;174m▰\e[0m\e[38;2;211;226;174m▰\e[0m\e[38;2;222;226;174m▰\e[0m\e[38;2;233;226;174m▰\e[0m\e[38;2;243;226;174m▰\e[0m\e[1m/\e[0m\e[38;2;249;213;174m▰\e[0m\e[38;2;248;204;174m▰\e[0m\e[38;2;247;194;173m▰\e[0m\e[38;2;247;185;172m▰\e[0m\e[38;2;74;74;74m▱▱▱▱▱\e[0m \e[33m75%\e[0m`,
 		},
 		{
+			name: `The saber theme at 37% context use ends the blade in a half-lit tip`, segs: `ctx`, cfg: "", session: `{"context_window":{"used_percentage":37}}`, cols: 200, theme: `saber`, plain: false,
+			want: `ctx: \e[38;2;74;168;255m━\e[0m\e[38;2;102;181;255m━\e[0m\e[38;2;133;196;255m━\e[0m\e[38;2;164;211;255m╸\e[0m\e[38;2;58;58;58m──────\e[0m \e[38;2;74;168;255m37%\e[0m`,
+		},
+		{
+			name: `The saber theme at 0% context use draws an entirely empty bar`, segs: `ctx`, cfg: "", session: `{"context_window":{"used_percentage":0}}`, cols: 200, theme: `saber`, plain: false,
+			want: `ctx: \e[38;2;58;58;58m──────────\e[0m \e[38;2;74;168;255m0%\e[0m`,
+		},
+		{
+			name: `The saber theme at 75% usage with half the window elapsed turns the blade purple`, segs: `rate5h`, cfg: "", session: `{"rate_limits":{"five_hour":{"used_percentage":75,"resets_at":1760009000}},"session_id":"abc123"}`, cols: 200, theme: `saber`, plain: false,
+			want: `5h: \e[38;2;178;107;255m━━━━━━━━━━\e[0m\e[1m┃\e[0m\e[38;2;178;107;255m━\e[0m\e[38;2;190;130;255m━\e[0m\e[38;2;203;155;255m━\e[0m\e[38;2;216;181;255m━\e[0m\e[38;2;58;58;58m─────\e[0m \e[38;2;178;107;255m75%\e[0m`,
+		},
+		{
+			name: `The saber theme with NO_COLOR keeps the blade, tip and marker glyphs but drops every color`, segs: `ctx rate5h`, cfg: "", session: `{"rate_limits":{"five_hour":{"used_percentage":75,"resets_at":1760009000}},"context_window":{"used_percentage":37}}`, cols: 200, theme: `saber`, plain: true,
+			want: `ctx: ━━━╸────── 37% · 5h: ━━━━━━━━━━┃━━━━───── 75%`,
+		},
+		{
 			name: `The path segment is drawn in bold blue`, segs: `path`, cfg: "", session: `{"cwd":"/home/me/work/app"}`, cols: 200, theme: `classic`, plain: false,
 			want: `\e[1m\e[38;5;33m~/work/app\e[0m`,
 		},
