@@ -1,0 +1,41 @@
+# saber: a lightsaber blade. The blade takes one color for the pace state and
+# brightens towards white over its last few cells. The pace color also colors
+# the percentage after it.
+# A complete theme file: same fields as classic.yaml, plus the saber ones.
+
+# Color roles, as in classic.yaml. The state colors are a Jedi blue, a Windu
+# purple and a Sith red.
+colors:
+  text: ""
+  muted: dim
+  good: "#4aa8ff"
+  warn: "#b26bff"
+  bad: "#ff3b30"
+  marker: bold
+  path: bold 33
+  # Optional. The branch in the path segment; defaults to the path color.
+  branch: bold 33
+  # Optional. The branch of a linked worktree; defaults to bold 208.
+  worktree: bold 208
+
+bar:
+  style: saber
+  full: "━"
+  # Half-lit final cell, drawn when the usage ends mid-cell.
+  tip: "╸"
+  empty: "─"
+  marker: "┃"
+  # Blade colors for good, warn and bad, as #rrggbb.
+  blade: ["#4aa8ff", "#b26bff", "#ff3b30"]
+  # How far, in percent, the tip cell is blended towards white (0 to 100).
+  glow: 50
+  # How many of the last lit cells glow, ramping up to the tip (at least 1).
+  glow_cells: 3
+  # Unfilled cells and the pace marker.
+  empty_color: "#3a3a3a"
+  marker_color: bold
+
+# Optional. Emoji shown before a branch and a worktree in the path segment.
+glyphs:
+  branch: "🌿"
+  worktree: "🌳"

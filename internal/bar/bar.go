@@ -52,31 +52,49 @@ func WidthOf(columns int, s Sizes) int {
 	return WidthFor(columns, s.Int("width"), s.Int("width_medium"), s.Int("width_narrow"))
 }
 
-// Fill is the color for the bar's state: distance from the pace target, or absolute usage without a target.
-func (p *Params) Fill(th theme.Theme) string {
+const (
+	stateGood = iota
+	stateWarn
+	stateBad
+)
+
+// state classifies the bar: distance from the pace target, or absolute usage without a target.
+func (p *Params) state() int {
 	if p.NoTarget {
 		switch {
 		case p.Usage >= p.Bad:
-			return th.BadColor
+			return stateBad
 		case p.Usage >= p.Warn:
-			return th.WarnColor
+			return stateWarn
 		}
-		return th.Good
+		return stateGood
 	}
 	deviation := max(p.Usage-p.Target, p.Target-p.Usage)
 	switch {
 	case p.Usage >= p.HardCap || deviation > p.Bad:
-		return th.BadColor
+		return stateBad
 	case deviation > p.Warn:
+		return stateWarn
+	}
+	return stateGood
+}
+
+// Fill is the color for the bar's state: distance from the pace target, or absolute usage without a target.
+func (p *Params) Fill(th theme.Theme) string {
+	switch p.state() {
+	case stateBad:
+		return th.BadColor
+	case stateWarn:
 		return th.WarnColor
 	}
 	return th.Good
 }
 
 // PercentColor is the color for the percentage printed after the bar. A gradient
-// bar colors its cells by position, so the state color moves to the text.
+// bar colors its cells by position, and a saber bar by blade, so the state
+// color moves to the text.
 func (p *Params) PercentColor(th theme.Theme) string {
-	if th.Gradient {
+	if th.Gradient || th.Saber {
 		return p.Fill(th)
 	}
 	return ""
@@ -94,7 +112,10 @@ func (p *Params) Render(th theme.Theme) string {
 	if !p.NoTarget {
 		targetCell = min(p.Target*p.Width/percentScale, p.Width-1)
 	}
-	if th.Gradient {
+	switch {
+	case th.Saber:
+		return p.saberCells(th, targetCell)
+	case th.Gradient:
 		return p.gradientCells(th, filled, targetCell)
 	}
 	return p.solidCells(th, filled, targetCell)
@@ -109,6 +130,32 @@ func (p *Params) gradientCells(th theme.Theme, filled, targetCell int) string {
 			r.add(th.MarkerColor, th.MarkerGlyph)
 		case cell < cells:
 			r.add(th.RampColor(cell, p.Width), th.Full)
+		default:
+			r.add(th.EmptyColor, th.Empty)
+		}
+	}
+	return r.paint(th)
+}
+
+// saberCells lights the blade in half cells; a lit cell brightens towards the tip.
+func (p *Params) saberCells(th theme.Theme, targetCell int) string {
+	halves := min((p.Usage*p.Width*2+percentScale/2)/percentScale, p.Width*2)
+	fullCells, tip := halves/2, halves%2 == 1
+	lit := fullCells
+	if tip {
+		lit++
+	}
+	state := p.state()
+
+	var r runs
+	for cell := range p.Width {
+		switch {
+		case cell == targetCell:
+			r.add(th.MarkerColor, th.MarkerGlyph)
+		case cell < fullCells:
+			r.add(th.BladeColor(state, cell, lit), th.Full)
+		case cell == fullCells && tip:
+			r.add(th.BladeColor(state, cell, lit), th.Tip)
 		default:
 			r.add(th.EmptyColor, th.Empty)
 		}

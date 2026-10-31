@@ -26,7 +26,7 @@ A setting you leave out keeps its default, including the other keys of a segment
 |---|---|---|
 | `segments` | `[path, model, ctx, tokens, cache, boot, skills, skills_stripped, agent_skills, mem, rate5h, rate7d]` | Segments to show, in order, as a list. Unknown names are skipped. |
 | `separator` | `·` | Glyph drawn between segments. |
-| `theme` | `classic` | Colour theme: a built-in name (`classic` or `gradient`) or the path to a theme file. Anything that cannot be used falls back to `classic`. See [Themes](#themes). |
+| `theme` | `classic` | Colour theme: a built-in name (`classic`, `gradient` or `saber`) or the path to a theme file. Anything that cannot be used falls back to `classic`. See [Themes](#themes). |
 | `path.strip` | `[]` | Directory prefixes to strip from the path, as a list; an entry may contain spaces, and a leading `~` means your home directory. |
 | `path.branch` | `true` | Show the git branch after the path (`true` or `false`). |
 | `path.worktrees` | `[]` | Directories that hold git worktrees, as a list; relative entries are relative to the main repository, and a leading `~` means your home directory. Empty means off. |
@@ -204,10 +204,11 @@ Each part is left out when Claude Code does not send it, so older versions show 
 
 ## Themes
 
-A theme sets the colours and the bar glyphs. Two come built in:
+A theme sets the colours and the bar glyphs. Three come built in:
 
 - `classic` is the default: eighth-block bars filled in green, amber or red by pace, in basic terminal colours that suit light and dark backgrounds.
 - `gradient` draws whole-cell bars whose colour runs from green through amber to red along the bar. The pace colour moves to the percentage after the bar, so the bar shows how much you have used and the number shows how you are doing against the pace.
+- `saber` draws each bar as a lightsaber blade. The whole blade takes one colour for the pace state (blue when on pace, purple when drifting, red when well off it), and the last few lit cells brighten towards white, ending in a half-lit tip. The percentage after the bar takes the same colour.
 
 Pick one in your config file:
 
@@ -220,6 +221,15 @@ theme: gradient
   <img alt="The status line with the gradient theme: whole-cell bars whose colour runs from green towards amber, with the percentage coloured by pace" src="images/gradient-light.svg">
 </picture>
 
+```yaml
+theme: saber
+```
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/saber-dark.svg">
+  <img alt="The status line with the saber theme: each bar is a lightsaber blade coloured by pace, brightening towards its tip, with the percentage in the same colour" src="images/saber-light.svg">
+</picture>
+
 The older name `default` still works and means `classic`.
 
 ### Your own theme
@@ -230,7 +240,7 @@ Point `theme` at a YAML file. A value that contains `/` or starts with `~` is a 
 theme: "~/.config/claude-statusline/ocean.yaml"
 ```
 
-To write one, copy a built-in theme and edit it: [`classic.yaml`](../themes/classic.yaml) for solid bars or [`gradient.yaml`](../themes/gradient.yaml) for gradient ones. Both are commented, and the file you point `theme` at must be complete: every field below is required, with two exceptions. `colors.branch`, `colors.worktree` and the `glyphs` section can be left out, and so can `bar.empty_color` and `bar.marker_color` in a `gradient` bar. A theme does not inherit from another.
+To write one, copy a built-in theme and edit it: [`classic.yaml`](../themes/classic.yaml) for solid bars or [`gradient.yaml`](../themes/gradient.yaml) for gradient ones or [`saber.yaml`](../themes/saber.yaml) for saber ones. All three are commented, and the file you point `theme` at must be complete: every field below is required, with two exceptions. `colors.branch`, `colors.worktree` and the `glyphs` section can be left out, and so can `bar.empty_color` and `bar.marker_color` in a `gradient` or `saber` bar. A theme does not inherit from another.
 
 ```yaml
 colors:
@@ -263,11 +273,15 @@ bar:
 | `colors.text`, `muted`, `good`, `warn`, `bad`, `marker`, `path` | A colour for each role. `text` is labels and figures, `muted` is separators and empty bar cells, `good`, `warn` and `bad` colour the bar fill, `marker` is the pace marker and `path` is the working directory. An empty string uses the terminal's own colour. |
 | `colors.branch`, `colors.worktree` | Optional. The branch, and the branch of a linked worktree, in the `path` segment. `branch` defaults to the `path` colour and `worktree` to `bold 208`. |
 | `glyphs.branch`, `glyphs.worktree` | Optional. The emoji shown before a branch and before a worktree, 🌿 and 🌳 by default. Each must be a non-empty string without control characters, and must take at least one column. A character followed by the emoji selector U+FE0F (such as `❤️`) counts as two columns, as it does in Claude Code. |
-| `bar.style` | `solid` or `gradient`. |
+| `bar.style` | `solid`, `gradient` or `saber`. |
 | `bar.full`, `bar.empty`, `bar.marker` | The glyphs for a full cell, an empty cell and the pace marker. |
-| `bar.partials` | Seven glyphs for a cell filled by one to seven eighths. Required for `solid`; a `gradient` bar fills whole cells and leaves it out. |
+| `bar.partials` | Seven glyphs for a cell filled by one to seven eighths. Required for `solid`; a `gradient` or `saber` bar fills whole cells and leaves it out. |
 | `bar.ramp` | Three `#rrggbb` stops, for good, warn and bad. Needed for `gradient`. |
-| `bar.empty_color`, `bar.marker_color` | Colours for empty cells and the marker in a `gradient` bar. |
+| `bar.empty_color`, `bar.marker_color` | Colours for empty cells and the marker in a `gradient` or `saber` bar. |
+| `bar.blade` | Three `#rrggbb` colours for the blade when the bar is good, warn and bad. Needed for `saber`. |
+| `bar.glow` | A whole number from 0 to 100: how far, in percent, the tip of the blade is blended towards white. Needed for `saber`. |
+| `bar.glow_cells` | A whole number of at least 1: how many of the last lit cells glow. The glow ramps up evenly to `bar.glow` at the tip, and cells before the window keep the plain blade colour. Needed for `saber`. |
+| `bar.tip` | The glyph for a half-lit final cell, drawn when the usage ends mid-cell. Needed for `saber`. |
 
 A colour is a space-separated list of tokens, applied in order: `bold`, `dim`, `italic`, `underline`, a name (`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, or `bright-` followed by one of those), a number from 0 to 255 for the 256-colour palette, or `#rrggbb` for a true colour. At most one token may be a colour, so `bold 33` and `underline #ff8800` are valid and `red blue` is not.
 

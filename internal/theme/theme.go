@@ -11,6 +11,8 @@ const (
 	rampWarnAt  = 1
 	rampBadAt   = 2
 	channelsRGB = 3
+	glowScale   = 100
+	whiteChan   = 255
 )
 
 // Theme holds role colors as raw escape sequences and the glyphs for bars.
@@ -43,6 +45,17 @@ type Theme struct {
 	Ramp        [][channelsRGB]int
 	EmptyColor  string
 	MarkerColor string
+
+	// Saber draws a lightsaber blade: the whole blade takes the Blade color for
+	// the pace state (good, warn, bad), brightening towards white by up to Glow
+	// percent at the tip over its last GlowCells cells, and Tip is the glyph for a half-lit final cell. Blade
+	// is nil once color is removed.
+	Saber bool
+	Blade [][channelsRGB]int
+	Glow  int
+	// GlowCells is how many of the last lit cells glow.
+	GlowCells int
+	Tip       string
 }
 
 // WithoutColor clears every color and style, keeping the glyphs.
@@ -50,7 +63,7 @@ func (t *Theme) WithoutColor() Theme {
 	c := *t
 	c.TextColor, c.Muted, c.Good, c.WarnColor, c.BadColor, c.Marker, c.PathColor, c.Reset = "", "", "", "", "", "", "", ""
 	c.BranchColor, c.WorktreeColor = "", ""
-	c.Ramp, c.EmptyColor, c.MarkerColor = nil, "", ""
+	c.Ramp, c.Blade, c.EmptyColor, c.MarkerColor = nil, nil, "", ""
 	return c
 }
 
@@ -102,6 +115,28 @@ func (t *Theme) RampColor(cell, width int) string {
 	var c [channelsRGB]int
 	for i := range c {
 		c[i] = from[i] + (to[i]-from[i])*pos/rampScale
+	}
+	return fmt.Sprintf("\033[38;2;%d;%d;%dm", c[0], c[1], c[2])
+}
+
+// BladeColor is the escape sequence for lit cell cell of a saber blade of lit
+// cells in the given pace state (0 good, 1 warn, 2 bad), or "" when the theme
+// has no blade. Only the last GlowCells lit cells glow: the j-th of k cells in
+// that window is blended Glow*j/k percent towards white, so the tip takes the
+// full Glow, and every cell before the window is the plain state color.
+func (t *Theme) BladeColor(state, cell, lit int) string {
+	if len(t.Blade) != rampStops || state < rampGoodAt || state > rampBadAt {
+		return ""
+	}
+	window := min(t.GlowCells, lit)
+	glow := 0
+	if j := cell - (lit - window) + 1; j > 0 {
+		glow = t.Glow * j / window
+	}
+	base := t.Blade[state]
+	var c [channelsRGB]int
+	for i := range c {
+		c[i] = base[i] + (whiteChan-base[i])*glow/glowScale
 	}
 	return fmt.Sprintf("\033[38;2;%d;%d;%dm", c[0], c[1], c[2])
 }
