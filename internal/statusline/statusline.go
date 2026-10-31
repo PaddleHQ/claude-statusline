@@ -174,7 +174,7 @@ func cachePath(getenv func(string) string) string {
 	if dir == "" {
 		return ""
 	}
-	return filepath.Join(dir, "cache", "ratelimits")
+	return ratecache.PathIn(dir)
 }
 
 func now(getenv func(string) string) time.Time {

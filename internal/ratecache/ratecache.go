@@ -111,6 +111,9 @@ func (l *Limits) Visible(now int64) Limits {
 	return v
 }
 
+// PathIn is where the cache file lives inside a state directory.
+func PathIn(stateDir string) string { return filepath.Join(stateDir, "cache", "ratelimits") }
+
 // Cache is the file that shares readings between sessions.
 type Cache struct{ path string }
 
