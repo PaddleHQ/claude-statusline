@@ -61,7 +61,7 @@ With `theme: gradient`, the bars are shaded from green to red along their length
 ## More
 
 - [How it works](docs/how_it_works.md): what runs when, the shared rate-limit cache, how the plugin updates itself, and manual install.
-- [Customising](docs/customising.md): every setting, custom segments, subagent rows and themes.
+- [Customising](docs/customising.md): every setting, custom segments, subagent rows, rate bars for other tools and themes.
 - [CONTRIBUTING.md](CONTRIBUTING.md): how to change the code.
 
 ## Licence

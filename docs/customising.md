@@ -202,6 +202,18 @@ Claude Code's agent panel lists the subagents you have running. `claude-statusli
 
 Each part is left out when Claude Code does not send it, so older versions show fewer parts. The bar is the same as the `ctx` segment's: it uses the `ctx.*` widths, warning and bad thresholds, narrows with the panel's `columns`, and follows `theme`, `separator` and `NO_COLOR`. Control characters are stripped from everything Claude Code sends. The command prints nothing and exits 0 whatever it is given, so Claude Code falls back to its default rows. A task without an `id` keeps the default row.
 
+## Rate bars for other tools
+
+`claude-statusline rate-bars --min-cells=N --max-cells=M` is for tools that want to draw the 5 hour and 7 day usage bars in your theme without reimplementing it. It ignores stdin and prints one JSON object and a newline, with a `rate5h` and a `rate7d` window:
+
+```json
+{"rate5h":{"ok":true,"percent":"75%","bars":{"3":"…","4":"…"}},"rate7d":{"ok":true,"percent":"40%","bars":{"3":"…","4":"…"}}}
+```
+
+`bars` has one entry for every cell count from `N` to `M`, keyed by the count. Each is a bar exactly that many cells wide, with no label or percentage, painted with your `theme` and drawn as the `rate5h` and `rate7d` segments draw theirs: the pace marker, and the `warn`, `bad` and `hard_cap` settings of the matching section. `percent` is the painted `75%` that follows the bar in the status line. The readings come from the same shared cache the segments use, which the command only reads. When a window has no reading, or it has already reset, `ok` is `false`, `percent` is a muted `--` and every bar is empty cells without a marker. `NO_COLOR` removes the colours.
+
+`N` must be at least 1, `M` at most 200 and `N` no more than `M`; both are required. Otherwise the command prints a message to stderr, nothing to stdout, and exits 2. That is the only way it fails: a missing cache is `ok: false`.
+
 ## Themes
 
 A theme sets the colours and the bar glyphs. Two come built in:

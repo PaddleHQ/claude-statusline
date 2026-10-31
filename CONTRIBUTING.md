@@ -16,7 +16,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | Path | What it is |
 |---|---|
 | `main.go` | A few lines of wiring: it holds the build stamps and hands them, the arguments and the standard streams to `internal/cli`. It has no test, so that its wiring does not count against coverage. |
-| `internal/cli` | Picks the command from the arguments (`--version`, `setup`, `subagent`, `help`, `config`, `config-check`, or the status line itself) and reads stdin. A bad config never blanks the status line. `Execute` returns an exit status, which `main` uses only when it is not zero; only `config-check` sets one, when the config cannot be used. |
+| `internal/cli` | Picks the command from the arguments (`--version`, `setup`, `subagent`, `rate-bars`, `help`, `config`, `config-check`, or the status line itself) and reads stdin. A bad config never blanks the status line. `Execute` returns an exit status, which `main` uses only when it is not zero; `config-check` sets one when the config cannot be used, and `rate-bars` sets 2 for bad flags. |
 | `internal/statusline` | Builds the line (and the text of `help`): loads config, saves the snapshot, merges rate limits, reads the transcript, runs hooks and renders. Also lists every config key the code reads. |
 | `segments/` | One folder per plugin, each providing the segments it names and owning their `defaults.yaml`, README, tests and generated mocks. A plugin declares the interfaces it needs and imports nothing from `internal/`. `segments/all.go` is the composition root: the single list of plugins, and the environment that hands them the internal types, which satisfy the plugins' interfaces directly. See [Building plugins](docs/building_plugins.md). |
 | `internal/render` | Renders the configured segments in order, and places custom segments among them. |
@@ -32,6 +32,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `themes` | The built-in themes: one YAML file each, embedded in the binary by a tiny package that only exports them. |
 | `internal/snapshot` | Saves the latest payload for other tools. |
 | `internal/subagent` | Renders the rows of Claude Code's agent panel. |
+| `internal/ratebars` | Prints the 5h and 7d usage bars as JSON, painted in the user's theme, for other tools. |
 | `internal/setup` | Adds `statusLine` and `subagentStatusLine` to `settings.json`, takes over the ones that run an earlier install or the old Paddle shell line, and removes them again for `uninstall`, backing the file up before every write. It also clears the old install layout. |
 | `hooks/` | The plugin's `SessionStart` hook: `hooks.json` and `bootstrap.sh`, which installs the latest release into the plugin data directory (`CLAUDE_PLUGIN_DATA`), and `bootstrap_test.sh`, its shell tests. `run.sh` finds the installed binary and runs it for the slash commands. |
 | `features/` | The Gherkin feature files: readable examples of the whole line, and the scenarios the documentation images are made from. `features_test.go` runs them. |
