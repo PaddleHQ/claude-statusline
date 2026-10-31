@@ -326,3 +326,15 @@ func compare(what, want, got string) error {
 	}
 	return fmt.Errorf("%s %w:\n%s", what, errDiffers, diff.String())
 }
+
+func (w *world) renderRateBars(ctx context.Context, minCells, maxCells string) {
+	var out bytes.Buffer
+	args := []string{"rate-bars", "--min-cells=" + minCells, "--max-cells=" + maxCells}
+	w.suite.Execute(args, strings.NewReader(""), &out, w.getenv)
+
+	w.ran = true
+	w.screen = out.String()
+	w.out = strings.TrimSuffix(w.screen, "\n")
+	w.styled = w.out
+	assert.NotRegexp(godog.T(ctx), controlChars, w.screen, "the JSON holds no raw control character")
+}
