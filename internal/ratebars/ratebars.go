@@ -23,7 +23,6 @@ import (
 
 const (
 	keyTheme      = "theme"
-	keyIcons      = "icons"
 	minCellsLimit = 1
 	maxCellsLimit = 200
 	absent        = "--"
@@ -91,7 +90,7 @@ func Build(args []string, getenv func(string) string) (string, error) {
 		limits = cached.Visible(at.Unix())
 	}
 
-	iconSet, _ := icons.Parse(cfg.String(keyIcons))
+	iconSet := icons.FromConfig(cfg)
 	r := &renderer{th: th, icons: iconSet, lo: lo, hi: hi}
 	out := Output{
 		Rate5h: r.window(rate.NewFiveHour(r.deps(cfg.Section("rate5h"), at, &limits))),

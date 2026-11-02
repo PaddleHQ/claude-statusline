@@ -23,7 +23,6 @@ import (
 const (
 	keyTheme       = "theme"
 	keySeparator   = "separator"
-	keyIcons       = "icons"
 	defaultColumns = 999
 	percentScale   = 100
 	maxPercent     = 1e9
@@ -34,7 +33,7 @@ var ctxKeys = []string{"ctx.width", "ctx.width_medium", "ctx.width_narrow", "ctx
 
 // Keys lists every config key the subagent rows read, for checking against defaults.yaml.
 func Keys() []string {
-	return append([]string{keyTheme, keySeparator, keyIcons}, ctxKeys...)
+	return append([]string{keyTheme, keySeparator, icons.Key}, ctxKeys...)
 }
 
 type row struct {
@@ -63,7 +62,7 @@ func Build(input []byte, getenv func(string) string) string {
 	if c := root.Get("columns"); c.Type == gjson.Number && c.Num >= 0 && c.Num < maxPercent {
 		columns = int(c.Num)
 	}
-	iconSet, _ := icons.Parse(cfg.String(keyIcons))
+	iconSet := icons.FromConfig(cfg)
 	r := &renderer{cfg: cfg, th: th, icons: iconSet, columns: columns}
 
 	var out bytes.Buffer

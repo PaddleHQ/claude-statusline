@@ -5,6 +5,14 @@ package icons
 
 import "strings"
 
+// Key is the config key that holds the icon set.
+const Key = "icons"
+
+// Config is the part of the user's config that FromConfig reads.
+type Config interface {
+	String(key string) string
+}
+
 // Set is the chosen icon set. The zero value is "none".
 type Set struct {
 	nerd bool
@@ -33,4 +41,10 @@ func (s *Set) Pick(plain, nerd string) string {
 // Nerd reports whether Nerd Font glyphs are in use.
 func (s *Set) Nerd() bool {
 	return s.nerd
+}
+
+// FromConfig reads the icon set from the config; an unknown value is none.
+func FromConfig(cfg Config) Set {
+	set, _ := Parse(cfg.String(Key))
+	return set
 }

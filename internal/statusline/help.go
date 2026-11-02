@@ -44,7 +44,7 @@ func Help(getenv func(string) string) string {
 		options:    cfg.PluginOptions(),
 		home:       getenv("HOME"),
 	}
-	set, _ := icons.Parse(cfg.String(keyIcons))
+	set := icons.FromConfig(cfg)
 	h.iconsOn = set.Nerd()
 	return h.text()
 }

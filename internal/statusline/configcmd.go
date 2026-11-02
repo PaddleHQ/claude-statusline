@@ -84,7 +84,7 @@ func writePluginOptions(b *strings.Builder, cfg *config.Config, shown string) {
 // invalidValues lists the settings whose value is of the wrong kind or not one of the choices, so the user learns why
 // a setting seems to do nothing.
 func invalidValues(cfg *config.Config) string {
-	raw, set := cfg.Raw(keyIcons)
+	raw, set := cfg.Raw(icons.Key)
 	if !set || raw == nil {
 		return ""
 	}
@@ -94,7 +94,7 @@ func invalidValues(cfg *config.Config) string {
 			return ""
 		}
 	}
-	return "\nInvalid values (ignored):\n  " + keyIcons + ": " + config.Clean(fmt.Sprint(raw)) + " (use none or nerd)\n"
+	return "\nInvalid values (ignored):\n  " + icons.Key + ": " + config.Clean(fmt.Sprint(raw)) + " (use none or nerd)\n"
 }
 
 // missing reports a file that is not there; Load treats it as an empty config, not a problem.
