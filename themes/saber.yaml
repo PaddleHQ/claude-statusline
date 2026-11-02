@@ -38,11 +38,11 @@ bar:
   # a grip in this #rrggbb color holding the label in hilt_text_color.
   hilt_color: "#4b5160"
   hilt_text_color: "#d8dee9"
-  # The pommel glyphs, in the hilt color. Defaults to "█▄".
-  hilt_pommel: "█▄"
-  # Cooling fins after the grip (0 to 8, default 0), alternating this #rrggbb
-  # color with the hilt color. The color is required when there are fins.
-  hilt_fins: 2
+  # The pommel glyphs, in the hilt color. Defaults to "█▀".
+  hilt_pommel: "█▀"
+  # Cooling fins after the grip (0 to 8, default 0), each a thin line in this #rrggbb
+  # color on the hilt color. The color is required when there are fins.
+  hilt_fins: 3
   hilt_fin_color: "#9aa3b5"
 
 # Optional. Emoji shown before a branch and a worktree in the path segment.

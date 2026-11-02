@@ -145,8 +145,8 @@ func TestLoadHilt(t *testing.T) {
 	assert.Equal(t, "\033[38;2;75;81;96m", got.HiltFG)
 	assert.Equal(t, "\033[48;2;75;81;96m", got.HiltBG)
 	assert.Equal(t, "\033[38;2;216;222;233m", got.HiltText)
-	assert.Equal(t, "█▄", got.HiltPommel)
-	assert.Equal(t, 2, got.HiltFins)
+	assert.Equal(t, "█▀", got.HiltPommel)
+	assert.Equal(t, 3, got.HiltFins)
 	assert.Equal(t, "\033[38;2;154;163;181m", got.HiltFinFG)
 
 	plain := theme.Load("classic", "", "")
@@ -167,7 +167,7 @@ func TestHiltDefaultsToNoFinsAndTheStandardPommel(t *testing.T) {
 	src := strings.Replace(validTheme, "style: solid", "style: solid\n  hilt_color: \"#102030\"", 1)
 	got, err := theme.Open(writeTheme(t, t.TempDir(), "d.yaml", src), "", "")
 	require.NoError(t, err)
-	assert.Equal(t, "█▄", got.HiltPommel)
+	assert.Equal(t, "█▀", got.HiltPommel)
 	assert.Zero(t, got.HiltFins)
 	assert.Empty(t, got.HiltFinFG)
 }

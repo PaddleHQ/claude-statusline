@@ -15,7 +15,7 @@ const (
 	mediumCols   = 160
 	eighths      = 8
 	percentScale = 100
-	hiltFin      = "▌"
+	hiltFin      = "▕"
 )
 
 // Params describes one bar. Usage and Target are percentages; Warn and Bad are

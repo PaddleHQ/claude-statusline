@@ -35,7 +35,7 @@ var (
 )
 
 const (
-	defaultHiltPommel = "█▄"
+	defaultHiltPommel = "█▀"
 	maxHiltFins       = 8
 	fallbackName      = "classic"
 	legacyName        = "default"
