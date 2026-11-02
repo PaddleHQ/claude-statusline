@@ -86,6 +86,8 @@ type barSpec struct {
 	Glow        *int     `yaml:"glow"`
 	GlowCells   *int     `yaml:"glow_cells"`
 	Tip         *string  `yaml:"tip"`
+	HiltColor   *string  `yaml:"hilt_color"`
+	HiltText    *string  `yaml:"hilt_text_color"`
 }
 
 // Load resolves the theme setting to a theme. A value containing "/" or starting
@@ -206,6 +208,9 @@ func (s *spec) compile() (Theme, error) {
 		return Theme{}, err
 	}
 	if err := t.compileStyle(*s.Bar); err != nil {
+		return Theme{}, err
+	}
+	if err := t.compileHilt(*s.Bar); err != nil {
 		return Theme{}, err
 	}
 	return t, nil
@@ -366,6 +371,23 @@ func (t *Theme) compileSaber(b barSpec) error {
 		t.Blade = append(t.Blade, [channelsRGB]int{r, g, bl})
 	}
 	return nil
+}
+
+func (t *Theme) compileHilt(b barSpec) error {
+	if b.HiltColor == nil {
+		return nil
+	}
+	r, g, bl, err := parseRampStop(*b.HiltColor)
+	if err != nil {
+		return err
+	}
+	t.HiltFG = fmt.Sprintf("\033[38;2;%d;%d;%dm", r, g, bl)
+	t.HiltBG = fmt.Sprintf("\033[48;2;%d;%d;%dm", r, g, bl)
+	if b.HiltText == nil {
+		return nil
+	}
+	t.HiltText, err = ParseColor(*b.HiltText)
+	return err
 }
 
 func (t *Theme) compileGlow(b barSpec) error {

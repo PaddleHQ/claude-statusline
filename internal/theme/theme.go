@@ -56,6 +56,12 @@ type Theme struct {
 	// GlowCells is how many of the last lit cells glow.
 	GlowCells int
 	Tip       string
+
+	// HiltFG and HiltBG are the hilt color as a foreground sequence for the cap and a background sequence for the
+	// body, and HiltText colors the label on the body. All three are empty without a hilt, or once color is removed.
+	HiltFG   string
+	HiltBG   string
+	HiltText string
 }
 
 // WithoutColor clears every color and style, keeping the glyphs.
@@ -64,6 +70,7 @@ func (t *Theme) WithoutColor() Theme {
 	c.TextColor, c.Muted, c.Good, c.WarnColor, c.BadColor, c.Marker, c.PathColor, c.Reset = "", "", "", "", "", "", "", ""
 	c.BranchColor, c.WorktreeColor = "", ""
 	c.Ramp, c.Blade, c.EmptyColor, c.MarkerColor = nil, nil, "", ""
+	c.HiltFG, c.HiltBG, c.HiltText = "", "", ""
 	return c
 }
 

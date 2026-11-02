@@ -18,10 +18,9 @@ func build(t *testing.T, used float64, reported bool, warn, bad int) (*ctx.Conte
 	cfg := mocks.NewConfig(t)
 	cfg.EXPECT().Int("warn").Return(warn).Maybe()
 	cfg.EXPECT().Int("bad").Return(bad).Maybe()
-	paint := mocks.NewPainter(t)
-	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + "</>" }).Maybe()
 	meter := mocks.NewMeter(t)
-	return ctx.New(ctx.Deps{Session: sess, Config: cfg, Paint: paint, Meter: meter}), meter
+	meter.EXPECT().Label(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + ": </>" }).Maybe()
+	return ctx.New(ctx.Deps{Session: sess, Config: cfg, Meter: meter}), meter
 }
 
 func TestRender(t *testing.T) {

@@ -29,26 +29,20 @@ type Config interface {
 	Int(key string) int
 }
 
-//go:generate go run github.com/vektra/mockery/v2 --name=Painter
-
-// Painter colors text.
-type Painter interface {
-	Text(s string) string
-}
-
 //go:generate go run github.com/vektra/mockery/v2 --name=Meter
 
 // Meter draws a bar with a percentage after it, and has no pace marker.
 type Meter interface {
 	// Usage draws the bar for a usage percentage. Warn and bad are usage percentages at which the fill changes color.
 	Usage(usage, warn, bad int) string
+	// Label draws the text before the bar.
+	Label(text string) string
 }
 
 // Deps is everything the segment is built from.
 type Deps struct {
 	Session Session
 	Config  Config
-	Paint   Painter
 	Meter   Meter
 }
 
@@ -78,5 +72,5 @@ func (c *Context) Render() string {
 		return ""
 	}
 	pct := int(math.RoundToEven(used))
-	return c.d.Paint.Text("ctx: ") + c.d.Meter.Usage(pct, c.d.Config.Int("warn"), c.d.Config.Int("bad"))
+	return c.d.Meter.Label("ctx") + c.d.Meter.Usage(pct, c.d.Config.Int("warn"), c.d.Config.Int("bad"))
 }

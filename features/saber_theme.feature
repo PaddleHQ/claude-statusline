@@ -23,14 +23,16 @@ Feature: Saber theme
     When the status line renders
     Then the output is:
       """
-      ctx: ━━━╸────── 37%
-           1234555555 111
-
-      1 = #4aa8ff
-      2 = #66b5ff
-      3 = #85c4ff
-      4 = #a4d3ff
-      5 = #3a3a3a
+      ▐ ctx ━━━╸────── 37%
+      1222223456777777 333
+      
+      1 = #4b5160
+      2 = #d8dee9 bg:#4b5160
+      3 = #4aa8ff
+      4 = #66b5ff
+      5 = #85c4ff
+      6 = #a4d3ff
+      7 = #3a3a3a
       """
 
   Scenario: The saber theme's rate-limit bars take their blade colour from the pace
@@ -57,14 +59,16 @@ Feature: Saber theme
     When the status line renders
     Then the output is:
       """
-      5h: ━━━━━━━━━─┃───────── 45% · 7d: ━━━━━━━━──┃───────── 40%
-          1111112345B555555555 111 d     1111123455B555555555 111
-
-      1 = #4aa8ff
-      2 = #66b5ff
-      3 = #85c4ff
-      4 = #a4d3ff
-      5 = #3a3a3a
+      ▐ 5h ━━━━━━━━━─┃───────── 45% · ▐ 7d ━━━━━━━━──┃───────── 40%
+      122223333334567B777777777 333 d 122223333345677B777777777 333
+      
+      1 = #4b5160
+      2 = #d8dee9 bg:#4b5160
+      3 = #4aa8ff
+      4 = #66b5ff
+      5 = #85c4ff
+      6 = #a4d3ff
+      7 = #3a3a3a
       """
 
   Scenario: The saber theme's blade turns purple when usage runs ahead of the pace (75%)
@@ -87,14 +91,16 @@ Feature: Saber theme
     When the status line renders
     Then the output is:
       """
-      5h: ━━━━━━━━━━┃━━━━───── 75%
-          1111111111B123455555 111
-
-      1 = #b26bff
-      2 = #be82ff
-      3 = #cb9bff
-      4 = #d8b5ff
-      5 = #3a3a3a
+      ▐ 5h ━━━━━━━━━━┃━━━━───── 75%
+      122223333333333B345677777 333
+      
+      1 = #4b5160
+      2 = #d8dee9 bg:#4b5160
+      3 = #b26bff
+      4 = #be82ff
+      5 = #cb9bff
+      6 = #d8b5ff
+      7 = #3a3a3a
       """
 
   Scenario: The saber theme's blade turns red when usage runs ahead of the pace (92%)
@@ -117,12 +123,14 @@ Feature: Saber theme
     When the status line renders
     Then the output is:
       """
-      5h: ━━━━━━━━━━┃━━━━━━━╸─ 92%
-          1111111111B111112345 111
-
-      1 = #ff3b30
-      2 = #ff5a51
-      3 = #ff7b74
-      4 = #ff9d97
-      5 = #3a3a3a
+      ▐ 5h ━━━━━━━━━━┃━━━━━━━╸─ 92%
+      122223333333333B333334567 333
+      
+      1 = #4b5160
+      2 = #d8dee9 bg:#4b5160
+      3 = #ff3b30
+      4 = #ff5a51
+      5 = #ff7b74
+      6 = #ff9d97
+      7 = #3a3a3a
       """

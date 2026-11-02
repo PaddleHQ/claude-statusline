@@ -91,3 +91,28 @@ func TestMeterColorsThePercentageByStateOnASaberTheme(t *testing.T) {
 	m := &bar.Meter{Theme: saber, Width: 4}
 	assert.Equal(t, params.Render(saber)+" "+saber.BadColor+"95%"+saber.Reset, m.Usage(95, 70, 90))
 }
+
+func TestMeterLabel(t *testing.T) {
+	t.Parallel()
+
+	hilt := theme.Theme{
+		TextColor: "<t>", Reset: "</>",
+		HiltFG: "<f>", HiltBG: "<b>", HiltText: "<x>",
+	}
+	tests := []struct {
+		name string
+		th   theme.Theme
+		want string
+	}{
+		{"plain label", theme.Theme{TextColor: "<t>", Reset: "</>"}, "<t>5h: </>"},
+		{"hilt", hilt, "<f>▐</><b><x> 5h </>"},
+		{"hilt without color falls back to the plain label", hilt.WithoutColor(), "5h: "},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			m := &bar.Meter{Theme: tt.th}
+			assert.Equal(t, tt.want, m.Label("5h"))
+		})
+	}
+}

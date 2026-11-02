@@ -113,7 +113,6 @@ func (e *Env) registrations() []registration {
 	rates := func(cfg *config.Section) rate.Deps {
 		return rate.Deps{
 			Config: cfg,
-			Paint:  &e.Theme,
 			Meter:  meter(cfg),
 			Now:    e.Now,
 			Limits: func() rate.Limits { return e.limits() },
@@ -134,7 +133,7 @@ func (e *Env) registrations() []registration {
 			})
 		}},
 		{"ctx", layout.Identity, func(cfg *config.Section) Segment {
-			return ctx.New(ctx.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Meter: meter(cfg)})
+			return ctx.New(ctx.Deps{Session: &e.Payload, Config: cfg, Meter: meter(cfg)})
 		}},
 		{"tokens", layout.Usage, func(*config.Section) Segment {
 			return tokens.New(tokens.Deps{Session: &e.Payload, Paint: &e.Theme, Separator: e.Separator()})

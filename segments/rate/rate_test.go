@@ -29,11 +29,9 @@ func newFixture(t *testing.T, cfg map[string]string) *fixture {
 	for key, value := range map[string]int{"warn": 20, "bad": 40, "hard_cap": 95} {
 		config.EXPECT().Int(key).Return(value).Maybe()
 	}
-	paint := mocks.NewPainter(t)
-	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + "</>" }).Maybe()
+	f.meter.EXPECT().Label(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + ": </>" }).Maybe()
 	f.deps = rate.Deps{
 		Config: config,
-		Paint:  paint,
 		Meter:  f.meter,
 		Now:    time.Unix(now, 0),
 		Limits: func() rate.Limits { f.reads++; return f.limits },

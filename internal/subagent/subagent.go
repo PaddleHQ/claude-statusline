@@ -151,7 +151,7 @@ func (r *renderer) ctx(raw float64) string {
 	cfg := r.cfg.Section("ctx")
 	meter := &bar.Meter{Theme: r.th, Width: bar.WidthOf(r.columns, cfg), FillPercent: true}
 	pct := math.Floor(math.Min(math.Max(raw, 0), maxPercent))
-	return ctx.New(ctx.Deps{Session: &reported{pct: pct}, Config: cfg, Paint: &r.th, Meter: meter}).Render()
+	return ctx.New(ctx.Deps{Session: &reported{pct: pct}, Config: cfg, Meter: meter}).Render()
 }
 
 // truthy mirrors jq: only null, false and a missing field count as absent.

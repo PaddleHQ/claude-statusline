@@ -17,6 +17,52 @@ func (_m *Meter) EXPECT() *Meter_Expecter {
 	return &Meter_Expecter{mock: &_m.Mock}
 }
 
+// Label provides a mock function with given fields: text
+func (_m *Meter) Label(text string) string {
+	ret := _m.Called(text)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Label")
+	}
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(text)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
+// Meter_Label_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Label'
+type Meter_Label_Call struct {
+	*mock.Call
+}
+
+// Label is a helper method to define mock.On call
+//   - text string
+func (_e *Meter_Expecter) Label(text interface{}) *Meter_Label_Call {
+	return &Meter_Label_Call{Call: _e.mock.On("Label", text)}
+}
+
+func (_c *Meter_Label_Call) Run(run func(text string)) *Meter_Label_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *Meter_Label_Call) Return(_a0 string) *Meter_Label_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Meter_Label_Call) RunAndReturn(run func(string) string) *Meter_Label_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Pace provides a mock function with given fields: usage, target, warn, bad, hardCap
 func (_m *Meter) Pace(usage int, target int, warn int, bad int, hardCap int) string {
 	ret := _m.Called(usage, target, warn, bad, hardCap)

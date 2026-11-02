@@ -137,3 +137,55 @@ func TestBladeColor(t *testing.T) {
 	assert.True(t, plain.Saber, "WithoutColor() keeps the style")
 	assert.Len(t, th.Blade, 3, "WithoutColor() modified the receiver")
 }
+
+func TestLoadHilt(t *testing.T) {
+	t.Parallel()
+
+	got := theme.Load("saber", "", "")
+	assert.Equal(t, "\033[38;2;75;81;96m", got.HiltFG)
+	assert.Equal(t, "\033[48;2;75;81;96m", got.HiltBG)
+	assert.Equal(t, "\033[38;2;216;222;233m", got.HiltText)
+
+	plain := theme.Load("classic", "", "")
+	assert.Empty(t, plain.HiltFG)
+	assert.Empty(t, plain.HiltBG)
+	assert.Empty(t, plain.HiltText)
+
+	cleared := got.WithoutColor()
+	assert.Empty(t, cleared.HiltFG)
+	assert.Empty(t, cleared.HiltBG)
+	assert.Empty(t, cleared.HiltText)
+}
+
+func TestHiltIsValidInAnyStyle(t *testing.T) {
+	t.Parallel()
+
+	solid := strings.Replace(validTheme, "style: solid", "style: solid\n  hilt_color: \"#102030\"\n  hilt_text_color: bold", 1)
+	got, err := theme.Open(writeTheme(t, t.TempDir(), "h.yaml", solid), "", "")
+	require.NoError(t, err)
+	assert.Equal(t, "\033[48;2;16;32;48m", got.HiltBG)
+	assert.Equal(t, "\033[1m", got.HiltText)
+
+	bare := strings.Replace(validTheme, "style: solid", "style: solid\n  hilt_color: \"#102030\"", 1)
+	got, err = theme.Open(writeTheme(t, t.TempDir(), "b.yaml", bare), "", "")
+	require.NoError(t, err)
+	assert.Equal(t, "\033[38;2;16;32;48m", got.HiltFG)
+	assert.Empty(t, got.HiltText)
+}
+
+func TestInvalidHiltIsRejected(t *testing.T) {
+	t.Parallel()
+
+	for name, line := range map[string]string{
+		"named hilt color": "hilt_color: red",
+		"short hex":        "hilt_color: \"#fff\"",
+		"bad hilt text":    "hilt_color: \"#102030\"\n  hilt_text_color: nonsense",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			src := strings.Replace(validTheme, "style: solid", "style: solid\n  "+line, 1)
+			_, err := theme.Open(writeTheme(t, t.TempDir(), "t.yaml", src), "", "")
+			require.Error(t, err)
+		})
+	}
+}

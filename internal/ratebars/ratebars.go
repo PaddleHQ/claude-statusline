@@ -131,9 +131,7 @@ func (c *capture) Pace(usage, target, warn, bad, hardCap int) string {
 	return ""
 }
 
-type unpainted struct{}
-
-func (u *unpainted) Text(s string) string { return s }
+func (c *capture) Label(text string) string { return text }
 
 type renderer struct {
 	th     theme.Theme
@@ -144,7 +142,6 @@ type renderer struct {
 func (r *renderer) deps(cfg *config.Section, at time.Time, limits *ratecache.Limits) rate.Deps {
 	return rate.Deps{
 		Config: cfg,
-		Paint:  &unpainted{},
 		Meter:  &r.meter,
 		Now:    at,
 		Limits: func() rate.Limits { return limits },

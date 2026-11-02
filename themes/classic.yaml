@@ -2,8 +2,9 @@
 # marker read well on light and dark terminals.
 #
 # A theme file uses this same format. Every field below is required except
-# colors.branch, colors.worktree and glyphs, so copy a built-in theme and edit
-# it. Unknown keys make the theme invalid.
+# colors.branch, colors.worktree, glyphs, bar.hilt_color and
+# bar.hilt_text_color, so copy a built-in theme and edit it. Unknown keys make
+# the theme invalid.
 
 # Color roles. Each value is space-separated tokens: bold, dim, italic,
 # underline, a color name (black, red, green, yellow, blue, magenta, cyan,
