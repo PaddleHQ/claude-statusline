@@ -45,7 +45,7 @@ type Series struct {
 }
 
 // MarshalJSON encodes the bars keyed by cell count, in numeric order rather than the lexical order of a map.
-func (s Series) MarshalJSON() ([]byte, error) {
+func (s *Series) MarshalJSON() ([]byte, error) {
 	var b bytes.Buffer
 	b.WriteByte('{')
 	for i, painted := range s.Bars {
@@ -85,7 +85,7 @@ func Build(args []string, getenv func(string) string) (string, error) {
 		th = th.WithoutColor()
 	}
 
-	at := now(getenv)
+	at := config.Now(getenv)
 	var limits ratecache.Limits
 	if dir := config.StateDir(getenv); dir != "" {
 		cached := ratecache.NewCache(ratecache.PathIn(dir)).Load()
@@ -100,7 +100,7 @@ func Build(args []string, getenv func(string) string) (string, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
-	if err := enc.Encode(out); err != nil {
+	if err := enc.Encode(&out); err != nil {
 		return "", fmt.Errorf("encode rate bars: %w", err)
 	}
 	return buf.String(), nil
@@ -122,13 +122,6 @@ func parseCells(args []string) (lo, hi int, err error) {
 	return lo, hi, nil
 }
 
-func now(getenv func(string) string) time.Time {
-	if n, ok := config.ParseNumber(getenv("STATUSLINE_NOW")); ok {
-		return time.Unix(int64(n), 0)
-	}
-	return time.Now()
-}
-
 // capture is the Meter the rate segments draw through: it records the pace arguments they derive, so the target and
 // thresholds here are the segments' own.
 type capture struct{ params bar.Params }
@@ -140,7 +133,7 @@ func (c *capture) Pace(usage, target, warn, bad, hardCap int) string {
 
 type unpainted struct{}
 
-func (unpainted) Text(s string) string { return s }
+func (u *unpainted) Text(s string) string { return s }
 
 type renderer struct {
 	th     theme.Theme
@@ -151,7 +144,7 @@ type renderer struct {
 func (r *renderer) deps(cfg *config.Section, at time.Time, limits *ratecache.Limits) rate.Deps {
 	return rate.Deps{
 		Config: cfg,
-		Paint:  unpainted{},
+		Paint:  &unpainted{},
 		Meter:  &r.meter,
 		Now:    at,
 		Limits: func() rate.Limits { return limits },

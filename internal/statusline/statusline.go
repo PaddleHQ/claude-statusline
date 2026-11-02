@@ -54,7 +54,7 @@ func Build(input []byte, getenv func(string) string) string {
 	}
 
 	p := payload.Parse(input)
-	at := now(getenv)
+	at := config.Now(getenv)
 	// Synced on every run, not only when a rate segment renders: other tools read the shared cache.
 	limits := ratecache.NewCache(cachePath(getenv)).Sync(p.SessionID, ratecache.FromPayload(p.RateLimits))
 
@@ -175,13 +175,6 @@ func cachePath(getenv func(string) string) string {
 		return ""
 	}
 	return ratecache.PathIn(dir)
-}
-
-func now(getenv func(string) string) time.Time {
-	if n, ok := config.ParseNumber(getenv("STATUSLINE_NOW")); ok {
-		return time.Unix(int64(n), 0)
-	}
-	return time.Now()
 }
 
 func columns(getenv func(string) string) int {

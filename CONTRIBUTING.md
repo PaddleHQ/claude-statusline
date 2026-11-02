@@ -199,6 +199,7 @@ A step that takes text ends in a colon and is followed by a `"""` block. The tex
 | `When help runs` | Runs the `help` command. |
 | `When the config command runs` | Runs the `config` command. |
 | `When the config check runs` | Runs the `config-check` command. |
+| `When the rate bars render for <n> to <m> cells` | Runs the `rate-bars` command with `--min-cells=<n> --max-cells=<m>`. The output is its JSON line. |
 | `Then the output is:` | The output with its colours and styles, written as rows of text with a style line under each; see [Expected output](#expected-output). |
 | `Then the text is:` | The output with every colour and style removed. Use it when the scenario has no colour at all. |
 | `Then the text starts with:` | The output with every colour and style removed begins with the block. Use it for long output where only the start is the point, such as `config`. |

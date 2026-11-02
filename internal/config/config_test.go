@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 
@@ -362,4 +363,33 @@ func TestSection(t *testing.T) {
 	assert.Equal(t, []string{"a"}, foo.Strings("list"))
 	assert.Equal(t, "·", c.Section("").String("separator"), "an empty name reads keys as they are")
 	assert.Zero(t, c.Section("bar").Int("size"), "another section does not see foo's keys")
+}
+
+func TestNow(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		env  map[string]string
+		want int64
+	}{
+		{"uses STATUSLINE_NOW", map[string]string{"STATUSLINE_NOW": "1760000000"}, 1760000000},
+		{"strips leading zeros", map[string]string{"STATUSLINE_NOW": "0000000012"}, 12},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, config.Now(getenvFrom(tt.env)).Unix())
+		})
+	}
+
+	for _, bad := range []string{"", "abc", "-1", "1e9", "1760000000000000"} {
+		before := time.Now().Add(-time.Minute)
+		got := config.Now(getenvFrom(map[string]string{"STATUSLINE_NOW": bad}))
+		assert.False(t, got.Before(before) || got.After(time.Now().Add(time.Minute)), "now() with STATUSLINE_NOW=%q = %v, want the current time", bad, got)
+	}
+}
+
+func getenvFrom(m map[string]string) func(string) string {
+	return func(name string) string { return m[name] }
 }

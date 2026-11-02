@@ -43,31 +43,6 @@ func TestDefaultsAreDocumented(t *testing.T) {
 	}
 }
 
-func TestNow(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		env  map[string]string
-		want int64
-	}{
-		{"uses STATUSLINE_NOW", map[string]string{"STATUSLINE_NOW": "1760000000"}, 1760000000},
-		{"strips leading zeros", map[string]string{"STATUSLINE_NOW": "0000000012"}, 12},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, statusline.Now(env(tt.env)).Unix())
-		})
-	}
-
-	for _, bad := range []string{"", "abc", "-1", "1e9", "1760000000000000"} {
-		before := time.Now().Add(-time.Minute)
-		got := statusline.Now(env(map[string]string{"STATUSLINE_NOW": bad}))
-		assert.False(t, got.Before(before) || got.After(time.Now().Add(time.Minute)), "now() with STATUSLINE_NOW=%q = %v, want the current time", bad, got)
-	}
-}
-
 func TestColumns(t *testing.T) {
 	t.Parallel()
 

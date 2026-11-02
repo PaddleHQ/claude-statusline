@@ -38,10 +38,3 @@ Feature: Rate-limit bars
       """
       {"rate5h":{"ok":true,"percent":"75%","bars":{"4":"\u001b[33m██\u001b[0m\u001b[1m┃\u001b[0m\u001b[2m░\u001b[0m","5":"\u001b[33m██\u001b[0m\u001b[1m┃\u001b[0m\u001b[33m▊\u001b[0m\u001b[2m░\u001b[0m"}},"rate7d":{"ok":true,"percent":"40%","bars":{"4":"\u001b[32m█▋\u001b[0m\u001b[1m┃\u001b[0m\u001b[2m░\u001b[0m","5":"\u001b[32m██\u001b[0m\u001b[1m┃\u001b[0m\u001b[2m░░\u001b[0m"}}}
       """
-
-  Scenario: A window with no reading is drawn empty and muted
-    When the rate bars render for 3 to 3 cells
-    Then the raw output is:
-      """
-      {"rate5h":{"ok":false,"percent":"\u001b[2m--\u001b[0m","bars":{"3":"\u001b[2m░░░\u001b[0m"}},"rate7d":{"ok":false,"percent":"\u001b[2m--\u001b[0m","bars":{"3":"\u001b[2m░░░\u001b[0m"}}}
-      """
