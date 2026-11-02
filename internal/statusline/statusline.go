@@ -67,7 +67,7 @@ func Build(input []byte, getenv func(string) string) string {
 			return transcript.Read(p.TranscriptPath)
 		},
 		RateLimits: func() ratecache.Limits {
-			synced := ratecache.NewCache(cachePath(getenv)).Sync(ratecache.FromPayload(p.RateLimits))
+			synced := ratecache.NewCache(cachePath(getenv)).Sync(p.SessionID, ratecache.FromPayload(p.RateLimits))
 			return synced.Visible(at.Unix())
 		},
 	})

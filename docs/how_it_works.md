@@ -41,7 +41,7 @@ The binary prints the line with no trailing newline, and the status line always 
 
 ## Shared rate-limit cache
 
-Rate limits belong to your account, not to a session, and an idle session's payload goes stale. Readings are therefore shared between sessions through the `cache/ratelimits` file in its state directory (see [Where the files live](#where-the-files-live)). A session replaces the cached reading only with a newer window, higher usage, or a drop of more than 10 points (a mid-window quota reset), and the line is always drawn from the merged value. The file is private state and may change between versions.
+Rate limits belong to your account, not to a session, and an idle session's payload goes stale. Readings are therefore shared between sessions through the `cache/ratelimits` file in its state directory (see [Where the files live](#where-the-files-live)). A newer window always replaces the cached reading. Within the same window, a session moves the cached reading up or down only when its own reading has changed since it last reported, so a mid-window quota reset gets through. An idle session repeats the same stale reading on every render, so it never changes the cache in either direction. A session seen for the first time can raise the cache but not lower it. The file remembers each session's last reading for that, and forgets sessions from an earlier window. The line is always drawn from the merged value. The file is private state and may change between versions.
 
 ## Transcript diagnostics
 
