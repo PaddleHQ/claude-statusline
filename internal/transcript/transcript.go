@@ -259,8 +259,8 @@ func scanBackwards(data []byte, seen *int) ([]byte, bool) {
 	return nil, *seen >= tailLines
 }
 
-// requestOf reads an assistant line's timestamp and cache lifetime. A cache is only taken to be short-lived when the
-// request wrote solely to the 5-minute tier, so an unreported tier never makes a live cache look expired.
+// requestOf reads an assistant line's timestamp and cache lifetime. A cache is only taken to live an hour when the
+// request wrote solely to the 1-hour tier: calling a live cache cold costs less than an unexpected rebuild.
 func requestOf(line []byte) (time.Time, time.Duration) {
 	if !gjson.ValidBytes(line) {
 		return time.Time{}, 0
@@ -270,10 +270,10 @@ func requestOf(line []byte) (time.Time, time.Duration) {
 		return time.Time{}, 0
 	}
 	writes := gjson.GetBytes(line, "message.usage.cache_creation")
-	if writes.Get("ephemeral_5m_input_tokens").Int() > 0 && writes.Get("ephemeral_1h_input_tokens").Int() <= 0 {
-		return at, shortCacheTTL
+	if writes.Get("ephemeral_1h_input_tokens").Int() > 0 && writes.Get("ephemeral_5m_input_tokens").Int() <= 0 {
+		return at, longCacheTTL
 	}
-	return at, longCacheTTL
+	return at, shortCacheTTL
 }
 
 func bootOf(line string) int64 {

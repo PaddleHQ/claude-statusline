@@ -188,10 +188,25 @@ func TestReadLastRequest(t *testing.T) {
 			[]string{stamped("2026-11-02T20:04:00.445Z", `,"cache_creation":{"ephemeral_1h_input_tokens":0,"ephemeral_5m_input_tokens":300}`)},
 			at, 5 * time.Minute,
 		},
-		{"no reported tier assumes the longer one", []string{stamped("2026-11-02T20:04:00.445Z", "")}, at, time.Hour},
+		{
+			"writes to both tiers live five minutes",
+			[]string{stamped("2026-11-02T20:04:00.445Z", `,"cache_creation":{"ephemeral_1h_input_tokens":10,"ephemeral_5m_input_tokens":300}`)},
+			at, 5 * time.Minute,
+		},
+		{
+			"no writes assume the shorter one",
+			[]string{stamped("2026-11-02T20:04:00.445Z", `,"cache_creation":{"ephemeral_1h_input_tokens":0,"ephemeral_5m_input_tokens":0}`)},
+			at, 5 * time.Minute,
+		},
+		{"no reported tier assumes the shorter one", []string{stamped("2026-11-02T20:04:00.445Z", "")}, at, 5 * time.Minute},
 		{
 			"the latest assistant turn wins",
-			[]string{stamped("2026-11-01T09:00:00Z", ""), user, stamped("2026-11-02T20:04:00.445Z", ""), user},
+			[]string{
+				stamped("2026-11-01T09:00:00Z", `,"cache_creation":{"ephemeral_1h_input_tokens":0,"ephemeral_5m_input_tokens":300}`),
+				user,
+				stamped("2026-11-02T20:04:00.445Z", `,"cache_creation":{"ephemeral_1h_input_tokens":48139,"ephemeral_5m_input_tokens":0}`),
+				user,
+			},
 			at, time.Hour,
 		},
 		{"no timestamp is unknown", []string{assistant}, time.Time{}, 0},
