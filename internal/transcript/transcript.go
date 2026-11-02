@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/tidwall/gjson"
@@ -31,6 +32,9 @@ const (
 	// maxLine is the longest line that is kept; a longer one is read past without being held in memory.
 	maxLine      = 256 << 10
 	maxSubagents = 64
+
+	longCacheTTL  = time.Hour
+	shortCacheTTL = 5 * time.Minute
 )
 
 var (
@@ -52,6 +56,10 @@ type Info struct {
 	MemDropped bool
 	// SubBare and SubTotal are the same counts for the subagent with the most stripped skills.
 	SubBare, SubTotal int
+	// RequestAt is when the latest assistant turn in the last 200 lines was written.
+	RequestAt time.Time
+	// CacheTTL is how long that turn's prompt cache lives without another request.
+	CacheTTL time.Duration
 }
 
 // LatestModel is the model of the latest assistant turn in the last 200 lines.
@@ -68,6 +76,9 @@ func (i *Info) SkillCounts() (bare, total int) { return i.SkillsBare, i.SkillsTo
 
 // SubagentSkillCounts is the same for the subagent with the most stripped skills.
 func (i *Info) SubagentSkillCounts() (bare, total int) { return i.SubBare, i.SubTotal }
+
+// LastRequest is when the latest assistant turn was written and how long its prompt cache lives; at is zero when unknown.
+func (i *Info) LastRequest() (at time.Time, ttl time.Duration) { return i.RequestAt, i.CacheTTL }
 
 // MemoryDropped reports a SessionStart hook whose output was too large to inject.
 func (i *Info) MemoryDropped() bool { return i.MemDropped }
@@ -128,7 +139,10 @@ func (r *reader) read(path string) Info {
 	out.SkillsChars = skillsChars(opening)
 	out.MemDropped = memDropped(opening)
 	out.SkillsBare, out.SkillsTotal, _ = skillCounts(opening)
-	out.ActualModel = lastModel(f, stat.Size())
+	if line := lastAssistant(f, stat.Size()); line != nil {
+		out.ActualModel = string(modelPattern.FindSubmatch(line)[1])
+		out.RequestAt, out.CacheTTL = requestOf(line)
+	}
 	out.SubBare, out.SubTotal = r.subagents(path)
 	return out
 }
@@ -184,8 +198,8 @@ func nextLine(br *bufio.Reader) (line string, ok bool) {
 	}
 }
 
-// lastModel finds the model of the last assistant turn within the last 200 lines, reading backwards from the end.
-func lastModel(f io.ReaderAt, size int64) string {
+// lastAssistant finds the last assistant turn within the last 200 lines, reading backwards from the end.
+func lastAssistant(f io.ReaderAt, size int64) []byte {
 	var pending []byte
 	off, seen := size, 0
 	trailing := true
@@ -194,7 +208,7 @@ func lastModel(f io.ReaderAt, size int64) string {
 		off -= n
 		buf := make([]byte, n+int64(len(pending)))
 		if _, err := f.ReadAt(buf[:n], off); err != nil && err != io.EOF {
-			return ""
+			return nil
 		}
 		copy(buf[n:], pending)
 		pending = nil
@@ -215,27 +229,44 @@ func lastModel(f io.ReaderAt, size int64) string {
 			return m
 		}
 		if seen >= tailLines {
-			return ""
+			return nil
 		}
 	}
-	return ""
+	return nil
 }
 
-// scanBackwards looks through complete lines from the last to the first. It reports done once a model is found
-// or the 200-line window is used up.
-func scanBackwards(data []byte, seen *int) (string, bool) {
+// scanBackwards looks through complete lines from the last to the first. It reports done once an assistant line
+// is found or the 200-line window is used up.
+func scanBackwards(data []byte, seen *int) ([]byte, bool) {
 	for end := len(data); end >= 0; {
 		start := bytes.LastIndexByte(data[:end], '\n') + 1
 		if *seen >= tailLines {
-			return "", true
+			return nil, true
 		}
 		*seen++
-		if m := modelPattern.FindSubmatch(data[start:end]); m != nil {
-			return string(m[1]), true
+		if line := data[start:end]; modelPattern.Match(line) {
+			return line, true
 		}
 		end = start - 1
 	}
-	return "", false
+	return nil, false
+}
+
+// requestOf reads an assistant line's timestamp and cache lifetime. A cache is only taken to be short-lived when the
+// request wrote solely to the 5-minute tier, so an unreported tier never makes a live cache look expired.
+func requestOf(line []byte) (time.Time, time.Duration) {
+	if !gjson.ValidBytes(line) {
+		return time.Time{}, 0
+	}
+	at, err := time.Parse(time.RFC3339Nano, gjson.GetBytes(line, "timestamp").String())
+	if err != nil {
+		return time.Time{}, 0
+	}
+	writes := gjson.GetBytes(line, "message.usage.cache_creation")
+	if writes.Get("ephemeral_5m_input_tokens").Int() > 0 && writes.Get("ephemeral_1h_input_tokens").Int() <= 0 {
+		return at, shortCacheTTL
+	}
+	return at, longCacheTTL
 }
 
 func bootOf(line string) int64 {

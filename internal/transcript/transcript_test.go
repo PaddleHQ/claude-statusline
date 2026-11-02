@@ -165,6 +165,52 @@ func TestReadActualModel(t *testing.T) {
 	})
 }
 
+func TestReadLastRequest(t *testing.T) {
+	t.Parallel()
+
+	stamped := func(ts, creation string) string {
+		return `{"type":"assistant","message":{"model":"claude-opus-4-7","usage":{"input_tokens":6` + creation + `}},"timestamp":"` + ts + `"}`
+	}
+	at := time.Date(2026, 11, 2, 20, 4, 0, 445000000, time.UTC)
+	tests := []struct {
+		name    string
+		lines   []string
+		wantAt  time.Time
+		wantTTL time.Duration
+	}{
+		{
+			"one-hour writes live an hour",
+			[]string{stamped("2026-11-02T20:04:00.445Z", `,"cache_creation":{"ephemeral_1h_input_tokens":48139,"ephemeral_5m_input_tokens":0}`)},
+			at, time.Hour,
+		},
+		{
+			"five-minute writes alone live five minutes",
+			[]string{stamped("2026-11-02T20:04:00.445Z", `,"cache_creation":{"ephemeral_1h_input_tokens":0,"ephemeral_5m_input_tokens":300}`)},
+			at, 5 * time.Minute,
+		},
+		{"no reported tier assumes the longer one", []string{stamped("2026-11-02T20:04:00.445Z", "")}, at, time.Hour},
+		{
+			"the latest assistant turn wins",
+			[]string{stamped("2026-11-01T09:00:00Z", ""), user, stamped("2026-11-02T20:04:00.445Z", ""), user},
+			at, time.Hour,
+		},
+		{"no timestamp is unknown", []string{assistant}, time.Time{}, 0},
+		{"a bad timestamp is unknown", []string{stamped("yesterday", "")}, time.Time{}, 0},
+		{"no assistant turn is unknown", []string{user}, time.Time{}, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			path := filepath.Join(t.TempDir(), "t.jsonl")
+			write(t, path, tt.lines...)
+			info := transcript.Read(path)
+			gotAt, gotTTL := info.LastRequest()
+			assert.True(t, tt.wantAt.Equal(gotAt), "at: want %v, got %v", tt.wantAt, gotAt)
+			assert.Equal(t, tt.wantTTL, gotTTL)
+		})
+	}
+}
+
 func TestReadSkipsMalformedLines(t *testing.T) {
 	t.Parallel()
 

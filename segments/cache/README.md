@@ -1,6 +1,6 @@
 # cache
 
-Shows how much of the latest request's input came from the prompt cache, for example `⧉ 80%`. It turns red when the figure is low.
+Shows how much of the latest request's input came from the prompt cache, for example `⧉ 80%`. It turns red when the figure is low. Once the cache has expired since the last response, as in a session resumed after a break, it shows `⧉ cold` in red instead.
 
 ## Settings
 
@@ -10,8 +10,9 @@ Shows how much of the latest request's input came from the prompt cache, for exa
 
 ## Depends on
 
-- The session: the token usage of the latest request.
-- Its own config section and a painter for the normal and red text colours.
+- The session: the token usage of the latest request, and the transcript path.
+- The transcript: when the latest response was written and how long its cache lives (an hour, or five minutes when it wrote only to the five-minute cache).
+- The current time, its own config section and a painter for the normal and red text colours.
 
 ## Layout group
 
