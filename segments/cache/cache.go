@@ -53,6 +53,13 @@ type Painter interface {
 	Bad(s string) string
 }
 
+//go:generate go run github.com/vektra/mockery/v2 --name=Icons
+
+// Icons picks a label for the user's icon set.
+type Icons interface {
+	Pick(plain, nerd string) string
+}
+
 // Deps is everything the segment is built from. Transcript is a function so that the transcript is only read when the segment needs it.
 type Deps struct {
 	Session    Session
@@ -60,6 +67,7 @@ type Deps struct {
 	Config     Config
 	Paint      Painter
 	Now        time.Time
+	Icons      Icons
 }
 
 // Cache shows the prompt cache hit rate.
@@ -91,7 +99,7 @@ func (c *Cache) Render() string {
 		return ""
 	}
 	pct := read * percentScale / total
-	text := "⧉ " + strconv.FormatInt(pct, 10) + "%"
+	text := c.d.Icons.Pick("\u29C9 ", "\uF0E7 ") + strconv.FormatInt(pct, 10) + "%"
 	if pct < int64(c.d.Config.Int("warn")) {
 		return c.d.Paint.Bad(text)
 	}

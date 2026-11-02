@@ -136,10 +136,10 @@ func (e *Env) registrations() []registration {
 			})
 		}},
 		{"ctx", layout.Identity, func(cfg *config.Section) Segment {
-			return ctx.New(ctx.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Meter: meter(cfg)})
+			return ctx.New(ctx.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Meter: meter(cfg), Icons: &e.Icons})
 		}},
 		{"tokens", layout.Usage, func(*config.Section) Segment {
-			return tokens.New(tokens.Deps{Session: &e.Payload, Paint: &e.Theme, Separator: e.Separator()})
+			return tokens.New(tokens.Deps{Session: &e.Payload, Paint: &e.Theme, Icons: &e.Icons, Separator: e.Separator()})
 		}},
 		{"cache", layout.Usage, func(cfg *config.Section) Segment {
 			return cache.New(cache.Deps{
@@ -148,6 +148,7 @@ func (e *Env) registrations() []registration {
 				Config:     cfg,
 				Paint:      &e.Theme,
 				Now:        e.Now,
+				Icons:      &e.Icons,
 			})
 		}},
 		{"rate5h", layout.Rates, func(cfg *config.Section) Segment { return rate.NewFiveHour(rates(cfg)) }},

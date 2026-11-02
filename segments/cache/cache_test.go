@@ -22,7 +22,9 @@ func build(t *testing.T, input, creation, read int64, warn int) *cache.Cache {
 	paint := mocks.NewPainter(t)
 	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + "</>" }).Maybe()
 	paint.EXPECT().Bad(mock.Anything).RunAndReturn(func(s string) string { return "<b>" + s + "</>" }).Maybe()
-	return cache.New(cache.Deps{Session: sess, Config: cfg, Paint: paint})
+	icons := mocks.NewIcons(t)
+	icons.EXPECT().Pick(mock.Anything, mock.Anything).RunAndReturn(func(plain, _ string) string { return plain }).Maybe()
+	return cache.New(cache.Deps{Session: sess, Config: cfg, Paint: paint, Icons: icons})
 }
 
 func TestRender(t *testing.T) {
@@ -118,4 +120,19 @@ func TestHelp(t *testing.T) {
 	t.Parallel()
 
 	assert.Contains(t, build(t, 0, 0, 0, 12).Help(), "12%")
+}
+
+func TestCacheNerdIcon(t *testing.T) {
+	t.Parallel()
+
+	sess := mocks.NewSession(t)
+	sess.EXPECT().LatestRequest().Return(int64(0), int64(0), int64(100))
+	cfg := mocks.NewConfig(t)
+	cfg.EXPECT().Int("warn").Return(10)
+	paint := mocks.NewPainter(t)
+	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return s })
+	icons := mocks.NewIcons(t)
+	icons.EXPECT().Pick("\u29C9 ", "\uF0E7 ").RunAndReturn(func(_, nerd string) string { return nerd })
+	seg := cache.New(cache.Deps{Session: sess, Config: cfg, Paint: paint, Icons: icons})
+	assert.Equal(t, "\uF0E7 100%", seg.Render())
 }

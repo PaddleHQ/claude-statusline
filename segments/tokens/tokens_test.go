@@ -46,7 +46,9 @@ func build(t *testing.T, in, out *int64) *tokens.Totals {
 	sess.EXPECT().TotalOutput().RunAndReturn(func() (int64, bool) { return value(out) }).Maybe()
 	paint := mocks.NewPainter(t)
 	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + "</>" }).Maybe()
-	return tokens.New(tokens.Deps{Session: sess, Paint: paint, Separator: " <m>·</> "})
+	icons := mocks.NewIcons(t)
+	icons.EXPECT().Pick(mock.Anything, mock.Anything).RunAndReturn(func(plain, _ string) string { return plain }).Maybe()
+	return tokens.New(tokens.Deps{Session: sess, Paint: paint, Icons: icons, Separator: " <m>·</> "})
 }
 
 func value(p *int64) (int64, bool) {
@@ -104,4 +106,21 @@ func FuzzFormatTokens(f *testing.F) {
 		}
 		assert.Regexp(t, shape, tokens.FormatTokens(n))
 	})
+}
+
+func TestTotalsNerdIcons(t *testing.T) {
+	t.Parallel()
+
+	sess := mocks.NewSession(t)
+	sess.EXPECT().TotalInput().Return(1500000, true)
+	sess.EXPECT().TotalOutput().Return(2000, true)
+	paint := mocks.NewPainter(t)
+	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return s })
+	icons := mocks.NewIcons(t)
+	icons.EXPECT().Pick("\u2193 ", "\uF019 ").RunAndReturn(func(_, nerd string) string { return nerd })
+	icons.EXPECT().Pick("\u2191 ", "\uF093 ").RunAndReturn(func(_, nerd string) string { return nerd })
+	seg := tokens.New(tokens.Deps{Session: sess, Paint: paint, Icons: icons, Separator: " | "})
+	out := seg.Render()
+	assert.Contains(t, out, "\uF019 1.5M")
+	assert.Contains(t, out, "\uF093 2.0k")
 }

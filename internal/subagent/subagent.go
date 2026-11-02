@@ -9,6 +9,7 @@ import (
 
 	"github.com/PaddleHQ/claude-statusline/internal/bar"
 	"github.com/PaddleHQ/claude-statusline/internal/config"
+	"github.com/PaddleHQ/claude-statusline/internal/icons"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments"
@@ -148,7 +149,7 @@ func (r *renderer) ctx(raw float64) string {
 	cfg := r.cfg.Section("ctx")
 	meter := &bar.Meter{Theme: r.th, Width: bar.WidthOf(r.columns, cfg), FillPercent: true}
 	pct := math.Floor(math.Min(math.Max(raw, 0), maxPercent))
-	return ctx.New(ctx.Deps{Session: &reported{pct: pct}, Config: cfg, Paint: &r.th, Meter: meter}).Render()
+	return ctx.New(ctx.Deps{Session: &reported{pct: pct}, Config: cfg, Paint: &r.th, Meter: meter, Icons: &icons.Set{}}).Render()
 }
 
 // truthy mirrors jq: only null, false and a missing field count as absent.
