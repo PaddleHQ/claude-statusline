@@ -62,14 +62,16 @@ type Theme struct {
 	HiltFG   string
 	HiltBG   string
 	HiltText string
-	// HiltPommel is the glyphs drawn before the grip, and HiltFins is how many HiltFin cells follow it, drawn in
-	// HiltFinFG over the grip background.
-	HiltPommel string
-	HiltFin    string
-	HiltFins   int
-	HiltFinFG  string
-	// HiltFinFill makes the fins take the bar's state color instead of HiltFinFG.
-	HiltFinFill bool
+	// HiltPommel is the glyphs drawn before the grip, in HiltPommelFG, or in HiltFG when that is empty, and HiltFins is
+	// how many HiltFin cells follow it, drawn in HiltFinFG over the grip background.
+	HiltPommel   string
+	HiltPommelFG string
+	HiltFin      string
+	HiltFins     int
+	HiltFinFG    string
+	// HiltFinFill and HiltPommelFill make the fins and the pommel take the bar's state color instead of their fixed one.
+	HiltFinFill    bool
+	HiltPommelFill bool
 }
 
 // WithoutColor clears every color and style, keeping the glyphs.
@@ -78,8 +80,8 @@ func (t *Theme) WithoutColor() Theme {
 	c.TextColor, c.Muted, c.Good, c.WarnColor, c.BadColor, c.Marker, c.PathColor, c.Reset = "", "", "", "", "", "", "", ""
 	c.BranchColor, c.WorktreeColor = "", ""
 	c.Ramp, c.Blade, c.EmptyColor, c.MarkerColor = nil, nil, "", ""
-	c.HiltFG, c.HiltBG, c.HiltText, c.HiltFinFG = "", "", "", ""
-	c.HiltFinFill = false
+	c.HiltFG, c.HiltBG, c.HiltText, c.HiltFinFG, c.HiltPommelFG = "", "", "", "", ""
+	c.HiltFinFill, c.HiltPommelFill = false, false
 	return c
 }
 

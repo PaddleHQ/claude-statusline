@@ -38,9 +38,11 @@ bar:
   # a grip in this #rrggbb color holding the label in hilt_text_color.
   hilt_color: "#4b5160"
   hilt_text_color: "#d8dee9"
-  # The pommel glyphs, in the hilt color. Defaults to "▐▬". The trailing "▐" pads the
-  # grip before the label.
-  hilt_pommel: "▐▬▐"
+  # The pommel glyphs. The right eighth block puts a thin line against the grip.
+  hilt_pommel: "▕"
+  # The pommel color: "fill" follows the bar's state color, or give a #rrggbb.
+  # Defaults to the hilt color.
+  hilt_pommel_color: fill
   # Cooling fins after the grip (0 to 8, default 0), each one column wide glyph
   # (default "║") on the hilt color. The color is required when there are fins:
   # "fill" follows the bar's state color, or give a fixed #rrggbb.

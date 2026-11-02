@@ -23,17 +23,16 @@ Feature: Saber theme
     When the status line renders
     Then the output is:
       """
-      ▐▬▐ctx║║║━━━╸────── 37%
-      1112223334567888888 444
+      ▕ctx║║║━━━╸────── 37%
+      12223331456777777 111
       
-      1 = #4b5160
+      1 = #4aa8ff
       2 = #d8dee9 bg:#4b5160
       3 = #4aa8ff bg:#4b5160
-      4 = #4aa8ff
-      5 = #66b5ff
-      6 = #85c4ff
-      7 = #a4d3ff
-      8 = #3a3a3a
+      4 = #66b5ff
+      5 = #85c4ff
+      6 = #a4d3ff
+      7 = #3a3a3a
       """
 
   Scenario: The saber theme's rate-limit bars take their blade colour from the pace
@@ -60,17 +59,16 @@ Feature: Saber theme
     When the status line renders
     Then the output is:
       """
-      ▐▬▐5h║║║━━━━━━━━━─┃───────── 45% · ▐▬▐7d║║║━━━━━━━━──┃───────── 40%
-      111223334444445678B888888888 444 d 111223334444456788B888888888 444
+      ▕5h║║║━━━━━━━━━─┃───────── 45% · ▕7d║║║━━━━━━━━──┃───────── 40%
+      1223331111114567B777777777 111 d 1223331111145677B777777777 111
       
-      1 = #4b5160
+      1 = #4aa8ff
       2 = #d8dee9 bg:#4b5160
       3 = #4aa8ff bg:#4b5160
-      4 = #4aa8ff
-      5 = #66b5ff
-      6 = #85c4ff
-      7 = #a4d3ff
-      8 = #3a3a3a
+      4 = #66b5ff
+      5 = #85c4ff
+      6 = #a4d3ff
+      7 = #3a3a3a
       """
 
   Scenario: The saber theme's blade turns purple when usage runs ahead of the pace (75%)
@@ -93,17 +91,16 @@ Feature: Saber theme
     When the status line renders
     Then the output is:
       """
-      ▐▬▐5h║║║━━━━━━━━━━┃━━━━───── 75%
-      111223334444444444B456788888 444
+      ▕5h║║║━━━━━━━━━━┃━━━━───── 75%
+      1223331111111111B145677777 111
       
-      1 = #4b5160
+      1 = #b26bff
       2 = #d8dee9 bg:#4b5160
       3 = #b26bff bg:#4b5160
-      4 = #b26bff
-      5 = #be82ff
-      6 = #cb9bff
-      7 = #d8b5ff
-      8 = #3a3a3a
+      4 = #be82ff
+      5 = #cb9bff
+      6 = #d8b5ff
+      7 = #3a3a3a
       """
 
   Scenario: The saber theme's blade turns red when usage runs ahead of the pace (92%)
@@ -126,15 +123,14 @@ Feature: Saber theme
     When the status line renders
     Then the output is:
       """
-      ▐▬▐5h║║║━━━━━━━━━━┃━━━━━━━╸─ 92%
-      111223334444444444B444445678 444
+      ▕5h║║║━━━━━━━━━━┃━━━━━━━╸─ 92%
+      1223331111111111B111114567 111
       
-      1 = #4b5160
+      1 = #ff3b30
       2 = #d8dee9 bg:#4b5160
       3 = #ff3b30 bg:#4b5160
-      4 = #ff3b30
-      5 = #ff5a51
-      6 = #ff7b74
-      7 = #ff9d97
-      8 = #3a3a3a
+      4 = #ff5a51
+      5 = #ff7b74
+      6 = #ff9d97
+      7 = #3a3a3a
       """

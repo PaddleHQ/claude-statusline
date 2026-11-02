@@ -38,7 +38,7 @@ var (
 const (
 	defaultHiltPommel = "▐▬"
 	defaultHiltFin    = "║"
-	finFill           = "fill"
+	fillColor         = "fill"
 	maxHiltFins       = 8
 	fallbackName      = "classic"
 	legacyName        = "default"
@@ -95,6 +95,7 @@ type barSpec struct {
 	HiltColor   *string  `yaml:"hilt_color"`
 	HiltText    *string  `yaml:"hilt_text_color"`
 	HiltPommel  *string  `yaml:"hilt_pommel"`
+	HiltPomCol  *string  `yaml:"hilt_pommel_color"`
 	HiltFins    *int     `yaml:"hilt_fins"`
 	HiltFinCol  *string  `yaml:"hilt_fin_color"`
 	HiltFin     *string  `yaml:"hilt_fin"`
@@ -408,11 +409,17 @@ func (t *Theme) compileHilt(b barSpec) error {
 }
 
 func (b *barSpec) hasHiltFields() bool {
-	return b.HiltText != nil || b.HiltPommel != nil || b.HiltFins != nil || b.HiltFinCol != nil || b.HiltFin != nil
+	return b.HiltText != nil || b.HiltPommel != nil || b.HiltPomCol != nil || b.HiltFins != nil || b.HiltFinCol != nil || b.HiltFin != nil
 }
 
 func (t *Theme) compilePommel(b barSpec) error {
 	t.HiltPommel = defaultHiltPommel
+	if b.HiltPomCol != nil {
+		var err error
+		if t.HiltPommelFG, t.HiltPommelFill, err = compileFillColor(*b.HiltPomCol); err != nil {
+			return err
+		}
+	}
 	if b.HiltPommel == nil {
 		return nil
 	}
@@ -441,7 +448,8 @@ func (t *Theme) compileFins(b barSpec) error {
 	if b.HiltFinCol == nil {
 		return fmt.Errorf("bar.hilt_fin_color %w", errMissing)
 	}
-	if err := t.compileFinColor(*b.HiltFinCol); err != nil {
+	var err error
+	if t.HiltFinFG, t.HiltFinFill, err = compileFillColor(*b.HiltFinCol); err != nil {
 		return err
 	}
 	if err := t.compileFinGlyph(b); err != nil {
@@ -451,17 +459,17 @@ func (t *Theme) compileFins(b barSpec) error {
 	return nil
 }
 
-func (t *Theme) compileFinColor(spec string) error {
-	if spec == finFill {
-		t.HiltFinFill = true
-		return nil
+// compileFillColor reads a hilt part's color: the keyword fill, which follows the bar's state color, or a fixed
+// #rrggbb, returned as a foreground sequence.
+func compileFillColor(spec string) (fg string, fill bool, err error) {
+	if spec == fillColor {
+		return "", true, nil
 	}
 	r, g, bl, err := parseRampStop(spec)
 	if err != nil {
-		return err
+		return "", false, err
 	}
-	t.HiltFinFG = fmt.Sprintf("\033[38;2;%d;%d;%dm", r, g, bl)
-	return nil
+	return fmt.Sprintf("\033[38;2;%d;%d;%dm", r, g, bl), false, nil
 }
 
 func (t *Theme) compileFinGlyph(b barSpec) error {
