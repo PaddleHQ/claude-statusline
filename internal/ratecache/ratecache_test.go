@@ -226,6 +226,47 @@ func TestSyncWithoutLock(t *testing.T) {
 	})
 }
 
+func TestSyncWithoutReadings(t *testing.T) {
+	t.Parallel()
+
+	t.Run("creates nothing", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		got := ratecache.NewCache(filepath.Join(dir, "ratelimits")).Sync("a", ratecache.Limits{})
+		assert.Equal(t, ratecache.Limits{}, got)
+		entries, err := os.ReadDir(dir)
+		require.NoError(t, err)
+		assert.Empty(t, entries)
+	})
+	t.Run("returns the cached readings without rewriting them", func(t *testing.T) {
+		t.Parallel()
+		path := filepath.Join(t.TempDir(), "ratelimits")
+		ratecache.NewCache(path).Sync("a", ratecache.Limits{FiveHour: r(45, 100)})
+		before, err := os.ReadFile(path)
+		require.NoError(t, err)
+
+		got := ratecache.NewCache(path).Sync("a", ratecache.Limits{})
+		assert.Equal(t, ratecache.Limits{FiveHour: r(45, 100)}, got)
+		after, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, string(before), string(after))
+	})
+	t.Run("does not wait on a held lock", func(t *testing.T) {
+		t.Parallel()
+		path := filepath.Join(t.TempDir(), "ratelimits")
+		ratecache.NewCache(path).Sync("a", ratecache.Limits{FiveHour: r(45, 100)})
+		held, err := os.OpenFile(path+".lock", os.O_CREATE|os.O_RDWR, 0o600)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = held.Close() })
+		require.NoError(t, syscall.Flock(int(held.Fd()), syscall.LOCK_EX)) //nolint:gosec // G115: a file descriptor fits in an int
+
+		start := time.Now()
+		got := ratecache.NewCache(path).Sync("a", ratecache.Limits{})
+		assert.Less(t, time.Since(start), 100*time.Millisecond, "Sync took the lock for a payload with no readings")
+		assert.Equal(t, ratecache.Limits{FiveHour: r(45, 100)}, got)
+	})
+}
+
 func TestSyncFreshnessBySession(t *testing.T) {
 	t.Parallel()
 
