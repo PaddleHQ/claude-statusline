@@ -270,11 +270,8 @@ func (c *Config) Raw(key string) (value any, ok bool) {
 }
 
 func (c *Config) lookupUser(key string) any {
-	section, name, nested := strings.Cut(key, ".")
-	if !nested {
-		return c.user[key]
-	}
-	return mapOf(c.user[section])[name]
+	value, _ := c.Raw(key)
+	return value
 }
 
 func stringOf(v any) (string, bool) {

@@ -83,7 +83,7 @@ var specs = []spec{
 			if bare <= 0 {
 				return ""
 			}
-			return icons.Pick("\u2717 ", "\uF071 ") + "skills " + counts(bare, total)
+			return failed(icons) + "skills " + counts(bare, total)
 		}, bad,
 	},
 	{"agent_skills", "Amber when a subagent lost skill descriptions; shows how many.", func(t Transcript, _ tokenFn, icons Icons) string {
@@ -91,13 +91,13 @@ var specs = []spec{
 		if bare <= 0 {
 			return ""
 		}
-		return icons.Pick("\u2717 ", "\uF071 ") + "agent skills " + counts(bare, total)
+		return failed(icons) + "agent skills " + counts(bare, total)
 	}, warn},
 	{"mem", "Red when a SessionStart hook output was too large to inject.", func(t Transcript, _ tokenFn, icons Icons) string {
 		if !t.MemoryDropped() {
 			return ""
 		}
-		return icons.Pick("\u2717 ", "\uF071 ") + "mem"
+		return failed(icons) + "mem"
 	}, bad},
 }
 
@@ -142,4 +142,9 @@ func (g *Diagnostic) Render() string {
 		return ""
 	}
 	return g.spec.paint(g.d.Paint, out)
+}
+
+// failed is the mark before a diagnostic that reports something missing.
+func failed(icons Icons) string {
+	return icons.Pick("\u2717 ", "\uF071 ")
 }
