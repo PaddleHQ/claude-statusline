@@ -82,7 +82,7 @@ Feature: Cache hit rate
       segments: [cache]
       """
     When the status line renders
-    Then the output is:
+    Then the text is:
       """
       ⧉ 80%
       """

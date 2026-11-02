@@ -100,7 +100,7 @@ func (c *Cache) Render() string {
 
 // expired reports whether the prompt cache has outlived its TTL since the last response, as it has in a resumed session.
 func (c *Cache) expired() bool {
-	if c.d.Session.TranscriptFile() == "" || c.d.Transcript == nil {
+	if c.d.Session.TranscriptFile() == "" {
 		return false
 	}
 	at, ttl := c.d.Transcript().LastRequest()

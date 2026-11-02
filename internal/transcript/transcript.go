@@ -139,8 +139,8 @@ func (r *reader) read(path string) Info {
 	out.SkillsChars = skillsChars(opening)
 	out.MemDropped = memDropped(opening)
 	out.SkillsBare, out.SkillsTotal, _ = skillCounts(opening)
-	if line := lastAssistant(f, stat.Size()); line != nil {
-		out.ActualModel = string(modelPattern.FindSubmatch(line)[1])
+	if line, model := lastAssistant(f, stat.Size()); line != nil {
+		out.ActualModel = string(model)
 		out.RequestAt, out.CacheTTL = requestOf(line)
 	}
 	out.SubBare, out.SubTotal = r.subagents(path)
@@ -198,69 +198,70 @@ func nextLine(br *bufio.Reader) (line string, ok bool) {
 	}
 }
 
-// lastAssistant finds the last assistant turn within the last 200 lines, reading backwards from the end.
-func lastAssistant(f io.ReaderAt, size int64) []byte {
+// lastAssistant finds the last assistant turn within the last 200 lines, reading backwards from the end, and its model.
+func lastAssistant(f io.ReaderAt, size int64) (line, model []byte) {
 	var pending []byte
 	off, seen := size, 0
 	for off > 0 && size-off < tailBytes {
 		n := min(chunkBytes, off)
 		off -= n
-		complete, rest, found, err := readChunk(f, off, n, pending, off+n == size)
-		if err != nil {
-			return nil
+		complete, rest, found, ok := readChunk(f, off, n, pending, off+n == size)
+		if !ok {
+			return nil, nil
 		}
 		pending = rest
 		if !found {
 			continue
 		}
-		if m, done := scanBackwards(complete, &seen); done {
-			return m
+		if line, model, done := scanBackwards(complete, &seen); done {
+			return line, model
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // readChunk reads the n bytes at off followed by pending, dropping the file's final newline when the chunk is its end.
 // Unless off is the start of the file, the leading partial line is split off into rest; found is false when the chunk
-// holds no complete line yet.
-func readChunk(f io.ReaderAt, off, n int64, pending []byte, end bool) (complete, rest []byte, found bool, err error) {
+// holds no complete line yet, and ok is false when the read failed.
+func readChunk(f io.ReaderAt, off, n int64, pending []byte, end bool) (complete, rest []byte, found, ok bool) {
 	buf := make([]byte, n+int64(len(pending)))
 	if _, err := f.ReadAt(buf[:n], off); err != nil && !errors.Is(err, io.EOF) {
-		return nil, nil, false, fmt.Errorf("read transcript tail: %w", err)
+		return nil, nil, false, false
 	}
 	copy(buf[n:], pending)
 	if end {
 		buf = bytes.TrimSuffix(buf, []byte("\n"))
 	}
 	if off == 0 {
-		return buf, nil, true, nil
+		return buf, nil, true, true
 	}
-	before, after, ok := bytes.Cut(buf, []byte{'\n'})
-	if !ok {
-		return nil, buf, false, nil
+	before, after, cut := bytes.Cut(buf, []byte{'\n'})
+	if !cut {
+		return nil, buf, false, true
 	}
-	return after, before, true, nil
+	return after, before, true, true
 }
 
 // scanBackwards looks through complete lines from the last to the first. It reports done once an assistant line
-// is found or the 200-line window is used up.
-func scanBackwards(data []byte, seen *int) ([]byte, bool) {
+// is found, with its model, or the 200-line window is used up.
+func scanBackwards(data []byte, seen *int) (line, model []byte, done bool) {
 	for end := len(data); end >= 0; {
 		start := bytes.LastIndexByte(data[:end], '\n') + 1
 		if *seen >= tailLines {
-			return nil, true
+			return nil, nil, true
 		}
 		*seen++
-		if line := data[start:end]; modelPattern.Match(line) {
-			return line, true
+		if m := modelPattern.FindSubmatch(data[start:end]); m != nil {
+			return data[start:end], m[1], true
 		}
 		end = start - 1
 	}
-	return nil, *seen >= tailLines
+	return nil, nil, *seen >= tailLines
 }
 
 // requestOf reads an assistant line's timestamp and cache lifetime. A cache is only taken to live an hour when the
 // request wrote solely to the 1-hour tier: calling a live cache cold costs less than an unexpected rebuild.
+// The TTL really starts when the request is served, before this timestamp, so a slow response reads warm a little long.
 func requestOf(line []byte) (time.Time, time.Duration) {
 	if !gjson.ValidBytes(line) {
 		return time.Time{}, 0

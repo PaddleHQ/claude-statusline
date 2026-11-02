@@ -45,7 +45,7 @@ Rate limits belong to your account, not to a session, and an idle session's payl
 
 ## Transcript diagnostics
 
-These segments are read from the session transcript (`transcript_path` in the payload). Only its first 40 lines and last 200 lines are read, each within a few megabytes, so a huge transcript costs nothing extra, and it is not read at all unless a listed segment needs it; a missing or unreadable transcript simply hides them. The `model` segment also uses it, and the rest are in the usage group (see [Wrapping](customising.md#wrapping)).
+These segments are read from the session transcript (`transcript_path` in the payload). Only its first 40 lines and last 200 lines are read, each within a few megabytes, so a huge transcript costs nothing extra, and it is not read at all unless a listed segment needs it; a missing or unreadable transcript simply hides them. The `model` segment also uses it, as does `cache` to tell whether the prompt cache has expired, and the rest are in the usage group (see [Wrapping](customising.md#wrapping)).
 
 | Segment | Shows | When |
 |---|---|---|

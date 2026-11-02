@@ -61,14 +61,17 @@ func TestRenderExpiredCache(t *testing.T) {
 		ago     time.Duration
 		ttl     time.Duration
 		unknown bool
+		noUsage bool
 		want    string
 	}{
-		{"within the TTL shows the hit rate", "/t.jsonl", 59 * time.Minute, time.Hour, false, "<t>⧉ 80%</>"},
-		{"at the TTL is cold", "/t.jsonl", time.Hour, time.Hour, false, "<b>⧉ cold</>"},
-		{"a resumed session from yesterday is cold", "/t.jsonl", 24 * time.Hour, time.Hour, false, "<b>⧉ cold</>"},
-		{"a five-minute cache goes cold sooner", "/t.jsonl", 6 * time.Minute, 5 * time.Minute, false, "<b>⧉ cold</>"},
-		{"an unknown request time is never cold", "/t.jsonl", 0, time.Hour, true, "<t>⧉ 80%</>"},
-		{"no transcript is never cold", "", 24 * time.Hour, time.Hour, false, "<t>⧉ 80%</>"},
+		{"an expired cache is cold even with no usage reported", "/t.jsonl", 2 * time.Hour, time.Hour, false, true, "<b>⧉ cold</>"},
+		{"a live cache with no usage reported is hidden", "/t.jsonl", time.Minute, time.Hour, false, true, ""},
+		{"within the TTL shows the hit rate", "/t.jsonl", 59 * time.Minute, time.Hour, false, false, "<t>⧉ 80%</>"},
+		{"at the TTL is cold", "/t.jsonl", time.Hour, time.Hour, false, false, "<b>⧉ cold</>"},
+		{"a resumed session from yesterday is cold", "/t.jsonl", 24 * time.Hour, time.Hour, false, false, "<b>⧉ cold</>"},
+		{"a five-minute cache goes cold sooner", "/t.jsonl", 6 * time.Minute, 5 * time.Minute, false, false, "<b>⧉ cold</>"},
+		{"an unknown request time is never cold", "/t.jsonl", 0, time.Hour, true, false, "<t>⧉ 80%</>"},
+		{"no transcript is never cold", "", 24 * time.Hour, time.Hour, false, false, "<t>⧉ 80%</>"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -78,7 +81,11 @@ func TestRenderExpiredCache(t *testing.T) {
 				at = time.Time{}
 			}
 			sess := mocks.NewSession(t)
-			sess.EXPECT().LatestRequest().Return(10, 10, 80).Maybe()
+			input, creation, read := int64(10), int64(10), int64(80)
+			if tt.noUsage {
+				input, creation, read = 0, 0, 0
+			}
+			sess.EXPECT().LatestRequest().Return(input, creation, read).Maybe()
 			sess.EXPECT().TranscriptFile().Return(tt.file)
 			tr := mocks.NewTranscript(t)
 			tr.EXPECT().LastRequest().Return(at, tt.ttl).Maybe()
