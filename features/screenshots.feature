@@ -101,6 +101,8 @@ Feature: Documentation screenshots
     And the config:
       """
       icons: nerd
+      path:
+        emoji: true
       """
     And the file "code/app/.git/HEAD":
       """

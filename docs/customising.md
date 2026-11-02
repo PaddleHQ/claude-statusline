@@ -247,7 +247,7 @@ icons: nerd
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/icons-dark.svg">
-  <img alt="The status line with Nerd Font icons: a folder before the path, a robot before the model, a memory chip before the context bar, download and upload arrows on the token counts, a bolt on the cache rate, a rocket on the boot size, a gear on the skills count, and a clock and a calendar before the 5h and 7d bars" src="images/icons-light.svg">
+  <img alt="The status line with Nerd Font icons: a folder before the path, a git branch icon before the branch name, a robot before the model, a memory chip before the context bar, download and upload arrows on the token counts, a bolt on the cache rate, a rocket on the boot size, a gear on the skills count, and a clock and a calendar before the 5h and 7d bars" src="images/icons-light.svg">
 </picture>
 
 The status line cannot tell which font your terminal uses, so `nerd` is something you turn on. It needs a Nerd Font set as your terminal's font. Without one, the icons show as empty boxes or question marks. Pick a "Mono" variant of the font, such as "JetBrainsMono Nerd Font Mono": the other variants draw the icons wider than one cell, so they overlap the character after them, and the status line counts each icon as one column.

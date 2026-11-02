@@ -91,6 +91,11 @@ func TestSVGEmbedsTheSymbolsFontOnlyForIcons(t *testing.T) {
 		{"an icon in the Basic Multilingual Plane", " a", true},
 		{"an icon in a supplementary Private Use Area", "\U000F06A9", true},
 		{"no icons", "ctx: ▰▱ 10%", false},
+		{"the first code point of the Private Use Area", "\uE000", true},
+		{"the last code point of the Private Use Area", "\uF8FF", true},
+		{"the first code point of the supplementary Private Use Area", "\U000F0000", true},
+		{"the code point before the surrogates", "\uD7FF", false},
+		{"the code point after the Private Use Area", "\uF900", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -107,4 +112,12 @@ func TestSVGEmbedsTheSymbolsFontOnlyForIcons(t *testing.T) {
 			assert.NotContains(t, svg, "Symbols Nerd Font Mono")
 		})
 	}
+}
+
+func TestSVGKeepsTextAfterAnIconOnTheGrid(t *testing.T) {
+	t.Parallel()
+
+	svg := string(Parse("( main)").SVG(Dark))
+	assert.Contains(t, svg, `<tspan x="16">(</tspan><tspan x="25">`+""+`</tspan><tspan x="34"> main)</tspan>`,
+		"an icon is wider than a cell, so the text after it starts its own tspan at its column")
 }

@@ -104,11 +104,10 @@ func (s *Screen) SVG(th *Theme) []byte {
 	return []byte(b.String())
 }
 
-// hasIcons reports whether any cell holds a Private Use Area rune, where Nerd Font icons live.
 func (s *Screen) hasIcons() bool {
 	for _, line := range s.lines {
 		for _, c := range line {
-			if (c.r >= 0xE000 && c.r <= 0xF8FF) || c.r >= 0xF0000 {
+			if isIcon(c.r) {
 				return true
 			}
 		}
@@ -116,10 +115,17 @@ func (s *Screen) hasIcons() bool {
 	return false
 }
 
+// isIcon reports whether r is in a Private Use Area, where Nerd Font icons live.
+func isIcon(r rune) bool {
+	return (r >= 0xE000 && r <= 0xF8FF) || r >= 0xF0000
+}
+
+// runsOf groups cells into runs. An icon gets a run of its own, because its glyph is a full em
+// wide rather than one cell, and would push the text after it off the grid.
 func runsOf(line []cell) []run {
 	var runs []run
 	for col, c := range line {
-		if n := len(runs); n > 0 && runs[n-1].st == c.st {
+		if n := len(runs); n > 0 && runs[n-1].st == c.st && !isIcon(c.r) && !isIcon(runs[n-1].text[0]) {
 			runs[n-1].text = append(runs[n-1].text, c.r)
 			continue
 		}
