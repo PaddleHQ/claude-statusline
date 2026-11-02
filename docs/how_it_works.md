@@ -27,7 +27,7 @@ flowchart TD
 
 In order, a render:
 
-1. Layers your `config.yaml` over the defaults built into the binary, key by key, then the [plugin options](customising.md#plugin-options) saved in your user `settings.json` over both. If the file cannot be used, the defaults apply and the line gains a [red row](customising.md#mistakes-in-the-config-file).
+1. Layers your `config.yaml` over the defaults built into the binary, key by key, then the [plugin options](customising.md#plugin-options) saved in your user `settings.json` over both. If `config.yaml` cannot be used, the defaults apply and the line gains a [red row](customising.md#mistakes-in-the-config-file).
 2. Saves the payload as the [usage snapshot](#usage-snapshot).
 3. Loads the theme, with colour removed when [`NO_COLOR`](#no_color) is set.
 4. Parses the payload, then merges its rate limits with the [shared cache](#shared-rate-limit-cache).

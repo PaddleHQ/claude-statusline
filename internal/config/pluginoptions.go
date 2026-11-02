@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/PaddleHQ/claude-statusline/themes"
 )
 
 // PluginName is the name of the plugin whose userConfig values overlay the config file.
@@ -20,9 +22,6 @@ const (
 	SourceFile     = "config.yaml"
 	SourceDefaults = "default"
 )
-
-// optionDefault is the tri-state value that leaves a setting to config.yaml.
-const optionDefault = "default"
 
 // OptionKind says how a plugin option maps onto a config value.
 type OptionKind int
@@ -43,23 +42,35 @@ type Option struct {
 	Name string
 	Key  string
 	Kind OptionKind
+	// Choices are the values a KindChoice option accepts besides "default"; anything else falls through.
+	Choices []string
 }
 
 // themeKey is the config key both theme options set.
 const themeKey = "theme"
 
+// Options apply in this order and a later one overrides an earlier one for the same key, so theme_file stays after theme.
 var options = []Option{
-	{"theme", themeKey, KindChoice},
-	{"theme_file", themeKey, KindString},
-	{"segments", "segments", KindList},
-	{"separator", "separator", KindString},
-	{"path_strip", "path.strip", KindList},
-	{"path_worktrees", "path.worktrees", KindList},
-	{"path_branch", "path.branch", KindToggle},
-	{"path_emoji", "path.emoji", KindToggle},
-	{"model_effort", "model.effort", KindToggle},
-	{"snapshot_enabled", "snapshot.enabled", KindToggle},
-	{"snapshot_path", "snapshot.path", KindString},
+	{"theme", themeKey, KindChoice, builtinThemes()},
+	{"theme_file", themeKey, KindString, nil},
+	{"segments", "segments", KindList, nil},
+	{"separator", "separator", KindString, nil},
+	{"path_strip", "path.strip", KindList, nil},
+	{"path_worktrees", "path.worktrees", KindList, nil},
+	{"path_branch", "path.branch", KindToggle, nil},
+	{"path_emoji", "path.emoji", KindToggle, nil},
+	{"model_effort", "model.effort", KindToggle, nil},
+	{"snapshot_enabled", "snapshot.enabled", KindToggle, nil},
+	{"snapshot_path", "snapshot.path", KindString, nil},
+}
+
+func builtinThemes() []string {
+	entries, _ := themes.FS.ReadDir(".")
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		names = append(names, strings.TrimSuffix(e.Name(), ".yaml"))
+	}
+	return names
 }
 
 // Options lists the plugin options that overlay config keys, in the order they are reported.
@@ -120,10 +131,17 @@ func (o *PluginOptions) choose(settings *settingsFile) {
 	var entries []string
 	for key := range settings.PluginConfigs {
 		name, _, _ := strings.Cut(key, "@")
-		if name == PluginName && settings.EnabledPlugins[key] == true {
-			entries = append(entries, key)
+		if name != PluginName {
+			continue
 		}
+		// A plugin with no enabledPlugins entry is enabled by default.
+		if settings.EnabledPlugins[key] == false {
+			o.Issues = append(o.Issues, fmt.Sprintf("%s is disabled in enabledPlugins, so its options are ignored", key))
+			continue
+		}
+		entries = append(entries, key)
 	}
+	slices.Sort(o.Issues)
 	if len(entries) == 0 {
 		return
 	}
@@ -136,29 +154,27 @@ func (o *PluginOptions) choose(settings *settingsFile) {
 	}
 }
 
-// set says whether the user chose a usable value for the option: present, and neither empty nor "default".
-func (o Option) set(v any) bool {
-	switch x := v.(type) {
-	case nil:
-		return false
-	case string:
-		switch o.Kind {
-		case KindList:
+// set says whether the user chose a usable value for the option; anything else falls through to the next source.
+func (o *Option) set(v any) bool {
+	switch o.Kind {
+	case KindList:
+		switch x := v.(type) {
+		case string:
 			return len(splitList(x)) > 0
-		case KindToggle, KindChoice:
-			return x != "" && x != optionDefault
-		case KindString:
-			return x != ""
-		}
-		return x != ""
-	case []any:
-		if o.Kind == KindList {
+		case []any:
 			_, ok := stringsOf(x)
 			return ok
 		}
-		return len(x) > 0
+	case KindString:
+		s, ok := stringOf(v)
+		return ok && s != ""
+	case KindChoice:
+		s, ok := v.(string)
+		return ok && slices.Contains(o.Choices, s)
+	case KindToggle:
+		return v == "on" || v == "off"
 	}
-	return o.Kind != KindList
+	return false
 }
 
 // splitList reads the comma-separated form that `claude plugin configure` stores for a list option.
@@ -174,7 +190,7 @@ func splitList(s string) []string {
 
 // value converts a saved option into the form config.yaml would give the same key, so the getters treat a bad
 // value the same way for both.
-func (o Option) value(v any) any {
+func (o *Option) value(v any) any {
 	s, ok := v.(string)
 	if !ok {
 		return v
@@ -201,10 +217,8 @@ func (c *Config) applyPluginOptions(opts *PluginOptions) {
 	if !opts.Active() {
 		return
 	}
-	if c.fromPlugin == nil {
-		c.fromPlugin = map[string]bool{}
-	}
-	for _, o := range options {
+	for i := range options {
+		o := &options[i]
 		if v := opts.values[o.Name]; o.set(v) {
 			c.setUser(o.Key, o.value(v))
 			c.fromPlugin[o.Key] = true

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -57,7 +58,9 @@ func TestResolveOptionPrecedence(t *testing.T) {
 		{"null option falls through", `{"theme": null}`, "", "classic", config.SourceDefaults},
 		{"file only", `{}`, "theme: gradient\n", "gradient", config.SourceFile},
 		{"neither", `{}`, "", "classic", config.SourceDefaults},
-		{"wrong type is ignored like the same value in the file", `{"theme": 7}`, "theme: gradient\n", "classic", config.SourcePlugin},
+		{"a number falls through", `{"theme": 7}`, "theme: gradient\n", "gradient", config.SourceFile},
+		{"a theme outside the options falls through", `{"theme": "nope"}`, "theme: gradient\n", "gradient", config.SourceFile},
+		{"a theme file that is not a string falls through", `{"theme_file": 7}`, "", "classic", config.SourceDefaults},
 		{"default falls through to file", `{"theme": "default"}`, "theme: gradient\n", "gradient", config.SourceFile},
 		{"default falls through to default", `{"theme": "default"}`, "", "classic", config.SourceDefaults},
 		{"a picked theme wins over file", `{"theme": "saber"}`, "theme: gradient\n", "saber", config.SourcePlugin},
@@ -145,6 +148,28 @@ func TestResolveEveryKey(t *testing.T) {
 	}
 }
 
+func TestResolveBadToggleValuesFallThrough(t *testing.T) {
+	t.Parallel()
+
+	for _, bad := range []string{`"yes"`, `true`, `1`} {
+		cfg := resolve(t, settings(fmt.Sprintf(`{"path_emoji": %s}`, bad)), "path:\n  emoji: true\n")
+
+		assert.True(t, cfg.Bool("path.emoji"), bad)
+		assert.Equal(t, config.SourceFile, cfg.Source("path.emoji"), bad)
+	}
+}
+
+func TestThemeFileComesAfterTheme(t *testing.T) {
+	t.Parallel()
+
+	opts := config.Options()
+	names := make([]string, 0, len(opts))
+	for _, o := range opts {
+		names = append(names, o.Name)
+	}
+	assert.Less(t, slices.Index(names, "theme"), slices.Index(names, "theme_file"), "theme_file must apply after theme to override it")
+}
+
 func TestResolveToggles(t *testing.T) {
 	t.Parallel()
 
@@ -216,8 +241,8 @@ func TestResolveSettingsProblems(t *testing.T) {
 		{"malformed JSON", `{"pluginConfigs": `, 1, false},
 		{"wrong shape", `{"pluginConfigs": []}`, 1, false},
 		{"no statusline entry", `{"enabledPlugins": {"other@m": true}, "pluginConfigs": {"other@m": {"options": {"theme": "saber"}}}}`, 0, false},
-		{"disabled plugin is ignored", fmt.Sprintf(`{"enabledPlugins": {%q: false}, "pluginConfigs": {%q: {"options": {"theme": "saber"}}}}`, entry, entry), 0, false},
-		{"not listed as enabled is ignored", fmt.Sprintf(`{"pluginConfigs": {%q: {"options": {"theme": "saber"}}}}`, entry), 0, false},
+		{"explicitly disabled plugin is ignored and says so", fmt.Sprintf(`{"enabledPlugins": {%q: false}, "pluginConfigs": {%q: {"options": {"theme": "saber"}}}}`, entry, entry), 1, false},
+		{"an entry missing from enabledPlugins counts as enabled", fmt.Sprintf(`{"pluginConfigs": {%q: {"options": {"theme": "saber"}}}}`, entry), 0, true},
 		{"options of another plugin sharing a prefix are ignored", `{"enabledPlugins": {"statusline-extra@m": true}, "pluginConfigs": {"statusline-extra@m": {"options": {"theme": "saber"}}}}`, 0, false},
 		{"usable entry", settings(`{"theme": "saber"}`), 0, true},
 	}
@@ -245,17 +270,18 @@ func TestResolveSeveralEntriesUsesTheFirstBySortedKey(t *testing.T) {
 
 	text := `{"enabledPlugins": {"statusline@b": true, "statusline@a": true, "statusline@c": false},
 	"pluginConfigs": {
-		"statusline@b": {"options": {"theme": "bee"}},
-		"statusline@a": {"options": {"theme": "ay"}},
-		"statusline@c": {"options": {"theme": "sea"}}}}`
+		"statusline@b": {"options": {"theme": "gradient"}},
+		"statusline@a": {"options": {"theme": "saber"}},
+		"statusline@c": {"options": {"theme": "classic"}}}}`
 
 	cfg := resolve(t, text, "")
 	opts := cfg.PluginOptions()
 
-	assert.Equal(t, "ay", cfg.String("theme"))
+	assert.Equal(t, "saber", cfg.String("theme"))
 	assert.Equal(t, "statusline@a", opts.Entry)
-	require.Len(t, opts.Issues, 1)
-	assert.Contains(t, opts.Issues[0], "statusline@a, statusline@b")
+	require.Len(t, opts.Issues, 2)
+	assert.Contains(t, opts.Issues[0], "statusline@c is disabled")
+	assert.Contains(t, opts.Issues[1], "statusline@a, statusline@b")
 }
 
 func TestResolveWithABrokenConfigFileStillAppliesOptions(t *testing.T) {

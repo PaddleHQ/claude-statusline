@@ -9,7 +9,7 @@ An open-source status line for Claude Code, written in Go. It is at an early sta
 
 ## Install
 
-As a Claude Code plugin:
+As a Claude Code plugin (it needs Claude Code 2.1.271 or later: its options use `options`, which older versions cannot load, so the hook would never install or update the binary):
 
 ```text
 /plugin install statusline --marketplace PaddleHQ/claude-statusline
@@ -42,7 +42,7 @@ Three things stay, because they are yours: `~/.claude/claude-statusline/config.y
 
 ## Configure
 
-Configuration is optional. The easiest way to change the common settings (theme, segments, separator, path and branch display, effort, snapshot) is the plugin's options: run `/config` in Claude Code and pick the statusline plugin, or use Paddock's settings page. A value set there wins over `config.yaml`; pick a built-in theme or point `theme_file` at your own; leave an option empty (or `default`) to keep what `config.yaml` or the built-in default says. See [Plugin options](docs/customising.md#plugin-options) for the full list.
+Configuration is optional. The easiest way to change the common settings (theme, segments, separator, path and branch display, effort, snapshot) is the plugin's options. Single-value options (theme, separator, the on/off ones) are in `/config`; the lists (segments, path_strip, path_worktrees) are set with `/plugin configure` or `claude plugin configure statusline@claude-statusline --values-stdin`. A value set there wins over `config.yaml`; pick a built-in theme or point `theme_file` at your own; leave an option empty (or `default`) to keep what `config.yaml` or the built-in default says. See [Plugin options](docs/customising.md#plugin-options) for the full list.
 
 `config.yaml` keeps working for every key, and is the only place for the rest (widths, thresholds, hooks, custom segments). Your file lives in `~/.claude/claude-statusline/config.yaml` (under `$CLAUDE_CONFIG_DIR` if you set it), as YAML:
 
