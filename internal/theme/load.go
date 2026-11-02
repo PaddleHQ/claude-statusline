@@ -26,7 +26,10 @@ var (
 	errPartialsPrintable = errors.New("bar.partials must be printable glyphs")
 	errPartialsCount     = errors.New("bar.partials must hold")
 	errRampCount         = errors.New("bar.ramp must hold")
-	errStyle             = errors.New("not solid or gradient")
+	errStyle             = errors.New("not solid, gradient or saber")
+	errBladeCount        = errors.New("bar.blade must hold")
+	errGlowCells         = errors.New("bar.glow_cells must be a whole number of at least 1")
+	errGlowRange         = errors.New("bar.glow must be a whole number from 0 to 100")
 	errRampFormat        = errors.New("#rrggbb")
 )
 
@@ -36,6 +39,8 @@ const (
 	maxFileBytes = 1 << 20
 	styleSolid   = "solid"
 	styleGrad    = "gradient"
+	styleSaber   = "saber"
+	glowMax      = 100
 	partialCount = 7
 	resetSeq     = "\033[0m"
 
@@ -77,6 +82,10 @@ type barSpec struct {
 	Ramp        []string `yaml:"ramp"`
 	EmptyColor  *string  `yaml:"empty_color"`
 	MarkerColor *string  `yaml:"marker_color"`
+	Blade       []string `yaml:"blade"`
+	Glow        *int     `yaml:"glow"`
+	GlowCells   *int     `yaml:"glow_cells"`
+	Tip         *string  `yaml:"tip"`
 }
 
 // Load resolves the theme setting to a theme. A value containing "/" or starting
@@ -214,6 +223,8 @@ func (t *Theme) compileStyle(b barSpec) error {
 		return nil
 	case styleGrad:
 		return t.compileRamp(b.Ramp)
+	case styleSaber:
+		return t.compileSaber(b)
 	default:
 		return fmt.Errorf("bar.style %q is %w", *b.Style, errStyle)
 	}
@@ -326,7 +337,7 @@ func (t *Theme) compileRamp(ramp []string) error {
 		return fmt.Errorf("%w %d colors", errRampCount, rampStops)
 	}
 	for _, hex := range ramp {
-		r, g, bl, err := parseRampStop(hex)
+		r, g, bl, err := parseColorStop("bar.ramp stop", hex)
 		if err != nil {
 			return err
 		}
@@ -335,13 +346,52 @@ func (t *Theme) compileRamp(ramp []string) error {
 	return nil
 }
 
-func parseRampStop(s string) (r, g, b int, err error) {
+func (t *Theme) compileSaber(b barSpec) error {
+	t.Saber = true
+	if len(b.Blade) != rampStops {
+		return fmt.Errorf("%w %d colors", errBladeCount, rampStops)
+	}
+	if err := t.compileGlow(b); err != nil {
+		return err
+	}
+	if b.Tip == nil || !validGlyph(*b.Tip) {
+		return fmt.Errorf("bar.tip must be %w", errGlyph)
+	}
+	t.Tip = *b.Tip
+	for _, hex := range b.Blade {
+		r, g, bl, err := parseColorStop("bar.blade color", hex)
+		if err != nil {
+			return err
+		}
+		t.Blade = append(t.Blade, [channelsRGB]int{r, g, bl})
+	}
+	return nil
+}
+
+func (t *Theme) compileGlow(b barSpec) error {
+	if b.Glow == nil {
+		return fmt.Errorf("bar.glow %w", errMissing)
+	}
+	if *b.Glow < 0 || *b.Glow > glowMax {
+		return errGlowRange
+	}
+	if b.GlowCells == nil {
+		return fmt.Errorf("bar.glow_cells %w", errMissing)
+	}
+	if *b.GlowCells < 1 {
+		return errGlowCells
+	}
+	t.Glow, t.GlowCells = *b.Glow, *b.GlowCells
+	return nil
+}
+
+func parseColorStop(field, s string) (r, g, b int, err error) {
 	rgb, ok := strings.CutPrefix(s, "#")
 	if !ok {
-		return 0, 0, 0, fmt.Errorf("ramp stop %q must be %w", s, errRampFormat)
+		return 0, 0, 0, fmt.Errorf("%s %q must be %w", field, s, errRampFormat)
 	}
 	if r, g, b, err = parseHex(rgb); err != nil {
-		return 0, 0, 0, fmt.Errorf("ramp stop %q: %w", s, err)
+		return 0, 0, 0, fmt.Errorf("%s %q: %w", field, s, err)
 	}
 	return r, g, b, nil
 }
