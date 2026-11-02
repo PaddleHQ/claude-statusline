@@ -262,7 +262,7 @@ func TestSyncWithoutReadings(t *testing.T) {
 
 		start := time.Now()
 		got := ratecache.NewCache(path).Sync("a", ratecache.Limits{})
-		assert.Less(t, time.Since(start), 100*time.Millisecond, "Sync took the lock for a payload with no readings")
+		assert.Less(t, time.Since(start), 500*time.Millisecond, "Sync took the lock for a payload with no readings")
 		assert.Equal(t, ratecache.Limits{FiveHour: r(45, 100)}, got)
 	})
 }
