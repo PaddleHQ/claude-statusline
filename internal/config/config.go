@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"go.yaml.in/yaml/v3"
@@ -229,6 +230,14 @@ func (c *Config) Bool(key string) bool {
 	}
 	b, _ := c.defaults[key].(bool)
 	return b
+}
+
+// Now is the current time, or the Unix time in STATUSLINE_NOW so tests can pin it.
+func Now(getenv func(string) string) time.Time {
+	if n, ok := ParseNumber(getenv("STATUSLINE_NOW")); ok {
+		return time.Unix(int64(n), 0)
+	}
+	return time.Now()
 }
 
 // ParseNumber accepts plain decimal digits only, so signs, exponents and absurd lengths fall back.

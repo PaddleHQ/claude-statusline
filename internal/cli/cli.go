@@ -10,10 +10,14 @@ import (
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
+	"github.com/PaddleHQ/claude-statusline/internal/ratebars"
 	"github.com/PaddleHQ/claude-statusline/internal/setup"
 	"github.com/PaddleHQ/claude-statusline/internal/statusline"
 	"github.com/PaddleHQ/claude-statusline/internal/subagent"
 )
+
+// usageStatus is the exit status for a command given arguments it cannot use.
+const usageStatus = 2
 
 // Build identifies the binary: the values the release stamps in at build time.
 type Build struct {
@@ -35,15 +39,17 @@ func (b *Build) String() string {
 type App struct {
 	build      Build
 	executable func() (string, error)
+	stderr     io.Writer
 }
 
 // New returns the command for a binary with the given build stamps.
 func New(build Build) *App {
-	return &App{build: build, executable: os.Executable}
+	return &App{build: build, executable: os.Executable, stderr: os.Stderr}
 }
 
 // Execute runs the command the first argument selects, or the status line itself, and returns the exit status. It
-// never blanks the status line over a failure, and only config-check exits non-zero, when the config cannot be used.
+// never blanks the status line over a failure. Only config-check (the config cannot be used) and rate-bars (its flags
+// are bad) exit non-zero.
 func (a *App) Execute(args []string, stdin io.Reader, stdout io.Writer, getenv func(string) string) int {
 	command := ""
 	if len(args) > 0 {
@@ -62,10 +68,10 @@ func (a *App) Execute(args []string, stdin io.Reader, stdout io.Writer, getenv f
 		setup.Uninstall(stdout, locations(exe, getenv))
 	case "subagent":
 		runSubagent(stdin, stdout, getenv)
-	case "help":
-		_, _ = io.WriteString(stdout, statusline.Help(getenv))
-	case "config":
-		_, _ = io.WriteString(stdout, statusline.DefaultConfig())
+	case "rate-bars":
+		return a.runRateBars(args[1:], stdout, getenv)
+	case "help", "config":
+		_, _ = io.WriteString(stdout, infoText(command, getenv))
 	case "config-check":
 		return runConfigCheck(stdout, getenv)
 	default:
@@ -140,6 +146,23 @@ func runSubagent(stdin io.Reader, stdout io.Writer, getenv func(string) string) 
 		return
 	}
 	_, _ = io.WriteString(stdout, subagent.Build(input, getenv))
+}
+
+func infoText(command string, getenv func(string) string) string {
+	if command == "help" {
+		return statusline.Help(getenv)
+	}
+	return statusline.DefaultConfig()
+}
+
+func (a *App) runRateBars(args []string, stdout io.Writer, getenv func(string) string) int {
+	out, err := ratebars.Build(args, getenv)
+	if err != nil {
+		_, _ = fmt.Fprintln(a.stderr, err)
+		return usageStatus
+	}
+	_, _ = io.WriteString(stdout, out)
+	return 0
 }
 
 func runConfigCheck(stdout io.Writer, getenv func(string) string) int {
