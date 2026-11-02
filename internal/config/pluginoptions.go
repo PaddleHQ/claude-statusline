@@ -45,9 +45,12 @@ type Option struct {
 	Kind OptionKind
 }
 
+// themeKey is the config key both theme options set.
+const themeKey = "theme"
+
 var options = []Option{
-	{"theme", "theme", KindChoice},
-	{"theme_file", "theme", KindString},
+	{"theme", themeKey, KindChoice},
+	{"theme_file", themeKey, KindString},
 	{"segments", "segments", KindList},
 	{"separator", "separator", KindString},
 	{"path_strip", "path.strip", KindList},
@@ -144,6 +147,8 @@ func (o Option) set(v any) bool {
 			return len(splitList(x)) > 0
 		case KindToggle, KindChoice:
 			return x != "" && x != optionDefault
+		case KindString:
+			return x != ""
 		}
 		return x != ""
 	case []any:
