@@ -15,7 +15,6 @@ const (
 	mediumCols   = 160
 	eighths      = 8
 	percentScale = 100
-	hiltFin      = "▕"
 )
 
 // Params describes one bar. Usage and Target are percentages; Warn and Bad are
@@ -237,7 +236,7 @@ func (m *Meter) Label(text string) string {
 	}
 	label := th.HiltFG + th.HiltPommel + th.Reset + th.HiltBG + th.HiltText + text + th.Reset
 	if th.HiltFins > 0 {
-		label += th.HiltFinFG + th.HiltBG + strings.Repeat(hiltFin, th.HiltFins) + th.Reset
+		label += th.HiltFinFG + th.HiltBG + strings.Repeat(th.HiltFin, th.HiltFins) + th.Reset
 	}
 	return label
 }

@@ -145,8 +145,9 @@ func TestLoadHilt(t *testing.T) {
 	assert.Equal(t, "\033[38;2;75;81;96m", got.HiltFG)
 	assert.Equal(t, "\033[48;2;75;81;96m", got.HiltBG)
 	assert.Equal(t, "\033[38;2;216;222;233m", got.HiltText)
-	assert.Equal(t, "▐▬", got.HiltPommel)
+	assert.Equal(t, "▐▬▐", got.HiltPommel)
 	assert.Equal(t, 3, got.HiltFins)
+	assert.Equal(t, "║", got.HiltFin)
 	assert.Equal(t, "\033[38;2;154;163;181m", got.HiltFinFG)
 
 	plain := theme.Load("classic", "", "")
@@ -170,6 +171,21 @@ func TestHiltDefaultsToNoFinsAndTheStandardPommel(t *testing.T) {
 	assert.Equal(t, "▐▬", got.HiltPommel)
 	assert.Zero(t, got.HiltFins)
 	assert.Empty(t, got.HiltFinFG)
+	assert.Empty(t, got.HiltFin)
+}
+
+func TestHiltFinDefaultsAndOverrides(t *testing.T) {
+	t.Parallel()
+
+	const base = "style: solid\n  hilt_color: \"#102030\"\n  hilt_fins: 2\n  hilt_fin_color: \"#010203\""
+	got, err := theme.Open(writeTheme(t, t.TempDir(), "f.yaml", strings.Replace(validTheme, "style: solid", base, 1)), "", "")
+	require.NoError(t, err)
+	assert.Equal(t, "║", got.HiltFin)
+
+	custom := base + "\n  hilt_fin: \"|\""
+	got, err = theme.Open(writeTheme(t, t.TempDir(), "g.yaml", strings.Replace(validTheme, "style: solid", custom, 1)), "", "")
+	require.NoError(t, err)
+	assert.Equal(t, "|", got.HiltFin)
 }
 
 func TestHiltPommelAndFinsAreRead(t *testing.T) {
@@ -193,6 +209,12 @@ func TestInvalidHiltFinsAndPommelAreRejected(t *testing.T) {
 		"negative fins":               hilt + "hilt_fins: -1\n  hilt_fin_color: \"#010203\"",
 		"too many fins":               hilt + "hilt_fins: 9\n  hilt_fin_color: \"#010203\"",
 		"fin color without fins":      hilt + "hilt_fin_color: \"#010203\"",
+		"wide fin":                    hilt + "hilt_fins: 2\n  hilt_fin_color: \"#010203\"\n  hilt_fin: \"字\"",
+		"two column fin glyphs":       hilt + "hilt_fins: 2\n  hilt_fin_color: \"#010203\"\n  hilt_fin: \"||\"",
+		"empty fin":                   hilt + "hilt_fins: 2\n  hilt_fin_color: \"#010203\"\n  hilt_fin: \"\"",
+		"control fin":                 hilt + "hilt_fins: 2\n  hilt_fin_color: \"#010203\"\n  hilt_fin: \"\\t\"",
+		"fin glyph without fins":      hilt + "hilt_fin: \"|\"",
+		"fin glyph without a hilt":    "hilt_fin: \"|\"",
 		"empty pommel":                hilt + "hilt_pommel: \"\"",
 		"pommel with a control glyph": hilt + "hilt_pommel: \"█\\t\"",
 		"pommel without a hilt":       "hilt_pommel: \"█\"",

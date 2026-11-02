@@ -97,10 +97,12 @@ func TestMeterLabel(t *testing.T) {
 
 	hilt := theme.Theme{
 		TextColor: "<t>", Reset: "</>",
-		HiltFG: "<f>", HiltBG: "<b>", HiltText: "<x>", HiltPommel: "▐▬",
+		HiltFG: "<f>", HiltBG: "<b>", HiltText: "<x>", HiltPommel: "▐▬", HiltFin: "║",
 	}
 	finned := hilt
 	finned.HiltFins, finned.HiltFinFG = 2, "<n>"
+	custom := finned
+	custom.HiltFin = "|"
 	tests := []struct {
 		name string
 		th   theme.Theme
@@ -108,7 +110,8 @@ func TestMeterLabel(t *testing.T) {
 	}{
 		{"plain label", theme.Theme{TextColor: "<t>", Reset: "</>"}, "<t>5h: </>"},
 		{"pommel and grip", hilt, "<f>▐▬</><b><x>5h</>"},
-		{"with fins", finned, "<f>▐▬</><b><x>5h</><n><b>▕▕</>"},
+		{"with fins", finned, "<f>▐▬</><b><x>5h</><n><b>║║</>"},
+		{"with a custom fin", custom, "<f>▐▬</><b><x>5h</><n><b>||</>"},
 		{"zero fins draw none", hilt, "<f>▐▬</><b><x>5h</>"},
 		{"hilt without color falls back to the plain label", hilt.WithoutColor(), "5h: "},
 	}

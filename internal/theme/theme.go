@@ -62,9 +62,10 @@ type Theme struct {
 	HiltFG   string
 	HiltBG   string
 	HiltText string
-	// HiltPommel is the glyphs drawn before the grip, and HiltFins is how many fin cells follow it, drawn in HiltFinFG
-	// over the grip background.
+	// HiltPommel is the glyphs drawn before the grip, and HiltFins is how many HiltFin cells follow it, drawn in
+	// HiltFinFG over the grip background.
 	HiltPommel string
+	HiltFin    string
 	HiltFins   int
 	HiltFinFG  string
 }

@@ -32,10 +32,12 @@ var (
 	errGlowRange         = errors.New("bar.glow must be a whole number from 0 to 100")
 	errRampFormat        = errors.New("#rrggbb")
 	errHiltFins          = errors.New("a whole number from 0 to 8")
+	errHiltFinGlyph      = errors.New("a single printable glyph one column wide")
 )
 
 const (
 	defaultHiltPommel = "▐▬"
+	defaultHiltFin    = "║"
 	maxHiltFins       = 8
 	fallbackName      = "classic"
 	legacyName        = "default"
@@ -94,6 +96,7 @@ type barSpec struct {
 	HiltPommel  *string  `yaml:"hilt_pommel"`
 	HiltFins    *int     `yaml:"hilt_fins"`
 	HiltFinCol  *string  `yaml:"hilt_fin_color"`
+	HiltFin     *string  `yaml:"hilt_fin"`
 }
 
 // Load resolves the theme setting to a theme. A value containing "/" or starting
@@ -381,7 +384,7 @@ func (t *Theme) compileSaber(b barSpec) error {
 
 func (t *Theme) compileHilt(b barSpec) error {
 	if b.HiltColor == nil {
-		if b.HiltText != nil || b.HiltPommel != nil || b.HiltFins != nil || b.HiltFinCol != nil {
+		if b.hasHiltFields() {
 			return fmt.Errorf("the hilt fields need bar.hilt_color: %w", errMissing)
 		}
 		return nil
@@ -403,6 +406,10 @@ func (t *Theme) compileHilt(b barSpec) error {
 	return t.compileFins(b)
 }
 
+func (b *barSpec) hasHiltFields() bool {
+	return b.HiltText != nil || b.HiltPommel != nil || b.HiltFins != nil || b.HiltFinCol != nil || b.HiltFin != nil
+}
+
 func (t *Theme) compilePommel(b barSpec) error {
 	t.HiltPommel = defaultHiltPommel
 	if b.HiltPommel == nil {
@@ -422,8 +429,8 @@ func (t *Theme) compilePommel(b barSpec) error {
 
 func (t *Theme) compileFins(b barSpec) error {
 	if b.HiltFins == nil || *b.HiltFins == 0 {
-		if b.HiltFinCol != nil {
-			return fmt.Errorf("bar.hilt_fin_color needs bar.hilt_fins above 0: %w", errMissing)
+		if b.HiltFinCol != nil || b.HiltFin != nil {
+			return fmt.Errorf("bar.hilt_fin_color and bar.hilt_fin need bar.hilt_fins above 0: %w", errMissing)
 		}
 		return nil
 	}
@@ -437,8 +444,23 @@ func (t *Theme) compileFins(b barSpec) error {
 	if err != nil {
 		return err
 	}
+	if err := t.compileFinGlyph(b); err != nil {
+		return err
+	}
 	t.HiltFins = *b.HiltFins
 	t.HiltFinFG = fmt.Sprintf("\033[38;2;%d;%d;%dm", r, g, bl)
+	return nil
+}
+
+func (t *Theme) compileFinGlyph(b barSpec) error {
+	t.HiltFin = defaultHiltFin
+	if b.HiltFin == nil {
+		return nil
+	}
+	if !validGlyph(*b.HiltFin) || runewidth.StringWidth(*b.HiltFin) != 1 {
+		return fmt.Errorf("bar.hilt_fin must be %w", errHiltFinGlyph)
+	}
+	t.HiltFin = *b.HiltFin
 	return nil
 }
 
