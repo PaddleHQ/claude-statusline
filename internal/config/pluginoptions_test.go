@@ -58,7 +58,12 @@ func TestResolveOptionPrecedence(t *testing.T) {
 		{"file only", `{}`, "theme: gradient\n", "gradient", config.SourceFile},
 		{"neither", `{}`, "", "classic", config.SourceDefaults},
 		{"wrong type is ignored like the same value in the file", `{"theme": 7}`, "theme: gradient\n", "classic", config.SourcePlugin},
-		{"the word default is a theme name, not a fall-through", `{"theme": "default"}`, "theme: gradient\n", "default", config.SourcePlugin},
+		{"default falls through to file", `{"theme": "default"}`, "theme: gradient\n", "gradient", config.SourceFile},
+		{"default falls through to default", `{"theme": "default"}`, "", "classic", config.SourceDefaults},
+		{"a picked theme wins over file", `{"theme": "saber"}`, "theme: gradient\n", "saber", config.SourcePlugin},
+		{"theme file wins over the picked theme", `{"theme": "saber", "theme_file": "~/t.yaml"}`, "theme: gradient\n", "~/t.yaml", config.SourcePlugin},
+		{"theme file alone wins over file", `{"theme_file": "~/t.yaml"}`, "theme: gradient\n", "~/t.yaml", config.SourcePlugin},
+		{"empty theme file leaves the picked theme", `{"theme": "saber", "theme_file": ""}`, "", "saber", config.SourcePlugin},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -108,8 +113,27 @@ func TestResolveEveryKey(t *testing.T) {
 			assert.Equal(t, "/tmp/u.json", c.String("snapshot.path"))
 			assert.Equal(t, config.SourcePlugin, c.Source("snapshot.path"))
 		}},
-		{"a list of the wrong type is ignored", `{"segments": "path"}`, func(t *testing.T, c *config.Config) {
-			assert.NotEqual(t, []string{"path"}, c.Strings("segments"))
+		{"a comma-separated string is split and trimmed", `{"segments": "model, path ,,ctx"}`, func(t *testing.T, c *config.Config) {
+			assert.Equal(t, []string{"model", "path", "ctx"}, c.Strings("segments"))
+			assert.Equal(t, config.SourcePlugin, c.Source("segments"))
+		}},
+		{"a single-entry string is a list of one", `{"segments": "path"}`, func(t *testing.T, c *config.Config) {
+			assert.Equal(t, []string{"path"}, c.Strings("segments"))
+		}},
+		{"path_strip as a string", `{"path_strip": "/Volumes/code/paddlehq,~/code"}`, func(t *testing.T, c *config.Config) {
+			assert.Equal(t, []string{"/Volumes/code/paddlehq", "~/code"}, c.Strings("path.strip"))
+			assert.Equal(t, config.SourcePlugin, c.Source("path.strip"))
+		}},
+		{"an all-empty string falls through", `{"segments": " , ,"}`, func(t *testing.T, c *config.Config) {
+			assert.Equal(t, []string{"from-file"}, c.Strings("segments"))
+			assert.Equal(t, config.SourceFile, c.Source("segments"))
+		}},
+		{"an unusable list falls through and is not credited to the plugin", `{"segments": [1, 2]}`, func(t *testing.T, c *config.Config) {
+			assert.Equal(t, []string{"from-file"}, c.Strings("segments"))
+			assert.Equal(t, config.SourceFile, c.Source("segments"))
+		}},
+		{"a number is not a list", `{"segments": 5}`, func(t *testing.T, c *config.Config) {
+			assert.Equal(t, config.SourceFile, c.Source("segments"))
 		}},
 	}
 	for _, tt := range tests {
@@ -253,13 +277,12 @@ func TestResolveWithNoConfigDirectory(t *testing.T) {
 	assert.Empty(t, cfg.PluginOptions().Issues)
 }
 
-func TestOptionsAreUnique(t *testing.T) {
+func TestOptionNamesAreUnique(t *testing.T) {
 	t.Parallel()
 
-	names, keys := map[string]bool{}, map[string]bool{}
+	names := map[string]bool{}
 	for _, o := range config.Options() {
 		assert.False(t, names[o.Name], o.Name)
-		assert.False(t, keys[o.Key], o.Key)
-		names[o.Name], keys[o.Key] = true, true
+		names[o.Name] = true
 	}
 }

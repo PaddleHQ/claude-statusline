@@ -157,3 +157,27 @@ Feature: Configuration
       """
       Opus 4.7
       """
+
+  Scenario: List options saved as comma-separated strings are split
+    Given the session:
+      """json
+      {
+        "model": {
+          "display_name": "Opus 4.7"
+        }
+      }
+      """
+    And the file "settings.json":
+      """
+      {"enabledPlugins": {"statusline@claude-statusline": true},
+       "pluginConfigs": {"statusline@claude-statusline": {"options": {"segments": "model, model", "separator": "|"}}}}
+      """
+    And the config:
+      """
+      segments: [path]
+      """
+    When the status line renders
+    Then the text is:
+      """
+      Opus 4.7 | Opus 4.7
+      """

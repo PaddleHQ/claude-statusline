@@ -50,11 +50,12 @@ A setting you leave out keeps its default (unless a [plugin option](#plugin-opti
 
 When you install the status line as a plugin, its most common settings can be set from Claude Code itself: run `/config` and pick the statusline plugin, or use Paddock's settings page. Claude Code saves them in your user `settings.json` (under `$CLAUDE_CONFIG_DIR` if you set it), and the status line reads them from there. Project settings are not read. `config.yaml` keeps working for every key and is the only place for the rest, such as widths, thresholds, hooks and custom segments.
 
-For each key below, a plugin option that is set wins, then `config.yaml`, then the built-in default. An option counts as set when it is not empty: an empty text, an empty list, `default` and a missing option all fall through to the next source. The on/off options are `default`, `on` or `off` rather than checkboxes, so that saving the dialog never overrides your `config.yaml` by accident.
+For each key below, a plugin option that is set wins, then `config.yaml`, then the built-in default. An option counts as set when it is not empty: an empty text, an empty list, `default` and a missing option all fall through to the next source. The theme picker and the on/off options use `default` (and `on` or `off`) rather than checkboxes, so that saving the dialog never overrides your `config.yaml` by accident. `theme_file` wins over the `theme` picker when both are set. List options are lists, but `claude plugin configure` saves them as one comma-separated string, which is split on commas, trimmed and stripped of empty entries.
 
 | Plugin option | Config key | Values |
 |---|---|---|
-| `theme` | `theme` | text |
+| `theme` | `theme` | `default`, `classic`, `gradient`, `saber` |
+| `theme_file` | `theme` | a file path; overrides `theme` when set |
 | `segments` | `segments` | list |
 | `separator` | `separator` | text |
 | `path_strip` | `path.strip` | list |

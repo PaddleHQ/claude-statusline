@@ -69,8 +69,12 @@ func writePluginOptions(b *strings.Builder, cfg *config.Config, shown string) {
 		b.WriteString("  Ignored, so the config file and the defaults apply.\n")
 		return
 	}
+	seen := map[string]bool{}
 	for _, o := range config.Options() {
-		fmt.Fprintf(b, "  %s: %s\n", o.Key, cfg.Source(o.Key))
+		if !seen[o.Key] {
+			seen[o.Key] = true
+			fmt.Fprintf(b, "  %s: %s\n", o.Key, cfg.Source(o.Key))
+		}
 	}
 }
 

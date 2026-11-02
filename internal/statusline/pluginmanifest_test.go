@@ -3,8 +3,11 @@ package statusline_test
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
@@ -50,7 +53,11 @@ func TestPluginManifestDeclaresEveryOption(t *testing.T) {
 		assert.Contains(t, known, o.Key, "%s maps to a key the status line does not read", o.Name)
 		assert.Contains(t, defaults, o.Key, "%s maps to a key with no default", o.Name)
 		assert.NotEmpty(t, field.Title)
-		assert.Equal(t, "string", field.Type)
+		if o.Name == "theme_file" {
+			assert.Equal(t, "file", field.Type)
+		} else {
+			assert.Equal(t, "string", field.Type)
+		}
 		assert.False(t, field.Required)
 		switch o.Kind {
 		case config.KindList:
@@ -58,6 +65,9 @@ func TestPluginManifestDeclaresEveryOption(t *testing.T) {
 			assert.Equal(t, []any{}, field.Default, o.Name)
 		case config.KindToggle:
 			assert.Equal(t, []string{"default", "on", "off"}, field.Options, o.Name)
+			assert.Equal(t, "default", field.Default, o.Name)
+		case config.KindChoice:
+			assert.Equal(t, append([]string{"default"}, builtinThemes(t)...), field.Options, o.Name)
 			assert.Equal(t, "default", field.Default, o.Name)
 		case config.KindString:
 			assert.False(t, field.Multiple, o.Name)
@@ -68,4 +78,17 @@ func TestPluginManifestDeclaresEveryOption(t *testing.T) {
 	for name := range manifest.UserConfig {
 		assert.True(t, slices.Contains(declared, name), "%s is declared in plugin.json but maps to no config key", name)
 	}
+}
+
+func builtinThemes(t *testing.T) []string {
+	t.Helper()
+	files, err := filepath.Glob("../../themes/*.yaml")
+	require.NoError(t, err)
+	names := make([]string, 0, len(files))
+	for _, f := range files {
+		names = append(names, strings.TrimSuffix(filepath.Base(f), ".yaml"))
+	}
+	require.NotEmpty(t, names)
+	sort.Strings(names)
+	return names
 }

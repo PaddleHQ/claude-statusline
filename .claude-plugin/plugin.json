@@ -11,7 +11,19 @@
 		"theme": {
 			"type": "string",
 			"title": "Theme",
-			"description": "A built-in theme (classic, gradient or saber) or the path to a theme file. Empty means use config.yaml, else the built-in default.",
+			"description": "A built-in theme. \"default\" means use config.yaml, else the built-in default.",
+			"default": "default",
+			"options": [
+				"default",
+				"classic",
+				"gradient",
+				"saber"
+			]
+		},
+		"theme_file": {
+			"type": "file",
+			"title": "Theme file",
+			"description": "Path to your own theme file. Overrides Theme when set. Empty means use Theme.",
 			"default": ""
 		},
 		"segments": {

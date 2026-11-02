@@ -32,6 +32,8 @@ const (
 	KindString OptionKind = iota
 	// KindList is a list of strings.
 	KindList
+	// KindChoice is a string where "default" means no opinion, such as a picker of built-in names.
+	KindChoice
 	// KindToggle is "default", "on" or "off", standing for no opinion, true and false.
 	KindToggle
 )
@@ -44,7 +46,8 @@ type Option struct {
 }
 
 var options = []Option{
-	{"theme", "theme", KindString},
+	{"theme", "theme", KindChoice},
+	{"theme_file", "theme", KindString},
 	{"segments", "segments", KindList},
 	{"separator", "separator", KindString},
 	{"path_strip", "path.strip", KindList},
@@ -130,29 +133,59 @@ func (o *PluginOptions) choose(settings *settingsFile) {
 	}
 }
 
-// set says whether the user chose a value for the option: present, and neither empty nor "default".
+// set says whether the user chose a usable value for the option: present, and neither empty nor "default".
 func (o Option) set(v any) bool {
 	switch x := v.(type) {
 	case nil:
 		return false
 	case string:
-		return x != "" && (o.Kind != KindToggle || x != optionDefault)
+		switch o.Kind {
+		case KindList:
+			return len(splitList(x)) > 0
+		case KindToggle, KindChoice:
+			return x != "" && x != optionDefault
+		}
+		return x != ""
 	case []any:
+		if o.Kind == KindList {
+			_, ok := stringsOf(x)
+			return ok
+		}
 		return len(x) > 0
 	}
-	return true
+	return o.Kind != KindList
+}
+
+// splitList reads the comma-separated form that `claude plugin configure` stores for a list option.
+func splitList(s string) []string {
+	var list []string
+	for part := range strings.SplitSeq(s, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			list = append(list, part)
+		}
+	}
+	return list
 }
 
 // value converts a saved option into the form config.yaml would give the same key, so the getters treat a bad
 // value the same way for both.
 func (o Option) value(v any) any {
-	if s, ok := v.(string); ok && o.Kind == KindToggle {
-		switch s {
-		case "on":
-			return true
-		case "off":
-			return false
+	s, ok := v.(string)
+	if !ok {
+		return v
+	}
+	switch {
+	case o.Kind == KindList:
+		items := splitList(s)
+		list := make([]any, len(items))
+		for i, item := range items {
+			list[i] = item
 		}
+		return list
+	case o.Kind == KindToggle && s == "on":
+		return true
+	case o.Kind == KindToggle && s == "off":
+		return false
 	}
 	return v
 }
