@@ -17,6 +17,16 @@ const (
 	percentScale = 100
 )
 
+// Private-use glyphs from Nerd Fonts: a capsule drawn as a left cap, a middle and a right cap, empty then filled.
+const (
+	capsuleEmptyFirst  = "\uee00"
+	capsuleEmptyMiddle = "\uee01"
+	capsuleEmptyLast   = "\uee02"
+	capsuleFullFirst   = "\uee03"
+	capsuleFullMiddle  = "\uee04"
+	capsuleFullLast    = "\uee05"
+)
+
 // Params describes one bar. Usage and Target are percentages; Warn and Bad are
 // deviations from the target in percentage points. With NoTarget set there is no
 // marker, Target and HardCap are ignored, and Warn and Bad are usage percentages.
@@ -28,6 +38,8 @@ type Params struct {
 	Bad      int
 	HardCap  int
 	NoTarget bool
+	// Nerd says the terminal can draw Nerd Font glyphs, which a capsule theme needs.
+	Nerd bool
 }
 
 // WidthFor picks the bar width for a terminal: narrow below 120 columns, medium below 160, otherwise wide.
@@ -89,10 +101,10 @@ func (p *Params) Fill(th theme.Theme) string {
 }
 
 // PercentColor is the color for the percentage printed after the bar. A gradient
-// bar colors its cells by position, and a saber bar by blade, so the state
-// color moves to the text.
+// bar colors its cells by position, a saber bar by blade, and a capsule bar by
+// pace, so the state color moves to the text.
 func (p *Params) PercentColor(th theme.Theme) string {
-	if th.Gradient || th.Saber {
+	if th.Gradient || th.Saber || th.Capsule {
 		return p.Fill(th)
 	}
 	return ""
@@ -101,7 +113,8 @@ func (p *Params) PercentColor(th theme.Theme) string {
 // Render draws the bar: a fill colored by distance from the pace target, a marker
 // on the target cell and muted empty cells. Without a target the fill is colored
 // by absolute usage and there is no marker. A gradient theme draws whole cells
-// colored by position instead, and a saber theme draws a blade in half cells.
+// colored by position instead, a saber theme draws a blade in half cells, and a capsule theme
+// draws rounded Nerd Font cells.
 func (p *Params) Render(th theme.Theme) string {
 	maxEighths := p.Width * eighths
 	filled := min((p.Usage*maxEighths+percentScale/2)/percentScale, maxEighths)
@@ -115,6 +128,8 @@ func (p *Params) Render(th theme.Theme) string {
 		return p.saberCells(th, targetCell)
 	case th.Gradient:
 		return p.gradientCells(th, filled, targetCell)
+	case th.Capsule && p.Nerd:
+		return p.capsuleCells(th, targetCell)
 	}
 	return p.solidCells(th, filled, targetCell)
 }
@@ -159,6 +174,44 @@ func (p *Params) saberCells(th theme.Theme, targetCell int) string {
 		}
 	}
 	return r.paint(th)
+}
+
+// capsuleCells draws whole rounded cells in the state color. A cell's glyph depends only on its
+// position and whether it is filled, so the marker keeps the filled shape and changes only color.
+func (p *Params) capsuleCells(th theme.Theme, targetCell int) string {
+	filled := min((p.Usage*p.Width+percentScale/2)/percentScale, p.Width)
+	fill := p.Fill(th)
+
+	var r runs
+	for cell := range p.Width {
+		isFilled := cell < filled || cell == targetCell
+		glyph := capsuleGlyph(cell, p.Width, isFilled)
+		switch {
+		case cell == targetCell:
+			r.add(th.MarkerColor, glyph)
+		case isFilled:
+			r.add(fill, glyph)
+		default:
+			r.add(th.EmptyColor, glyph)
+		}
+	}
+	return r.paint(th)
+}
+
+func capsuleGlyph(cell, width int, filled bool) string {
+	switch {
+	case cell == 0 && filled:
+		return capsuleFullFirst
+	case cell == 0:
+		return capsuleEmptyFirst
+	case cell == width-1 && filled:
+		return capsuleFullLast
+	case cell == width-1:
+		return capsuleEmptyLast
+	case filled:
+		return capsuleFullMiddle
+	}
+	return capsuleEmptyMiddle
 }
 
 func (p *Params) solidCells(th theme.Theme, filled, targetCell int) string {
@@ -213,6 +266,8 @@ type Meter struct {
 	Width int
 	// FillPercent colors the percentage with the fill's color even on a theme that colors its bar by position.
 	FillPercent bool
+	// Nerd says the terminal can draw Nerd Font glyphs.
+	Nerd bool
 }
 
 // Usage draws a bar with no pace marker; warn and bad are usage percentages at which the fill changes color.
@@ -226,6 +281,7 @@ func (m *Meter) Pace(usage, target, warn, bad, hardCap int) string {
 }
 
 func (m *Meter) draw(params *Params) string {
+	params.Nerd = m.Nerd
 	color := params.PercentColor(m.Theme)
 	if m.FillPercent {
 		color = params.Fill(m.Theme)
