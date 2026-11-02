@@ -78,3 +78,33 @@ func TestWriteSavesEveryImage(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "<svg/>", string(got))
 }
+
+func TestSVGEmbedsTheSymbolsFontOnlyForIcons(t *testing.T) {
+	t.Parallel()
+
+	const fontFace = `@font-face{font-family:'Symbols Nerd Font Mono';src:url(data:font/woff2;base64,`
+	tests := []struct {
+		name  string
+		in    string
+		embed bool
+	}{
+		{"an icon in the Basic Multilingual Plane", " a", true},
+		{"an icon in a supplementary Private Use Area", "\U000F06A9", true},
+		{"no icons", "ctx: ▰▱ 10%", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			svg := string(Parse(tt.in).SVG(Dark))
+			if tt.embed {
+				assert.Contains(t, svg, fontFace)
+				assert.Regexp(t, `<rect [^>]*/>\n<defs><style>@font-face`, svg, "the font is defined right after the background")
+				assert.Regexp(t, `font-family="[^"]*'Symbols Nerd Font Mono', monospace"`, svg)
+				return
+			}
+			assert.NotContains(t, svg, "@font-face")
+			assert.NotContains(t, svg, "Symbols Nerd Font Mono")
+		})
+	}
+}

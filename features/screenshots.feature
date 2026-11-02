@@ -60,6 +60,62 @@ Feature: Documentation screenshots
     Then the output is saved as the screenshot "hero"
 
   @screenshot
+  Scenario: The status line at 200 columns with Nerd Font icons, for the customising guide
+    Given the session:
+      """json
+      {
+        "session_id": "demo",
+        "model": {
+          "id": "claude-opus-4-7",
+          "display_name": "Opus 4.7"
+        },
+        "effort": {
+          "level": "high"
+        },
+        "workspace": {
+          "current_dir": "@TMP@/code/app"
+        },
+        "context_window": {
+          "used_percentage": 42.4,
+          "total_input_tokens": 1500,
+          "total_output_tokens": 23400,
+          "current_usage": {
+            "input_tokens": 2000,
+            "cache_creation_input_tokens": 1000,
+            "cache_read_input_tokens": 17000
+          }
+        },
+        "rate_limits": {
+          "five_hour": {
+            "used_percentage": 45.4,
+            "resets_at": 1760009000
+          },
+          "seven_day": {
+            "used_percentage": 62,
+            "resets_at": 1760302400
+          }
+        },
+        "transcript_path": "@TMP@/transcript.jsonl"
+      }
+      """
+    And the config:
+      """
+      icons: nerd
+      """
+    And the file "code/app/.git/HEAD":
+      """
+      ref: refs/heads/feature/retry-backoff
+      """
+    And the file "transcript.jsonl":
+      """
+      {"type":"user","message":{"role":"user","content":"hi"}}
+      {"type":"attachment","attachment":{"type":"skill_listing","isInitial":true,"content":"- review: Review a change for correctness, style and missing tests before it is merged\u000a- debug: Work out why a test fails or a service misbehaves, starting from the evidence\u000a- plan: Write an implementation plan for a multi-step change before touching code\u000a- release: Prepare release notes and check the version label on a pull request\u000a- docs: Write or restructure a repository's README and contributing guide\u000a"}}
+      {"type":"assistant","message":{"model":"claude-opus-4-7","usage":{"input_tokens":6,"cache_creation_input_tokens":20000,"cache_read_input_tokens":44500,"output_tokens":5}}}
+      """
+    When the status line renders at 200 columns
+    Then the output is saved as the screenshot "icons"
+
+  @screenshot
   Scenario: The status line in the gradient theme, for the themes section of the customising guide
     Given the session:
       """json
