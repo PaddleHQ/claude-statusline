@@ -90,7 +90,7 @@ func TestMeterColorsThePercentageByStateOnASaberTheme(t *testing.T) {
 	params := &bar.Params{Usage: 95, Width: 4, Warn: 70, Bad: 90, NoTarget: true}
 
 	m := &bar.Meter{Theme: saber, Width: 4}
-	assert.Equal(t, params.Render(saber)+" "+saber.BadColor+"95%"+saber.Reset, m.Usage(95, 70, 90))
+	assert.Equal(t, params.Render(saber)+" "+saber.BladeColor(theme.StateBad, 0, 0)+"95%"+saber.Reset, m.Usage(95, 70, 90))
 }
 
 func TestSaberPercentageFollowsTheBladeNotGood(t *testing.T) {

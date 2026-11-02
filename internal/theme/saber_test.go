@@ -137,6 +137,9 @@ func TestBladeColor(t *testing.T) {
 	}
 	classic := theme.Load("classic", "", "")
 	assert.Empty(t, classic.BladeColor(0, 0, 1), "solid themes have no blade")
+	noWindow := th
+	noWindow.GlowCells = 0
+	assert.Equal(t, c(0), noWindow.BladeColor(0, 9, 10), "no glow cells is the plain state color")
 	plain := th.WithoutColor()
 	assert.Empty(t, plain.BladeColor(0, 0, 1), "NO_COLOR removes the blade")
 	assert.True(t, plain.Saber, "WithoutColor() keeps the style")

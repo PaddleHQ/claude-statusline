@@ -282,7 +282,7 @@ bar:
 
 | Field | Meaning |
 |---|---|
-| `colors.text`, `muted`, `good`, `warn`, `bad`, `marker`, `path` | A colour for each role. `text` is labels and figures, `muted` is separators and empty bar cells, `good`, `warn` and `bad` colour the bar fill and, in a `gradient` theme, the percentage (a `saber` bar and its percentage take their colour from `bar.blade` instead, and these three colour the rest of the text), `marker` is the pace marker and `path` is the working directory. An empty string uses the terminal's own colour. |
+| `colors.text`, `muted`, `good`, `warn`, `bad`, `marker`, `path` | A colour for each role. `text` is labels and figures, `muted` is separators and empty bar cells, `good`, `warn` and `bad` colour the bar fill and, in a `gradient` theme, the percentage (a `saber` bar and its percentage take their colour from `bar.blade` instead, so `good` goes unused and `warn` and `bad` colour only the cache and diagnostics warnings and the error row), `marker` is the pace marker and `path` is the working directory. An empty string uses the terminal's own colour. |
 | `colors.branch`, `colors.worktree` | Optional. The branch, and the branch of a linked worktree, in the `path` segment. `branch` defaults to the `path` colour and `worktree` to `bold 208`. |
 | `glyphs.branch`, `glyphs.worktree` | Optional. The emoji shown before a branch and before a worktree, 🌿 and 🌳 by default. Each must be a non-empty string without control characters, and must take at least one column. A character followed by the emoji selector U+FE0F (such as `❤️`) counts as two columns, as it does in Claude Code. |
 | `bar.style` | `solid`, `gradient` or `saber`. |
@@ -294,7 +294,6 @@ bar:
 | `bar.tip` | The glyph for a half-lit final cell of a `saber` blade. Needed for `saber`. `╸` is not East Asian ambiguous width but `━` and `─` are, so a terminal that draws ambiguous characters wide can shift the bar by a column when a tip is drawn. |
 | `bar.glow` | A whole number from 0 to 100: how far, in percent, the tip of the blade is blended towards white. Needed for `saber`. |
 | `bar.glow_cells` | A whole number of at least 1: how many of the last lit cells glow. The glow ramps up evenly to `bar.glow` at the tip, and cells before the window keep the plain blade colour. Needed for `saber`. |
-| `bar.tip` | The glyph for a half-lit final cell, drawn when the usage ends mid-cell. Needed for `saber`. |
 
 A colour is a space-separated list of tokens, applied in order: `bold`, `dim`, `italic`, `underline`, a name (`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, or `bright-` followed by one of those), a number from 0 to 255 for the 256-colour palette, or `#rrggbb` for a true colour. At most one token may be a colour, so `bold 33` and `underline #ff8800` are valid and `red blue` is not.
 
