@@ -10,6 +10,7 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/bar"
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/gitbranch"
+	"github.com/PaddleHQ/claude-statusline/internal/icons"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
@@ -47,6 +48,7 @@ type Env struct {
 	Payload    payload.Payload
 	Config     *config.Config
 	Theme      theme.Theme
+	Icons      icons.Set
 	Now        time.Time
 	Columns    int
 	Home       string

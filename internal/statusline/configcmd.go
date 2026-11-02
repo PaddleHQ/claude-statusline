@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
+	"github.com/PaddleHQ/claude-statusline/internal/icons"
 	"github.com/PaddleHQ/claude-statusline/segments"
 )
 
@@ -46,6 +47,7 @@ func ConfigCheck(getenv func(string) string) (report string, ok bool) {
 			b.WriteString("  " + config.Clean(key) + "\n")
 		}
 	}
+	b.WriteString(invalidValues(cfg))
 	writePluginOptions(&b, cfg, collapseHome(opts.Path, getenv("HOME")))
 	return b.String(), ok
 }
@@ -76,6 +78,21 @@ func writePluginOptions(b *strings.Builder, cfg *config.Config, shown string) {
 			fmt.Fprintf(b, "  %s: %s\n", o.Key, cfg.Source(o.Key))
 		}
 	}
+}
+
+// invalidValues lists the settings whose value is of the wrong kind or not one of the choices, so the user learns why
+// a setting seems to do nothing.
+func invalidValues(cfg *config.Config) string {
+	raw, set := cfg.Raw(keyIcons)
+	if !set || raw == nil {
+		return ""
+	}
+	if value, isString := raw.(string); isString {
+		if _, valid := icons.Parse(value); valid {
+			return ""
+		}
+	}
+	return "\nInvalid values (ignored):\n  " + keyIcons + ": " + config.Clean(fmt.Sprint(raw)) + " (use none or nerd)\n"
 }
 
 // missing reports a file that is not there; Load treats it as an empty config, not a problem.

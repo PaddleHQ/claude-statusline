@@ -257,6 +257,18 @@ func ParseNumber(s string) (int, bool) {
 	return n, err == nil
 }
 
+// Raw returns the user's value for key as the YAML decoded it, whatever its type, and whether the user set the key.
+// Defaults are not consulted.
+func (c *Config) Raw(key string) (value any, ok bool) {
+	section, name, nested := strings.Cut(key, ".")
+	if !nested {
+		value, ok = c.user[key]
+		return value, ok
+	}
+	value, ok = mapOf(c.user[section])[name]
+	return value, ok
+}
+
 func (c *Config) lookupUser(key string) any {
 	section, name, nested := strings.Cut(key, ".")
 	if !nested {

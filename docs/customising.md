@@ -27,6 +27,7 @@ A setting you leave out keeps its default (unless a [plugin option](#plugin-opti
 | `segments` | `[path, model, ctx, tokens, cache, boot, skills, skills_stripped, agent_skills, mem, rate5h, rate7d]` | Segments to show, in order, as a list. Unknown names are skipped. |
 | `separator` | `·` | Glyph drawn between segments. |
 | `theme` | `classic` | Colour theme: a built-in name (`classic`, `gradient` or `saber`) or the path to a theme file. Anything that cannot be used falls back to `classic`. See [Themes](#themes). |
+| `icons` | `none` | Icon set for segment labels: `none` keeps the plain text and symbols, `nerd` uses Nerd Font icons. Needs a Nerd Font set as your terminal font. Anything else is ignored and `config-check` lists it. |
 | `path.strip` | `[]` | Directory prefixes to strip from the path, as a list; an entry may contain spaces, and a leading `~` means your home directory. |
 | `path.branch` | `true` | Show the git branch after the path (`true` or `false`). |
 | `path.worktrees` | `[]` | Directories that hold git worktrees, as a list; relative entries are relative to the main repository, and a leading `~` means your home directory. Empty means off. |
