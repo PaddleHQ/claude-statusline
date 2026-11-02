@@ -6,5 +6,90 @@
 	},
 	"license": "MIT",
 	"homepage": "https://github.com/PaddleHQ/claude-statusline",
-	"repository": "https://github.com/PaddleHQ/claude-statusline"
+	"repository": "https://github.com/PaddleHQ/claude-statusline",
+	"userConfig": {
+		"theme": {
+			"type": "string",
+			"title": "Theme",
+			"description": "A built-in theme (classic, gradient or saber) or the path to a theme file. Empty means use config.yaml, else the built-in default.",
+			"default": ""
+		},
+		"segments": {
+			"type": "string",
+			"title": "Segments",
+			"description": "Segments to show, in order, one per entry. Empty means use config.yaml, else the built-in default.",
+			"multiple": true,
+			"default": []
+		},
+		"separator": {
+			"type": "string",
+			"title": "Separator",
+			"description": "Glyph drawn between segments. Empty means use config.yaml, else the built-in default.",
+			"default": ""
+		},
+		"path_strip": {
+			"type": "string",
+			"title": "Path prefixes to strip",
+			"description": "Directory prefixes removed from the path; a leading ~ means your home directory. Empty means use config.yaml, else the built-in default.",
+			"multiple": true,
+			"default": []
+		},
+		"path_worktrees": {
+			"type": "string",
+			"title": "Worktree directories",
+			"description": "Directories that hold git worktrees, collapsed to the repository name. Empty means use config.yaml, else the built-in default.",
+			"multiple": true,
+			"default": []
+		},
+		"path_branch": {
+			"type": "string",
+			"title": "Show git branch",
+			"description": "Show the git branch after the path. \"default\" means use config.yaml, else the built-in default.",
+			"default": "default",
+			"options": [
+				"default",
+				"on",
+				"off"
+			]
+		},
+		"path_emoji": {
+			"type": "string",
+			"title": "Show branch emoji",
+			"description": "Show the theme's emoji before the branch. \"default\" means use config.yaml, else the built-in default.",
+			"default": "default",
+			"options": [
+				"default",
+				"on",
+				"off"
+			]
+		},
+		"model_effort": {
+			"type": "string",
+			"title": "Show effort level",
+			"description": "Show the effort level after the model name. \"default\" means use config.yaml, else the built-in default.",
+			"default": "default",
+			"options": [
+				"default",
+				"on",
+				"off"
+			]
+		},
+		"snapshot_enabled": {
+			"type": "string",
+			"title": "Save usage snapshot",
+			"description": "Save the latest session payload for other tools to read. \"default\" means use config.yaml, else the built-in default.",
+			"default": "default",
+			"options": [
+				"default",
+				"on",
+				"off"
+			]
+		},
+		"snapshot_path": {
+			"type": "string",
+			"title": "Usage snapshot path",
+			"description": "Where to save the usage snapshot. Empty means use config.yaml, else the built-in default.",
+			"default": ""
+		}
+	}
 }

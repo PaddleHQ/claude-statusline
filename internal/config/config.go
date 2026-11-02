@@ -46,6 +46,9 @@ type Config struct {
 	defaults map[string]any
 	user     map[string]any
 	problem  *Problem
+	options  *PluginOptions
+	// fromPlugin holds the keys whose value in user came from the plugin options.
+	fromPlugin map[string]bool
 }
 
 // New builds a Config from the text of a user's config file. The defaults are the embedded global ones
@@ -53,7 +56,7 @@ type Config struct {
 // and Problem says why.
 func New(userText string, pluginDefaults ...string) *Config {
 	user, problem := parseProblem(userText)
-	return &Config{defaults: mergeDefaults(pluginDefaults), user: user, problem: problem}
+	return &Config{defaults: mergeDefaults(pluginDefaults), user: user, problem: problem, fromPlugin: map[string]bool{}}
 }
 
 // Load reads the user's config file; a missing or unusable file means defaults only, and Problem says why

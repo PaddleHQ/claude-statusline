@@ -18,7 +18,7 @@ ctx: {warn: 60, bad: 85}
 
 Lists are YAML lists, `true` and `false` are YAML booleans, numbers are whole numbers and everything else is a string. Quote a string that YAML would otherwise read as something else, such as a separator of `|` or a path starting with `~`. The file is parsed, never executed, so values are always plain text.
 
-A setting you leave out keeps its default, including the other keys of a segment you only partly set. If the file is not valid YAML (or is not a mapping), the whole file is ignored and the defaults apply. The status line then shows a [red row](#mistakes-in-the-config-file) above the line to say so. A key the status line does not know, a value of the wrong type (such as `width: wide`), an empty string or list, a string with control characters, or a number that is negative or has more than 12 digits is ignored on its own. That one key falls back to its default while the rest of the file still applies. None of these shows the row, but `config-check` lists the keys it does not know.
+A setting you leave out keeps its default (unless a [plugin option](#plugin-options) sets it), including the other keys of a segment you only partly set. If the file is not valid YAML (or is not a mapping), the whole file is ignored and the defaults apply. The status line then shows a [red row](#mistakes-in-the-config-file) above the line to say so. A key the status line does not know, a value of the wrong type (such as `width: wide`), an empty string or list, a string with control characters, or a number that is negative or has more than 12 digits is ignored on its own. That one key falls back to its default while the rest of the file still applies. None of these shows the row, but `config-check` lists the keys it does not know.
 
 [`internal/config/defaults.yaml`](../internal/config/defaults.yaml) documents the global keys with a comment and their default values, and each segment's own `defaults.yaml` under [`segments/`](../segments) does the same for the keys in its section. In the table, `section.key` means `key` inside the `section` mapping. The current keys are:
 
@@ -45,6 +45,27 @@ A setting you leave out keeps its default, including the other keys of a segment
 | `hooks.timeout` | `2` | Seconds a custom segment's script may run before it is killed. |
 | `snapshot.enabled` | `true` | Save the latest session payload for other tools to read (`true` or `false`). |
 | `snapshot.path` | empty | Where to save it; empty means `usage-latest.json` in your Claude config directory. A relative path is taken from the `claude-statusline` directory inside it. |
+
+### Plugin options
+
+When you install the status line as a plugin, its most common settings can be set from Claude Code itself: run `/config` and pick the statusline plugin, or use Paddock's settings page. Claude Code saves them in your user `settings.json` (under `$CLAUDE_CONFIG_DIR` if you set it), and the status line reads them from there. Project settings are not read. `config.yaml` keeps working for every key and is the only place for the rest, such as widths, thresholds, hooks and custom segments.
+
+For each key below, a plugin option that is set wins, then `config.yaml`, then the built-in default. An option counts as set when it is not empty: an empty text, an empty list, `default` and a missing option all fall through to the next source. The on/off options are `default`, `on` or `off` rather than checkboxes, so that saving the dialog never overrides your `config.yaml` by accident.
+
+| Plugin option | Config key | Values |
+|---|---|---|
+| `theme` | `theme` | text |
+| `segments` | `segments` | list |
+| `separator` | `separator` | text |
+| `path_strip` | `path.strip` | list |
+| `path_worktrees` | `path.worktrees` | list |
+| `path_branch` | `path.branch` | `default`, `on`, `off` |
+| `path_emoji` | `path.emoji` | `default`, `on`, `off` |
+| `model_effort` | `model.effort` | `default`, `on`, `off` |
+| `snapshot_enabled` | `snapshot.enabled` | `default`, `on`, `off` |
+| `snapshot_path` | `snapshot.path` | text |
+
+A bad value, such as an unknown theme, is handled as it would be in `config.yaml`: that key falls back to its default. A `settings.json` that is missing or cannot be parsed is ignored, and never changes the line. If more than one enabled entry in `pluginConfigs` belongs to a plugin named `statusline`, the first by name is used. `claude-statusline config-check` shows which file each of these keys came from, and any problem reading `settings.json`.
 
 ### Starting from the defaults
 

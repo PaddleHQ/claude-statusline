@@ -76,10 +76,7 @@ func Build(args []string, getenv func(string) string) (string, error) {
 	}
 
 	defaults := segments.Defaults()
-	cfg := config.New("", defaults...)
-	if path := config.Path(getenv); path != "" {
-		cfg = config.Load(path, defaults...)
-	}
+	cfg := config.Resolve(getenv, defaults...)
 	th := theme.Load(cfg.String(keyTheme), getenv("HOME"), config.AppDir(getenv))
 	if getenv("NO_COLOR") != "" {
 		th = th.WithoutColor()

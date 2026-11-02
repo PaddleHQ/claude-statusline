@@ -41,10 +41,7 @@ func Keys() []string {
 // Build renders the line. It reads the user's config and the clock and width overrides via getenv.
 func Build(input []byte, getenv func(string) string) string {
 	defaults := segments.Defaults()
-	cfg := config.New("", defaults...)
-	if path := config.Path(getenv); path != "" {
-		cfg = config.Load(path, defaults...)
-	}
+	cfg := config.Resolve(getenv, defaults...)
 
 	saveSnapshot(input, cfg, getenv)
 

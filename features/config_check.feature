@@ -53,3 +53,33 @@ Feature: Checking the config file
       Unknown settings (ignored):
         ttl
       """
+
+  Scenario: Plugin options in settings.json are reported with where each setting came from
+    Given the file "settings.json":
+      """
+      {"enabledPlugins": {"statusline@claude-statusline": true},
+       "pluginConfigs": {"statusline@claude-statusline": {"options": {"theme": "saber"}}}}
+      """
+    And the config:
+      """
+      theme: gradient
+      separator: "|"
+      """
+    When the config check runs
+    Then the text is:
+      """
+      Config file: ~/claude-statusline/config.yaml
+      Parsed without errors.
+
+      Plugin options: ~/settings.json (statusline@claude-statusline)
+        theme: plugin options
+        segments: default
+        separator: config.yaml
+        path.strip: default
+        path.worktrees: default
+        path.branch: default
+        path.emoji: default
+        model.effort: default
+        snapshot.enabled: default
+        snapshot.path: default
+      """

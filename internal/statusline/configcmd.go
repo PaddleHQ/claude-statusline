@@ -2,6 +2,7 @@ package statusline
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"strings"
@@ -24,8 +25,9 @@ func ConfigCheck(getenv func(string) string) (report string, ok bool) {
 		return "Config file: none\nNo config directory is set, so the defaults apply.\n", true
 	}
 	defaults := segments.Defaults()
-	cfg := config.Load(path, defaults...)
+	cfg := config.Resolve(getenv, defaults...)
 
+	opts := cfg.PluginOptions()
 	var b strings.Builder
 	b.WriteString("Config file: " + config.Clean(collapseHome(path, getenv("HOME"))) + "\n")
 	ok = true
@@ -44,7 +46,32 @@ func ConfigCheck(getenv func(string) string) (report string, ok bool) {
 			b.WriteString("  " + config.Clean(key) + "\n")
 		}
 	}
+	writePluginOptions(&b, cfg, collapseHome(opts.Path, getenv("HOME")))
 	return b.String(), ok
+}
+
+// writePluginOptions reports the plugin options in settings.json: the file, problems with it, and where each
+// setting they can supply ended up coming from. It writes nothing when the file has no options and no problems.
+func writePluginOptions(b *strings.Builder, cfg *config.Config, shown string) {
+	opts := cfg.PluginOptions()
+	if !opts.Active() && len(opts.Issues) == 0 {
+		return
+	}
+	fmt.Fprintf(b, "\nPlugin options: %s", config.Clean(shown))
+	if opts.Active() {
+		fmt.Fprintf(b, " (%s)", config.Clean(opts.Entry))
+	}
+	b.WriteString("\n")
+	for _, issue := range opts.Issues {
+		fmt.Fprintf(b, "  %s\n", config.Clean(issue))
+	}
+	if !opts.Active() {
+		b.WriteString("  Ignored, so the config file and the defaults apply.\n")
+		return
+	}
+	for _, o := range config.Options() {
+		fmt.Fprintf(b, "  %s: %s\n", o.Key, cfg.Source(o.Key))
+	}
 }
 
 // missing reports a file that is not there; Load treats it as an empty config, not a problem.
