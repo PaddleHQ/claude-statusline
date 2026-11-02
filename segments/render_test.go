@@ -190,15 +190,15 @@ func TestSegmentsDrawnWithTheRealTheme(t *testing.T) {
 		},
 		{
 			name: `The saber theme at 37% context use ends the blade in a half-lit tip`, segs: `ctx`, cfg: "", session: `{"context_window":{"used_percentage":37}}`, cols: 200, theme: `saber`, plain: false,
-			want: `\e[38;2;75;81;96m▐\e[0m\e[48;2;75;81;96m\e[38;2;216;222;233m ctx \e[0m\e[38;2;74;168;255m━\e[0m\e[38;2;102;181;255m━\e[0m\e[38;2;133;196;255m━\e[0m\e[38;2;164;211;255m╸\e[0m\e[38;2;58;58;58m──────\e[0m \e[38;2;74;168;255m37%\e[0m`,
+			want: `\e[38;2;75;81;96m█▄\e[0m\e[48;2;75;81;96m\e[38;2;216;222;233m ctx \e[0m\e[38;2;154;163;181m\e[48;2;75;81;96m▌▌\e[0m\e[38;2;74;168;255m━\e[0m\e[38;2;102;181;255m━\e[0m\e[38;2;133;196;255m━\e[0m\e[38;2;164;211;255m╸\e[0m\e[38;2;58;58;58m──────\e[0m \e[38;2;74;168;255m37%\e[0m`,
 		},
 		{
 			name: `The saber theme at 0% context use draws an entirely empty bar`, segs: `ctx`, cfg: "", session: `{"context_window":{"used_percentage":0}}`, cols: 200, theme: `saber`, plain: false,
-			want: `\e[38;2;75;81;96m▐\e[0m\e[48;2;75;81;96m\e[38;2;216;222;233m ctx \e[0m\e[38;2;58;58;58m──────────\e[0m \e[38;2;74;168;255m0%\e[0m`,
+			want: `\e[38;2;75;81;96m█▄\e[0m\e[48;2;75;81;96m\e[38;2;216;222;233m ctx \e[0m\e[38;2;154;163;181m\e[48;2;75;81;96m▌▌\e[0m\e[38;2;58;58;58m──────────\e[0m \e[38;2;74;168;255m0%\e[0m`,
 		},
 		{
 			name: `The saber theme at 75% usage with half the window elapsed turns the blade purple`, segs: `rate5h`, cfg: "", session: `{"rate_limits":{"five_hour":{"used_percentage":75,"resets_at":1760009000}},"session_id":"abc123"}`, cols: 200, theme: `saber`, plain: false,
-			want: `\e[38;2;75;81;96m▐\e[0m\e[48;2;75;81;96m\e[38;2;216;222;233m 5h \e[0m\e[38;2;178;107;255m━━━━━━━━━━\e[0m\e[1m┃\e[0m\e[38;2;178;107;255m━\e[0m\e[38;2;190;130;255m━\e[0m\e[38;2;203;155;255m━\e[0m\e[38;2;216;181;255m━\e[0m\e[38;2;58;58;58m─────\e[0m \e[38;2;178;107;255m75%\e[0m`,
+			want: `\e[38;2;75;81;96m█▄\e[0m\e[48;2;75;81;96m\e[38;2;216;222;233m 5h \e[0m\e[38;2;154;163;181m\e[48;2;75;81;96m▌▌\e[0m\e[38;2;178;107;255m━━━━━━━━━━\e[0m\e[1m┃\e[0m\e[38;2;178;107;255m━\e[0m\e[38;2;190;130;255m━\e[0m\e[38;2;203;155;255m━\e[0m\e[38;2;216;181;255m━\e[0m\e[38;2;58;58;58m─────\e[0m \e[38;2;178;107;255m75%\e[0m`,
 		},
 		{
 			name: `The saber theme with NO_COLOR keeps the blade, tip and marker glyphs but drops every color`, segs: `ctx rate5h`, cfg: "", session: `{"rate_limits":{"five_hour":{"used_percentage":75,"resets_at":1760009000}},"context_window":{"used_percentage":37}}`, cols: 200, theme: `saber`, plain: true,

@@ -57,11 +57,16 @@ type Theme struct {
 	GlowCells int
 	Tip       string
 
-	// HiltFG and HiltBG are the hilt color as a foreground sequence for the cap and a background sequence for the
-	// body, and HiltText colors the label on the body. All three are empty without a hilt, or once color is removed.
+	// HiltFG and HiltBG are the hilt color as a foreground sequence for the pommel and a background sequence for the
+	// grip, and HiltText colors the label on the grip. All three are empty without a hilt, or once color is removed.
 	HiltFG   string
 	HiltBG   string
 	HiltText string
+	// HiltPommel is the glyphs drawn before the grip, and HiltFins is how many fin cells follow it, drawn in HiltFinFG
+	// over the grip background.
+	HiltPommel string
+	HiltFins   int
+	HiltFinFG  string
 }
 
 // WithoutColor clears every color and style, keeping the glyphs.
@@ -70,7 +75,7 @@ func (t *Theme) WithoutColor() Theme {
 	c.TextColor, c.Muted, c.Good, c.WarnColor, c.BadColor, c.Marker, c.PathColor, c.Reset = "", "", "", "", "", "", "", ""
 	c.BranchColor, c.WorktreeColor = "", ""
 	c.Ramp, c.Blade, c.EmptyColor, c.MarkerColor = nil, nil, "", ""
-	c.HiltFG, c.HiltBG, c.HiltText = "", "", ""
+	c.HiltFG, c.HiltBG, c.HiltText, c.HiltFinFG = "", "", "", ""
 	return c
 }
 

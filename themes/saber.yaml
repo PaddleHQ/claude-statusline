@@ -34,10 +34,16 @@ bar:
   # Unfilled cells and the pace marker.
   empty_color: "#3a3a3a"
   marker_color: bold
-  # Optional, and valid in any style. Draws each label as a hilt: a cap and a
-  # body in this #rrggbb color, with the label in hilt_text_color on the body.
+  # Optional, and valid in any style. Draws each label as a hilt: a pommel, then
+  # a grip in this #rrggbb color holding the label in hilt_text_color.
   hilt_color: "#4b5160"
   hilt_text_color: "#d8dee9"
+  # The pommel glyphs, in the hilt color. Defaults to "█▄".
+  hilt_pommel: "█▄"
+  # Cooling fins after the grip (0 to 8, default 0), alternating this #rrggbb
+  # color with the hilt color. The color is required when there are fins.
+  hilt_fins: 2
+  hilt_fin_color: "#9aa3b5"
 
 # Optional. Emoji shown before a branch and a worktree in the path segment.
 glyphs:

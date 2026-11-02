@@ -15,7 +15,7 @@ const (
 	mediumCols   = 160
 	eighths      = 8
 	percentScale = 100
-	hiltCap      = "▐"
+	hiltFin      = "▌"
 )
 
 // Params describes one bar. Usage and Target are percentages; Warn and Bad are
@@ -228,14 +228,18 @@ func (m *Meter) Pace(usage, target, warn, bad, hardCap int) string {
 	return m.draw(&Params{Usage: usage, Target: target, Width: m.Width, Warn: warn, Bad: bad, HardCap: hardCap})
 }
 
-// Label draws the text before a bar: "text: " in the text color, or on a theme with a hilt, a cap and a body holding the
-// text that meet the blade directly.
+// Label draws the text before a bar: "text: " in the text color, or on a theme with a hilt, a pommel, a grip holding the
+// text and optional fins, which meet the blade directly.
 func (m *Meter) Label(text string) string {
 	th := &m.Theme
 	if th.HiltBG == "" {
 		return th.Text(text + ": ")
 	}
-	return th.HiltFG + hiltCap + th.Reset + th.HiltBG + th.HiltText + " " + text + " " + th.Reset
+	label := th.HiltFG + th.HiltPommel + th.Reset + th.HiltBG + th.HiltText + " " + text + " " + th.Reset
+	if th.HiltFins > 0 {
+		label += th.HiltFinFG + th.HiltBG + strings.Repeat(hiltFin, th.HiltFins) + th.Reset
+	}
+	return label
 }
 
 func (m *Meter) draw(params *Params) string {

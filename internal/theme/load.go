@@ -31,18 +31,21 @@ var (
 	errGlowCells         = errors.New("bar.glow_cells must be a whole number of at least 1")
 	errGlowRange         = errors.New("bar.glow must be a whole number from 0 to 100")
 	errRampFormat        = errors.New("#rrggbb")
+	errHiltFins          = errors.New("a whole number from 0 to 8")
 )
 
 const (
-	fallbackName = "classic"
-	legacyName   = "default"
-	maxFileBytes = 1 << 20
-	styleSolid   = "solid"
-	styleGrad    = "gradient"
-	styleSaber   = "saber"
-	glowMax      = 100
-	partialCount = 7
-	resetSeq     = "\033[0m"
+	defaultHiltPommel = "█▄"
+	maxHiltFins       = 8
+	fallbackName      = "classic"
+	legacyName        = "default"
+	maxFileBytes      = 1 << 20
+	styleSolid        = "solid"
+	styleGrad         = "gradient"
+	styleSaber        = "saber"
+	glowMax           = 100
+	partialCount      = 7
+	resetSeq          = "\033[0m"
 
 	defaultWorktreeColor = "bold 208"
 	defaultBranchGlyph   = "🌿"
@@ -88,6 +91,9 @@ type barSpec struct {
 	Tip         *string  `yaml:"tip"`
 	HiltColor   *string  `yaml:"hilt_color"`
 	HiltText    *string  `yaml:"hilt_text_color"`
+	HiltPommel  *string  `yaml:"hilt_pommel"`
+	HiltFins    *int     `yaml:"hilt_fins"`
+	HiltFinCol  *string  `yaml:"hilt_fin_color"`
 }
 
 // Load resolves the theme setting to a theme. A value containing "/" or starting
@@ -375,6 +381,9 @@ func (t *Theme) compileSaber(b barSpec) error {
 
 func (t *Theme) compileHilt(b barSpec) error {
 	if b.HiltColor == nil {
+		if b.HiltText != nil || b.HiltPommel != nil || b.HiltFins != nil || b.HiltFinCol != nil {
+			return fmt.Errorf("the hilt fields need bar.hilt_color: %w", errMissing)
+		}
 		return nil
 	}
 	r, g, bl, err := parseRampStop(*b.HiltColor)
@@ -383,11 +392,54 @@ func (t *Theme) compileHilt(b barSpec) error {
 	}
 	t.HiltFG = fmt.Sprintf("\033[38;2;%d;%d;%dm", r, g, bl)
 	t.HiltBG = fmt.Sprintf("\033[48;2;%d;%d;%dm", r, g, bl)
-	if b.HiltText == nil {
+	if b.HiltText != nil {
+		if t.HiltText, err = ParseColor(*b.HiltText); err != nil {
+			return err
+		}
+	}
+	if err := t.compilePommel(b); err != nil {
+		return err
+	}
+	return t.compileFins(b)
+}
+
+func (t *Theme) compilePommel(b barSpec) error {
+	t.HiltPommel = defaultHiltPommel
+	if b.HiltPommel == nil {
 		return nil
 	}
-	t.HiltText, err = ParseColor(*b.HiltText)
-	return err
+	if *b.HiltPommel == "" {
+		return fmt.Errorf("bar.hilt_pommel must be %w", errGlyph)
+	}
+	for _, r := range *b.HiltPommel {
+		if !validGlyph(string(r)) {
+			return fmt.Errorf("bar.hilt_pommel must be %w", errGlyph)
+		}
+	}
+	t.HiltPommel = *b.HiltPommel
+	return nil
+}
+
+func (t *Theme) compileFins(b barSpec) error {
+	if b.HiltFins == nil || *b.HiltFins == 0 {
+		if b.HiltFinCol != nil {
+			return fmt.Errorf("bar.hilt_fin_color needs bar.hilt_fins above 0: %w", errMissing)
+		}
+		return nil
+	}
+	if *b.HiltFins < 0 || *b.HiltFins > maxHiltFins {
+		return fmt.Errorf("bar.hilt_fins %d must be %w", *b.HiltFins, errHiltFins)
+	}
+	if b.HiltFinCol == nil {
+		return fmt.Errorf("bar.hilt_fin_color %w", errMissing)
+	}
+	r, g, bl, err := parseRampStop(*b.HiltFinCol)
+	if err != nil {
+		return err
+	}
+	t.HiltFins = *b.HiltFins
+	t.HiltFinFG = fmt.Sprintf("\033[38;2;%d;%d;%dm", r, g, bl)
+	return nil
 }
 
 func (t *Theme) compileGlow(b barSpec) error {
