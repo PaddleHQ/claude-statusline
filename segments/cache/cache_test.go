@@ -22,9 +22,15 @@ func build(t *testing.T, input, creation, read int64, warn int) *cache.Cache {
 	paint := mocks.NewPainter(t)
 	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + "</>" }).Maybe()
 	paint.EXPECT().Bad(mock.Anything).RunAndReturn(func(s string) string { return "<b>" + s + "</>" }).Maybe()
+	return cache.New(cache.Deps{Session: sess, Config: cfg, Paint: paint, Icons: plainIcons(t)})
+}
+
+func plainIcons(t *testing.T) *mocks.Icons {
+	t.Helper()
+
 	icons := mocks.NewIcons(t)
 	icons.EXPECT().Pick(mock.Anything, mock.Anything).RunAndReturn(func(plain, _ string) string { return plain }).Maybe()
-	return cache.New(cache.Deps{Session: sess, Config: cfg, Paint: paint, Icons: icons})
+	return icons
 }
 
 func TestRender(t *testing.T) {
@@ -102,6 +108,7 @@ func TestRenderExpiredCache(t *testing.T) {
 				Config:     cfg,
 				Paint:      paint,
 				Now:        now,
+				Icons:      plainIcons(t),
 			})
 			assert.Equal(t, tt.want, seg.Render())
 		})
@@ -127,6 +134,7 @@ func TestCacheNerdIcon(t *testing.T) {
 
 	sess := mocks.NewSession(t)
 	sess.EXPECT().LatestRequest().Return(int64(0), int64(0), int64(100))
+	sess.EXPECT().TranscriptFile().Return("")
 	cfg := mocks.NewConfig(t)
 	cfg.EXPECT().Int("warn").Return(10)
 	paint := mocks.NewPainter(t)
@@ -135,4 +143,27 @@ func TestCacheNerdIcon(t *testing.T) {
 	icons.EXPECT().Pick("\u29C9 ", "\uF0E7 ").RunAndReturn(func(_, nerd string) string { return nerd })
 	seg := cache.New(cache.Deps{Session: sess, Config: cfg, Paint: paint, Icons: icons})
 	assert.Equal(t, "\uF0E7 100%", seg.Render())
+}
+
+func TestCacheColdNerdIcon(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
+	sess := mocks.NewSession(t)
+	sess.EXPECT().TranscriptFile().Return("/t.jsonl")
+	tr := mocks.NewTranscript(t)
+	tr.EXPECT().LastRequest().Return(now.Add(-2*time.Hour), time.Hour)
+	paint := mocks.NewPainter(t)
+	paint.EXPECT().Bad(mock.Anything).RunAndReturn(func(s string) string { return s })
+	icons := mocks.NewIcons(t)
+	icons.EXPECT().Pick("⧉ ", " ").RunAndReturn(func(_, nerd string) string { return nerd })
+	seg := cache.New(cache.Deps{
+		Session:    sess,
+		Transcript: func() cache.Transcript { return tr },
+		Config:     mocks.NewConfig(t),
+		Paint:      paint,
+		Now:        now,
+		Icons:      icons,
+	})
+	assert.Equal(t, " cold", seg.Render())
 }
