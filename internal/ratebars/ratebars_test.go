@@ -26,6 +26,7 @@ var sgr = regexp.MustCompile("\x1b\\[[0-9;]*m")
 
 type window struct {
 	OK      bool              `json:"ok"`
+	Label   string            `json:"label"`
 	Percent string            `json:"percent"`
 	Bars    map[string]string `json:"bars"`
 }
@@ -237,3 +238,62 @@ func TestBuildAcceptsTheBounds(t *testing.T) {
 }
 
 func stripped(s string) string { return sgr.ReplaceAllString(s, "") }
+
+func saberLabel(color, text string) string {
+	const grip = "\x1b[48;2;75;81;96m"
+	return "\x1b[38;2;" + color + "m" + grip + "▏\x1b[0m" + grip + "\x1b[38;2;216;222;233m" + text + "\x1b[0m" +
+		"\x1b[38;2;" + color + "m" + grip + "║║║\x1b[0m"
+}
+
+func TestBuildDrawsTheHiltLabelInThePaceColor(t *testing.T) {
+	t.Parallel()
+
+	const blue, purple, red = "74;168;255", "178;107;255", "255;59;48"
+	tests := []struct {
+		name           string
+		cache          string
+		want5h, want7d string
+	}{
+		{"good", `{"five_hour":{"used":40,"resets_at":1760009000},"seven_day":{"used":40,"resets_at":1760302400}}`, saberLabel(blue, "5h"), saberLabel(blue, "7d")},
+		{"warn", cache, saberLabel(purple, "5h"), saberLabel(blue, "7d")},
+		{"bad", `{"five_hour":{"used":95,"resets_at":1760009000},"seven_day":{"used":40,"resets_at":1760302400}}`, saberLabel(red, "5h"), saberLabel(blue, "7d")},
+		{"no reading draws it as an empty bar", "", saberLabel(blue, "5h"), saberLabel(blue, "7d")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			out, err := (&env{cache: tt.cache, config: "theme: saber"}).run(t, "--min-cells=4", "--max-cells=4")
+			require.NoError(t, err)
+			r := decode(t, out)
+			assert.Equal(t, tt.want5h, r.Rate5h.Label)
+			assert.Equal(t, tt.want7d, r.Rate7d.Label)
+		})
+	}
+}
+
+func TestBuildHiltLabelUsesTheConfiguredLabel(t *testing.T) {
+	t.Parallel()
+
+	out, err := (&env{cache: cache, config: "theme: saber\nrate5h:\n  label: five"}).run(t, "--min-cells=4", "--max-cells=4")
+	require.NoError(t, err)
+	assert.Contains(t, decode(t, out).Rate5h.Label, "five")
+}
+
+func TestBuildOmitsTheLabelWithoutAHilt(t *testing.T) {
+	t.Parallel()
+
+	for name, e := range map[string]*env{
+		"classic":            {cache: cache},
+		"gradient":           {cache: cache, config: "theme: gradient"},
+		"saber and NO_COLOR": {cache: cache, config: "theme: saber", vars: map[string]string{"NO_COLOR": "1"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			out, err := e.run(t, "--min-cells=4", "--max-cells=4")
+			require.NoError(t, err)
+			assert.NotContains(t, out, `"label"`)
+		})
+	}
+}

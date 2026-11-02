@@ -227,9 +227,9 @@ func (m *Meter) Pace(label string, usage, target, warn, bad, hardCap int) string
 	return m.draw(label, &Params{Usage: usage, Target: target, Width: m.Width, Warn: warn, Bad: bad, HardCap: hardCap})
 }
 
-// label draws the text before a bar: "text: " in the text color, or on a theme with a hilt, a pommel, a grip holding the
+// Label draws the text before a bar: "text: " in the text color, or on a theme with a hilt, a pommel, a grip holding the
 // text and optional fins, which meet the blade directly. Fins that follow the fill take the bar's state color.
-func (m *Meter) label(text string, params *Params) string {
+func (m *Meter) Label(text string, params *Params) string {
 	th := &m.Theme
 	if th.HiltBG == "" {
 		return th.Text(text + ": ")
@@ -261,5 +261,5 @@ func (m *Meter) draw(label string, params *Params) string {
 	if m.FillPercent {
 		color = params.Fill(m.Theme)
 	}
-	return m.label(label, params) + params.Render(m.Theme) + " " + m.Theme.Paint(color, strconv.Itoa(params.Usage)+"%")
+	return m.Label(label, params) + params.Render(m.Theme) + " " + m.Theme.Paint(color, strconv.Itoa(params.Usage)+"%")
 }

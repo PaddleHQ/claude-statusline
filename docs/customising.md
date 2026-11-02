@@ -212,6 +212,8 @@ Each part is left out when Claude Code does not send it, so older versions show 
 
 `bars` has one entry for every cell count from `N` to `M`, keyed by the count. Each is a bar exactly that many cells wide, with no label or percentage, painted with your `theme` and drawn as the `rate5h` and `rate7d` segments draw theirs: the pace marker, and the `warn`, `bad` and `hard_cap` settings of the matching section. `percent` is the painted `75%` that follows the bar in the status line. The readings come from the same shared cache the segments use, which the command only reads. When a window has no reading, or it has already reset, `ok` is `false`, `percent` is a muted `--` and every bar is empty cells without a marker. `NO_COLOR` removes the colours.
 
+On a theme that draws a hilt, such as `saber` (see `bar.hilt_color`), each window also has a `label`: the window's `label` setting (`5h` or `7d` by default) drawn as the hilt, in the colour of that window's pace state, exactly as the status line draws it. A window with no reading gets the label as it would be drawn for an empty bar. The key is left out on themes without a hilt and under `NO_COLOR`, where the status line shows a plain `5h: `.
+
 `N` must be at least 1, `M` at most 200 and `N` no more than `M`; both are required. Otherwise the command prints a message to stderr, nothing to stdout, and exits 2. That is the only way it fails: a missing cache is `ok: false`.
 
 ## Themes

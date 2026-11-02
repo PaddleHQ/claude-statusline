@@ -33,6 +33,7 @@ var ErrUsage = errors.New("usage: claude-statusline rate-bars --min-cells=N --ma
 // Window is one usage window: its percentage and a bar for each requested width.
 type Window struct {
 	OK      bool   `json:"ok"`
+	Label   string `json:"label,omitempty"`
 	Percent string `json:"percent"`
 	Bars    Series `json:"bars"`
 }
@@ -94,8 +95,8 @@ func Build(args []string, getenv func(string) string) (string, error) {
 
 	r := &renderer{th: th, lo: lo, hi: hi}
 	out := Output{
-		Rate5h: r.window(rate.NewFiveHour(r.deps(cfg.Section("rate5h"), at, &limits))),
-		Rate7d: r.window(rate.NewSevenDay(r.deps(cfg.Section("rate7d"), at, &limits))),
+		Rate5h: r.window(rate.NewFiveHour(r.deps(cfg.Section("rate5h"), at, &limits)), cfg.Section("rate5h")),
+		Rate7d: r.window(rate.NewSevenDay(r.deps(cfg.Section("rate7d"), at, &limits)), cfg.Section("rate7d")),
 	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -149,10 +150,10 @@ func (r *renderer) deps(cfg *config.Section, at time.Time, limits *ratecache.Lim
 	}
 }
 
-func (r *renderer) window(seg *rate.Window) Window {
+func (r *renderer) window(seg *rate.Window, cfg *config.Section) Window {
 	r.meter.params = bar.Params{}
 	if seg.Render() == "" {
-		return r.absent()
+		return r.absent(cfg)
 	}
 	p := r.meter.params
 	bars := make([]string, 0, r.hi-r.lo+1)
@@ -161,16 +162,32 @@ func (r *renderer) window(seg *rate.Window) Window {
 		bars = append(bars, p.Render(r.th))
 	}
 	percent := r.th.Paint(p.PercentColor(r.th), fmt.Sprintf("%d%%", p.Usage))
-	return Window{OK: true, Percent: percent, Bars: Series{Min: r.lo, Bars: bars}}
+	return Window{OK: true, Label: r.label(cfg.String("label"), &p), Percent: percent, Bars: Series{Min: r.lo, Bars: bars}}
 }
 
-func (r *renderer) absent() Window {
+// label draws the hilt through the meter the status line uses, or returns "" on a theme without one, which has only
+// the plain "label: " text.
+func (r *renderer) label(text string, p *bar.Params) string {
+	if r.th.HiltBG == "" {
+		return ""
+	}
+	m := bar.Meter{Theme: r.th}
+	return m.Label(text, p)
+}
+
+func (r *renderer) absent(cfg *config.Section) Window {
 	bars := make([]string, 0, r.hi-r.lo+1)
 	for width := r.lo; width <= r.hi; width++ {
 		empty := bar.Params{Width: width, NoTarget: true}
 		bars = append(bars, empty.Render(r.th))
 	}
-	return Window{OK: false, Percent: r.th.Paint(r.th.Muted, absent), Bars: Series{Min: r.lo, Bars: bars}}
+	empty := bar.Params{NoTarget: true, Warn: cfg.Int("warn"), Bad: cfg.Int("bad")}
+	return Window{
+		OK:      false,
+		Label:   r.label(cfg.String("label"), &empty),
+		Percent: r.th.Paint(r.th.Muted, absent),
+		Bars:    Series{Min: r.lo, Bars: bars},
+	}
 }
 
 func encode(s string) (string, error) {
