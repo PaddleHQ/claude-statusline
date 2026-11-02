@@ -76,6 +76,7 @@ func (s *Screen) SVG(th *Theme) []byte {
 	fmt.Fprintf(&b, "<rect width=\"%d\" height=\"%d\" rx=\"%d\" fill=\"%s\"/>\n", width, height, radius, th.Background)
 	fmt.Fprintf(&b, "<g font-family=\"%s\" font-size=\"%d\" fill=\"%s\" xml:space=\"preserve\">\n", fontFamily, fontSize, th.Foreground)
 	for i, line := range s.lines {
+		writeBackgrounds(&b, i, line, th)
 		y := padding + i*lineHeight + baseline
 		fmt.Fprintf(&b, "<text y=\"%d\">", y)
 		for _, r := range runsOf(line) {
@@ -85,6 +86,22 @@ func (s *Screen) SVG(th *Theme) []byte {
 	}
 	b.WriteString("</g>\n</svg>\n")
 	return []byte(b.String())
+}
+
+// writeBackgrounds draws a rect behind each stretch of adjacent cells that share a background color.
+func writeBackgrounds(b *strings.Builder, row int, line []cell, th *Theme) {
+	for col := 0; col < len(line); {
+		hex := line[col].st.bg.hex(th)
+		end := col + 1
+		for end < len(line) && line[end].st.bg.hex(th) == hex {
+			end++
+		}
+		if hex != "" {
+			fmt.Fprintf(b, "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" fill=\"%s\"/>\n",
+				padding+col*cellWidth, padding+row*lineHeight, (end-col)*cellWidth, lineHeight, hex)
+		}
+		col = end
+	}
 }
 
 func runsOf(line []cell) []run {
@@ -125,7 +142,7 @@ func writeRun(b *strings.Builder, r run, th *Theme) {
 	b.WriteString("</tspan>")
 }
 
-// hex resolves the color to #rrggbb, or an empty string for the theme's default foreground.
+// hex resolves the color to #rrggbb, or an empty string for the theme's default color.
 func (c color) hex(th *Theme) string {
 	switch c.kind {
 	case kindRGB:

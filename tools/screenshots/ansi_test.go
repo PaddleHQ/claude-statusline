@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,6 +41,44 @@ func TestSVGStyles(t *testing.T) {
 			assert.Contains(t, string(Parse(tt.in).SVG(Dark)), tt.want)
 		})
 	}
+}
+
+func TestSVGBackgrounds(t *testing.T) {
+	t.Parallel()
+
+	const bg = `<rect x="16" y="16" width="18" height="20" fill="%s"/>`
+	tests := []struct {
+		name string
+		in   string
+		want string
+		not  []string
+	}{
+		{"true color", "\033[48;2;75;81;96mhi", fmt.Sprintf(bg, "#4b5160"), []string{"opacity", `fill="#39c5cf"`}},
+		{"256 color", "\033[48;5;33mhi", fmt.Sprintf(bg, "#0087ff"), nil},
+		{"basic", "\033[42mhi", fmt.Sprintf(bg, "#3fb950"), nil},
+		{"bright", "\033[101mhi", fmt.Sprintf(bg, "#ffa198"), nil},
+		{"foreground and background in one sequence", "\033[38;2;255;0;0;48;2;0;0;255mhi", fmt.Sprintf(bg, "#0000ff"), []string{"opacity"}},
+		{"default background resets it", "\033[44ma\033[49mb", `<rect x="16" y="16" width="9" height="20" fill="#58a6ff"/>`, []string{`width="18"`}},
+		{"default foreground resets it", "\033[31ma\033[39mb", `<tspan x="16" fill="#ff7b72">a</tspan><tspan x="25">b</tspan>`, nil},
+		{"a truncated extended background is ignored", "\033[48;5mhi", `<tspan x="16">hi</tspan>`, []string{"<rect x"}},
+		{"spaces keep the background", "\033[44m  ", fmt.Sprintf(bg, "#58a6ff"), nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			svg := string(Parse(tt.in).SVG(Dark))
+			assert.Contains(t, svg, tt.want)
+			for _, n := range tt.not {
+				assert.NotContains(t, svg, n)
+			}
+		})
+	}
+}
+
+func TestSVGBackgroundUsesThemePaletteForIndexedColors(t *testing.T) {
+	t.Parallel()
+
+	assert.Contains(t, string(Parse("\033[42mhi").SVG(Light)), `fill="#1a7f37"`)
 }
 
 func TestSVGLightThemeUsesItsOwnPalette(t *testing.T) {

@@ -6,22 +6,29 @@ import (
 )
 
 const (
-	esc           = '\033'
-	csi           = '['
-	sgrFinal      = 'm'
-	sgrReset      = 0
-	sgrBold       = 1
-	sgrDim        = 2
-	sgrItalic     = 3
-	sgrUnderline  = 4
-	sgrFGBase     = 30
-	sgrFGEnd      = 37
-	sgrFGExtended = 38
-	sgrBrightBase = 90
-	sgrBrightEnd  = 97
-	modeIndexed   = 5
-	modeRGB       = 2
-	brightOffset  = 8
+	esc             = '\033'
+	csi             = '['
+	sgrFinal        = 'm'
+	sgrReset        = 0
+	sgrBold         = 1
+	sgrDim          = 2
+	sgrItalic       = 3
+	sgrUnderline    = 4
+	sgrFGBase       = 30
+	sgrFGEnd        = 37
+	sgrFGExtended   = 38
+	sgrFGDefault    = 39
+	sgrBGBase       = 40
+	sgrBGEnd        = 47
+	sgrBGExtended   = 48
+	sgrBGDefault    = 49
+	sgrBGBrightBase = 100
+	sgrBGBrightEnd  = 107
+	sgrBrightBase   = 90
+	sgrBrightEnd    = 97
+	modeIndexed     = 5
+	modeRGB         = 2
+	brightOffset    = 8
 )
 
 type colorKind int
@@ -40,7 +47,7 @@ type color struct {
 
 type style struct {
 	bold, dim, italic, underline bool
-	fg                           color
+	fg, bg                       color
 }
 
 type cell struct {
@@ -54,7 +61,7 @@ type Screen struct {
 }
 
 // Parse reads terminal output into a Screen. It understands the escape sequences the status line emits:
-// reset, bold, dim, italic, underline, the 16 basic foreground colors, 256-color and true color.
+// reset, bold, dim, italic, underline, the 16 basic colors for the foreground and background, 256-color and true color for both.
 // Anything else is ignored.
 func Parse(ansi string) *Screen {
 	s := &Screen{lines: [][]cell{nil}}
@@ -90,9 +97,15 @@ func (s *Screen) escape(runes []rune, from int, st *style) int {
 func (st *style) apply(params string) {
 	codes := parseCodes(params)
 	for i := 0; i < len(codes); i++ {
-		if codes[i] == sgrFGExtended {
+		switch codes[i] {
+		case sgrFGExtended:
 			var used int
 			st.fg, used = extendedColor(codes[i+1:], st.fg)
+			i += used
+			continue
+		case sgrBGExtended:
+			var used int
+			st.bg, used = extendedColor(codes[i+1:], st.bg)
 			i += used
 			continue
 		}
@@ -113,9 +126,30 @@ func (st *style) applyCode(code int) {
 	case sgrUnderline:
 		st.underline = true
 	default:
-		if c, ok := basicColor(code); ok {
-			st.fg = c
-		}
+		st.applyColorCode(code)
+	}
+}
+
+func (st *style) applyColorCode(code int) {
+	if c, ok := basicColor(code); ok {
+		st.fg = c
+	} else if c, ok := basicBackground(code); ok {
+		st.bg = c
+	} else if code == sgrFGDefault {
+		st.fg = color{}
+	} else if code == sgrBGDefault {
+		st.bg = color{}
+	}
+}
+
+func basicBackground(code int) (color, bool) {
+	switch {
+	case code >= sgrBGBase && code <= sgrBGEnd:
+		return color{kind: kindIndexed, index: code - sgrBGBase}, true
+	case code >= sgrBGBrightBase && code <= sgrBGBrightEnd:
+		return color{kind: kindIndexed, index: code - sgrBGBrightBase + brightOffset}, true
+	default:
+		return color{}, false
 	}
 }
 
@@ -142,7 +176,7 @@ func parseCodes(params string) []int {
 	return codes
 }
 
-// extendedColor reads the arguments of a 38 sequence and reports how many it consumed.
+// extendedColor reads the arguments of a 38 or 48 sequence and reports how many it consumed.
 func extendedColor(args []int, current color) (result color, consumed int) {
 	if len(args) >= 2 && args[0] == modeIndexed {
 		return color{kind: kindIndexed, index: clamp(args[1])}, 2
