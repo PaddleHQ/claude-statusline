@@ -167,3 +167,14 @@ func TestCacheColdNerdIcon(t *testing.T) {
 	})
 	assert.Equal(t, " cold", seg.Render())
 }
+
+func TestHelpShowsTheChosenColdLabel(t *testing.T) {
+	t.Parallel()
+
+	cfg := mocks.NewConfig(t)
+	cfg.EXPECT().Int("warn").Return(10)
+	icons := mocks.NewIcons(t)
+	icons.EXPECT().Pick("⧉ ", " ").RunAndReturn(func(_, nerd string) string { return nerd })
+	seg := cache.New(cache.Deps{Session: mocks.NewSession(t), Config: cfg, Paint: mocks.NewPainter(t), Icons: icons})
+	assert.Contains(t, seg.Help(), "a red  cold once")
+}

@@ -84,7 +84,7 @@ func (c *Cache) Name() string { return name }
 // Help says what the segment shows, for the help command.
 func (c *Cache) Help() string {
 	return fmt.Sprintf("How much of the latest request's input was read from the prompt cache. Red below %d%%, "+
-		"and a red %s once the cache has expired, as in a resumed session.", c.d.Config.Int("warn"), plainLabel+cold)
+		"and a red %s once the cache has expired, as in a resumed session.", c.d.Config.Int("warn"), c.label()+cold)
 }
 
 // Keys lists the config keys the segment reads, relative to its section.
