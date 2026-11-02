@@ -52,39 +52,37 @@ func WidthOf(columns int, s Sizes) int {
 	return WidthFor(columns, s.Int("width"), s.Int("width_medium"), s.Int("width_narrow"))
 }
 
-const (
-	stateGood = iota
-	stateWarn
-	stateBad
-)
-
 // state classifies the bar: distance from the pace target, or absolute usage without a target.
 func (p *Params) state() int {
 	if p.NoTarget {
 		switch {
 		case p.Usage >= p.Bad:
-			return stateBad
+			return theme.StateBad
 		case p.Usage >= p.Warn:
-			return stateWarn
+			return theme.StateWarn
 		}
-		return stateGood
+		return theme.StateGood
 	}
 	deviation := max(p.Usage-p.Target, p.Target-p.Usage)
 	switch {
 	case p.Usage >= p.HardCap || deviation > p.Bad:
-		return stateBad
+		return theme.StateBad
 	case deviation > p.Warn:
-		return stateWarn
+		return theme.StateWarn
 	}
-	return stateGood
+	return theme.StateGood
 }
 
-// Fill is the color for the bar's state: distance from the pace target, or absolute usage without a target.
+// Fill is the color for the bar's state: distance from the pace target, or
+// absolute usage without a target. A saber theme takes it from its blade.
 func (p *Params) Fill(th theme.Theme) string {
+	if th.Saber {
+		return th.BladeColor(p.state(), 0, 0)
+	}
 	switch p.state() {
-	case stateBad:
+	case theme.StateBad:
 		return th.BadColor
-	case stateWarn:
+	case theme.StateWarn:
 		return th.WarnColor
 	}
 	return th.Good
@@ -103,7 +101,7 @@ func (p *Params) PercentColor(th theme.Theme) string {
 // Render draws the bar: a fill colored by distance from the pace target, a marker
 // on the target cell and muted empty cells. Without a target the fill is colored
 // by absolute usage and there is no marker. A gradient theme draws whole cells
-// colored by position instead.
+// colored by position instead, and a saber theme draws a blade in half cells.
 func (p *Params) Render(th theme.Theme) string {
 	maxEighths := p.Width * eighths
 	filled := min((p.Usage*maxEighths+percentScale/2)/percentScale, maxEighths)

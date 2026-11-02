@@ -1,6 +1,7 @@
 package bar_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/PaddleHQ/claude-statusline/internal/bar"
@@ -69,7 +70,7 @@ func TestRenderSaberPicksTheBladeByState(t *testing.T) {
 			t.Parallel()
 			got := tt.p.Render(plainBlade)
 			assert.Contains(t, got, plainBlade.BladeColor(tt.state, 0, 1)+"F", "the first lit cell is the state's blade")
-			assert.Equal(t, []string{"<g>", "<w>", "<b>"}[tt.state], tt.p.Fill(blade))
+			assert.Equal(t, plainBlade.BladeColor(tt.state, 0, 0), tt.p.Fill(blade))
 		})
 	}
 }
@@ -78,7 +79,7 @@ func TestPercentColorForASaberTheme(t *testing.T) {
 	t.Parallel()
 
 	p := &bar.Params{Usage: 71, Target: 50, Width: 2, Warn: 20, Bad: 40, HardCap: 95}
-	assert.Equal(t, "<w>", p.PercentColor(blade))
+	assert.Equal(t, blade.BladeColor(theme.StateWarn, 0, 0), p.PercentColor(blade), "the plain blade, without the glow")
 	assert.Empty(t, p.PercentColor(blade.WithoutColor()), "NO_COLOR leaves the text plain")
 }
 
@@ -90,4 +91,19 @@ func TestMeterColorsThePercentageByStateOnASaberTheme(t *testing.T) {
 
 	m := &bar.Meter{Theme: saber, Width: 4}
 	assert.Equal(t, params.Render(saber)+" "+saber.BadColor+"95%"+saber.Reset, m.Usage(95, 70, 90))
+}
+
+func TestSaberPercentageFollowsTheBladeNotGood(t *testing.T) {
+	t.Parallel()
+
+	user := theme.Theme{
+		Good: "\033[32m", WarnColor: "\033[33m", BadColor: "\033[31m", Reset: "\033[0m",
+		Full: "F", Empty: "E", MarkerGlyph: "M", Tip: "T",
+		Saber: true, Blade: [][3]int{{74, 168, 255}, {178, 107, 255}, {255, 59, 48}}, Glow: 50, GlowCells: 3,
+	}
+	want := " \033[38;2;74;168;255m37%\033[0m"
+	m := &bar.Meter{Theme: user, Width: 10}
+	assert.True(t, strings.HasSuffix(m.Usage(37, 70, 90), want))
+	m.FillPercent = true
+	assert.True(t, strings.HasSuffix(m.Usage(37, 70, 90), want), "the subagent path follows the blade too")
 }

@@ -4,12 +4,21 @@ package theme
 import "fmt"
 
 const (
+	// StateGood, StateWarn and StateBad are the pace states a bar reports, and
+	// index the ramp stops and blade colors.
+
+	// StateGood is on pace.
+	StateGood = iota
+	// StateWarn is drifting from the pace.
+	StateWarn
+	// StateBad is well off the pace.
+	StateBad
+)
+
+const (
 	rampStops   = 3
 	rampScale   = 1000
 	rampSpan    = 2 * rampScale
-	rampGoodAt  = 0
-	rampWarnAt  = 1
-	rampBadAt   = 2
 	channelsRGB = 3
 	glowScale   = 100
 	whiteChan   = 255
@@ -48,8 +57,8 @@ type Theme struct {
 
 	// Saber draws a lightsaber blade: the whole blade takes the Blade color for
 	// the pace state (good, warn, bad), brightening towards white by up to Glow
-	// percent at the tip over its last GlowCells cells, and Tip is the glyph for a half-lit final cell. Blade
-	// is nil once color is removed.
+	// percent at the tip over its last GlowCells cells, and Tip is the glyph for
+	// a half-lit final cell. Blade is nil once color is removed.
 	Saber bool
 	Blade [][channelsRGB]int
 	Glow  int
@@ -107,10 +116,10 @@ func (t *Theme) RampColor(cell, width int) string {
 	if width > 1 {
 		pos = cell * rampSpan / (width - 1)
 	}
-	from, to := t.Ramp[rampGoodAt], t.Ramp[rampWarnAt]
+	from, to := t.Ramp[StateGood], t.Ramp[StateWarn]
 	if pos > rampScale {
 		pos -= rampScale
-		from, to = t.Ramp[rampWarnAt], t.Ramp[rampBadAt]
+		from, to = t.Ramp[StateWarn], t.Ramp[StateBad]
 	}
 	var c [channelsRGB]int
 	for i := range c {
@@ -120,18 +129,23 @@ func (t *Theme) RampColor(cell, width int) string {
 }
 
 // BladeColor is the escape sequence for lit cell cell of a saber blade of lit
-// cells in the given pace state (0 good, 1 warn, 2 bad), or "" when the theme
-// has no blade. Only the last GlowCells lit cells glow: the j-th of k cells in
-// that window is blended Glow*j/k percent towards white, so the tip takes the
-// full Glow, and every cell before the window is the plain state color.
+// cells in the given pace state (StateGood, StateWarn or StateBad), or "" when
+// the theme has no blade or the state is out of range. Only the last GlowCells
+// lit cells glow: the j-th of k cells in that window is blended Glow*j/k percent
+// towards white, so the tip takes the full Glow, and every cell before the
+// window is the plain state color. A cell at or past lit counts as the tip, and
+// a blade with no lit cells is the plain state color.
 func (t *Theme) BladeColor(state, cell, lit int) string {
-	if len(t.Blade) != rampStops || state < rampGoodAt || state > rampBadAt {
+	if len(t.Blade) != rampStops || state < StateGood || state > StateBad {
 		return ""
 	}
-	window := min(t.GlowCells, lit)
 	glow := 0
-	if j := cell - (lit - window) + 1; j > 0 {
-		glow = t.Glow * j / window
+	if lit > 0 && t.GlowCells > 0 {
+		window := min(t.GlowCells, lit)
+		cell = min(cell, lit-1)
+		if j := cell - (lit - window) + 1; j > 0 {
+			glow = t.Glow * j / window
+		}
 	}
 	base := t.Blade[state]
 	var c [channelsRGB]int

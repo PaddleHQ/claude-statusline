@@ -126,6 +126,11 @@ func TestBladeColor(t *testing.T) {
 		{"and ends at the full glow", 0, 2, 3, c(127)},
 		{"a single cell takes the full glow", 0, 0, 1, c(127)},
 		{"an out of range state has no color", 3, 0, 1, ""},
+		{"a negative state has no color", -1, 0, 1, ""},
+		{"no lit cells is the plain state color", 0, 0, 0, c(0)},
+		{"a negative lit count is the plain state color", 1, 0, -2, c(100)},
+		{"a cell past the blade counts as the tip", 0, 20, 10, c(127)},
+		{"a cell at the blade length counts as the tip", 0, 10, 10, c(127)},
 	}
 	for _, tt := range tests {
 		assert.Equal(t, tt.want, th.BladeColor(tt.state, tt.cell, tt.lit), tt.name)
@@ -136,4 +141,25 @@ func TestBladeColor(t *testing.T) {
 	assert.Empty(t, plain.BladeColor(0, 0, 1), "NO_COLOR removes the blade")
 	assert.True(t, plain.Saber, "WithoutColor() keeps the style")
 	assert.Len(t, th.Blade, 3, "WithoutColor() modified the receiver")
+}
+
+func TestParseErrorsNameTheField(t *testing.T) {
+	t.Parallel()
+
+	noPartials := "  partials: [\"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\"]\n"
+	gradient := strings.Replace(strings.Replace(validTheme, noPartials, "", 1), "style: solid", "style: gradient\n  ramp: [\"#000000\", \"purple\", \"#ffffff\"]", 1)
+	tests := []struct {
+		name, text, want string
+	}{
+		{"blade", saberTheme(t, strings.Replace(saberBar, `"#b26bff"`, `"purple"`, 1)), `bar.blade color "purple" must be #rrggbb`},
+		{"ramp", gradient, `bar.ramp stop "purple" must be #rrggbb`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := theme.Open(writeTheme(t, t.TempDir(), "t.yaml", tt.text), "", "")
+			require.Error(t, err)
+			assert.ErrorContains(t, err, tt.want)
+		})
+	}
 }

@@ -337,7 +337,7 @@ func (t *Theme) compileRamp(ramp []string) error {
 		return fmt.Errorf("%w %d colors", errRampCount, rampStops)
 	}
 	for _, hex := range ramp {
-		r, g, bl, err := parseRampStop(hex)
+		r, g, bl, err := parseColorStop("bar.ramp stop", hex)
 		if err != nil {
 			return err
 		}
@@ -359,7 +359,7 @@ func (t *Theme) compileSaber(b barSpec) error {
 	}
 	t.Tip = *b.Tip
 	for _, hex := range b.Blade {
-		r, g, bl, err := parseRampStop(hex)
+		r, g, bl, err := parseColorStop("bar.blade color", hex)
 		if err != nil {
 			return err
 		}
@@ -385,13 +385,13 @@ func (t *Theme) compileGlow(b barSpec) error {
 	return nil
 }
 
-func parseRampStop(s string) (r, g, b int, err error) {
+func parseColorStop(field, s string) (r, g, b int, err error) {
 	rgb, ok := strings.CutPrefix(s, "#")
 	if !ok {
-		return 0, 0, 0, fmt.Errorf("ramp stop %q must be %w", s, errRampFormat)
+		return 0, 0, 0, fmt.Errorf("%s %q must be %w", field, s, errRampFormat)
 	}
 	if r, g, b, err = parseHex(rgb); err != nil {
-		return 0, 0, 0, fmt.Errorf("ramp stop %q: %w", s, err)
+		return 0, 0, 0, fmt.Errorf("%s %q: %w", field, s, err)
 	}
 	return r, g, b, nil
 }

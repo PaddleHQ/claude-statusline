@@ -220,7 +220,7 @@ A theme sets the colours and the bar glyphs. Three come built in:
 
 - `classic` is the default: eighth-block bars filled in green, amber or red by pace, in basic terminal colours that suit light and dark backgrounds.
 - `gradient` draws whole-cell bars whose colour runs from green through amber to red along the bar. The pace colour moves to the percentage after the bar, so the bar shows how much you have used and the number shows how you are doing against the pace.
-- `saber` draws each bar as a lightsaber blade. The whole blade takes one colour for the pace state (blue when on pace, purple when drifting, red when well off it), and the last few lit cells brighten towards white, ending in a half-lit tip. The percentage after the bar takes the same colour.
+- `saber` draws each bar as a lightsaber blade. The whole blade takes one colour for the pace state (blue when on pace, purple when drifting, red when well off it), and the last few lit cells brighten towards white, ending in a half-lit tip. The percentage after the bar takes the blade's plain colour for the state.
 
 Pick one in your config file:
 
@@ -252,7 +252,7 @@ Point `theme` at a YAML file. A value that contains `/` or starts with `~` is a 
 theme: "~/.config/claude-statusline/ocean.yaml"
 ```
 
-To write one, copy a built-in theme and edit it: [`classic.yaml`](../themes/classic.yaml) for solid bars or [`gradient.yaml`](../themes/gradient.yaml) for gradient ones or [`saber.yaml`](../themes/saber.yaml) for saber ones. All three are commented, and the file you point `theme` at must be complete: every field below is required, with two exceptions. `colors.branch`, `colors.worktree` and the `glyphs` section can be left out, and so can `bar.empty_color` and `bar.marker_color` in a `gradient` or `saber` bar. A theme does not inherit from another.
+To write one, copy a built-in theme and edit it: [`classic.yaml`](../themes/classic.yaml) for solid bars, [`gradient.yaml`](../themes/gradient.yaml) for gradient ones, or [`saber.yaml`](../themes/saber.yaml) for saber ones. All three are commented, and the file you point `theme` at must be complete: every field below is required, with two exceptions. `colors.branch`, `colors.worktree` and the `glyphs` section can be left out, and so can `bar.empty_color` and `bar.marker_color` in a `gradient` or `saber` bar. A theme does not inherit from another.
 
 ```yaml
 colors:
@@ -282,15 +282,16 @@ bar:
 
 | Field | Meaning |
 |---|---|
-| `colors.text`, `muted`, `good`, `warn`, `bad`, `marker`, `path` | A colour for each role. `text` is labels and figures, `muted` is separators and empty bar cells, `good`, `warn` and `bad` colour the bar fill, `marker` is the pace marker and `path` is the working directory. An empty string uses the terminal's own colour. |
+| `colors.text`, `muted`, `good`, `warn`, `bad`, `marker`, `path` | A colour for each role. `text` is labels and figures, `muted` is separators and empty bar cells, `good`, `warn` and `bad` colour the bar fill and, in a `gradient` theme, the percentage (a `saber` bar and its percentage take their colour from `bar.blade` instead, and these three colour the rest of the text), `marker` is the pace marker and `path` is the working directory. An empty string uses the terminal's own colour. |
 | `colors.branch`, `colors.worktree` | Optional. The branch, and the branch of a linked worktree, in the `path` segment. `branch` defaults to the `path` colour and `worktree` to `bold 208`. |
 | `glyphs.branch`, `glyphs.worktree` | Optional. The emoji shown before a branch and before a worktree, 🌿 and 🌳 by default. Each must be a non-empty string without control characters, and must take at least one column. A character followed by the emoji selector U+FE0F (such as `❤️`) counts as two columns, as it does in Claude Code. |
 | `bar.style` | `solid`, `gradient` or `saber`. |
 | `bar.full`, `bar.empty`, `bar.marker` | The glyphs for a full cell, an empty cell and the pace marker. |
-| `bar.partials` | Seven glyphs for a cell filled by one to seven eighths. Required for `solid`; a `gradient` or `saber` bar fills whole cells and leaves it out. |
+| `bar.partials` | Seven glyphs for a cell filled by one to seven eighths. Required for `solid`; a `gradient` bar fills whole cells and leaves it out, and a `saber` bar fills half cells with `bar.tip`. |
 | `bar.ramp` | Three `#rrggbb` stops, for good, warn and bad. Needed for `gradient`. |
 | `bar.empty_color`, `bar.marker_color` | Colours for empty cells and the marker in a `gradient` or `saber` bar. |
-| `bar.blade` | Three `#rrggbb` colours for the blade when the bar is good, warn and bad. Needed for `saber`. |
+| `bar.blade` | Three `#rrggbb` colours for the blade when the bar is good, warn and bad. The percentage after the bar takes the same colour, without the glow. Needed for `saber`. |
+| `bar.tip` | The glyph for a half-lit final cell of a `saber` blade. Needed for `saber`. `╸` is not East Asian ambiguous width but `━` and `─` are, so a terminal that draws ambiguous characters wide can shift the bar by a column when a tip is drawn. |
 | `bar.glow` | A whole number from 0 to 100: how far, in percent, the tip of the blade is blended towards white. Needed for `saber`. |
 | `bar.glow_cells` | A whole number of at least 1: how many of the last lit cells glow. The glow ramps up evenly to `bar.glow` at the tip, and cells before the window keep the plain blade colour. Needed for `saber`. |
 | `bar.tip` | The glyph for a half-lit final cell, drawn when the usage ends mid-cell. Needed for `saber`. |

@@ -1,6 +1,6 @@
 # saber: a lightsaber blade. The blade takes one color for the pace state and
-# brightens towards white over its last few cells. The pace color also colors
-# the percentage after it.
+# brightens towards white over its last few cells. The percentage after the bar
+# takes the plain blade color, so bar.blade colors both.
 # A complete theme file: same fields as classic.yaml, plus the saber ones.
 
 # Color roles, as in classic.yaml. The state colors are a Jedi blue, a Windu
@@ -21,7 +21,8 @@ colors:
 bar:
   style: saber
   full: "━"
-  # Half-lit final cell, drawn when the usage ends mid-cell.
+  # Half-lit final cell, drawn when the usage ends mid-cell. It is not East Asian
+  # ambiguous width but full and empty are, so such a terminal may shift a column.
   tip: "╸"
   empty: "─"
   marker: "┃"
