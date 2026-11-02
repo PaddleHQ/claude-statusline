@@ -67,7 +67,10 @@ func TestPluginManifestDeclaresEveryOption(t *testing.T) {
 			assert.Equal(t, []string{"default", "on", "off"}, field.Options, o.Name)
 			assert.Equal(t, "default", field.Default, o.Name)
 		case config.KindChoice:
-			assert.Equal(t, append([]string{"default"}, builtinThemes(t)...), field.Options, o.Name)
+			assert.Equal(t, append([]string{"default"}, o.Choices...), field.Options, o.Name)
+			if o.Key == "theme" {
+				assert.Equal(t, builtinThemes(t), o.Choices, o.Name)
+			}
 			assert.Equal(t, "default", field.Default, o.Name)
 		case config.KindString:
 			assert.False(t, field.Multiple, o.Name)

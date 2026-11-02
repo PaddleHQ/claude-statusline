@@ -75,6 +75,7 @@ Feature: Checking the config file
         theme: plugin options
         segments: default
         separator: config.yaml
+        icons: default
         path.strip: default
         path.worktrees: default
         path.branch: default

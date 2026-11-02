@@ -155,6 +155,7 @@ Plugin options: ~/settings.json (statusline@m)
   theme: plugin options
   segments: default
   separator: config.yaml
+  icons: default
   path.strip: default
   path.worktrees: default
   path.branch: default

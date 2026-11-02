@@ -59,6 +59,7 @@ For each key below, a plugin option that is set wins, then `config.yaml`, then t
 | `theme_file` | `theme` | a file path; overrides `theme` when set |
 | `segments` | `segments` | list |
 | `separator` | `separator` | text |
+| `icons` | `icons` | `default`, `none`, `nerd` |
 | `path_strip` | `path.strip` | list |
 | `path_worktrees` | `path.worktrees` | list |
 | `path_branch` | `path.branch` | `default`, `on`, `off` |
