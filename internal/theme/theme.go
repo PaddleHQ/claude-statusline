@@ -72,6 +72,8 @@ type Theme struct {
 	// HiltFinFill and HiltPommelFill make the fins and the pommel take the bar's state color instead of their fixed one.
 	HiltFinFill    bool
 	HiltPommelFill bool
+	// HiltPommelOnGrip draws the pommel over the grip background, so the grip starts at the pommel cell.
+	HiltPommelOnGrip bool
 }
 
 // WithoutColor clears every color and style, keeping the glyphs.
@@ -81,7 +83,7 @@ func (t *Theme) WithoutColor() Theme {
 	c.BranchColor, c.WorktreeColor = "", ""
 	c.Ramp, c.Blade, c.EmptyColor, c.MarkerColor = nil, nil, "", ""
 	c.HiltFG, c.HiltBG, c.HiltText, c.HiltFinFG, c.HiltPommelFG = "", "", "", "", ""
-	c.HiltFinFill, c.HiltPommelFill = false, false
+	c.HiltFinFill, c.HiltPommelFill, c.HiltPommelOnGrip = false, false, false
 	return c
 }
 

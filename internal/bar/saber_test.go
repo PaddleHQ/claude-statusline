@@ -111,6 +111,8 @@ func TestMeterLabel(t *testing.T) {
 	pommelFill.HiltPommelFill = true
 	pommelHex := hilt
 	pommelHex.HiltPommelFG = "<p>"
+	pommelGrip := pommelFill
+	pommelGrip.HiltPommelOnGrip = true
 	tests := []struct {
 		name  string
 		th    theme.Theme
@@ -130,6 +132,9 @@ func TestMeterLabel(t *testing.T) {
 		{"pommel follows a warn fill", pommelFill, 75, "<w>▐▬</><b><x>5h</>"},
 		{"pommel follows a bad fill", pommelFill, 95, "<r>▐▬</><b><x>5h</>"},
 		{"a fixed pommel color", pommelHex, 95, "<p>▐▬</><b><x>5h</>"},
+		{"pommel on the grip draws the grip behind it", pommelGrip, 50, "<g><b>▐▬</><b><x>5h</>"},
+		{"pommel off the grip has no background", pommelFill, 50, "<g>▐▬</><b><x>5h</>"},
+		{"pommel on the grip without color falls back to the plain label", pommelGrip.WithoutColor(), 50, "5h: "},
 		{"fill pommel without color falls back to the plain label", pommelFill.WithoutColor(), 95, "5h: "},
 		{"hilt without color falls back to the plain label", hilt.WithoutColor(), 50, "5h: "},
 		{"fill fins without color fall back to the plain label", fill.WithoutColor(), 95, "5h: "},

@@ -241,7 +241,11 @@ func (m *Meter) label(text string, params *Params) string {
 	case th.HiltPommelFG != "":
 		pommelColor = th.HiltPommelFG
 	}
-	label := pommelColor + th.HiltPommel + th.Reset + th.HiltBG + th.HiltText + text + th.Reset
+	pommelBG := ""
+	if th.HiltPommelOnGrip {
+		pommelBG = th.HiltBG
+	}
+	label := pommelColor + pommelBG + th.HiltPommel + th.Reset + th.HiltBG + th.HiltText + text + th.Reset
 	if th.HiltFins > 0 {
 		finColor := th.HiltFinFG
 		if th.HiltFinFill {

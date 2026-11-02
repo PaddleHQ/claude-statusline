@@ -23,12 +23,12 @@ Feature: Saber theme
     When the status line renders
     Then the output is:
       """
-      ▕ctx║║║━━━╸────── 37%
-      12223331456777777 111
-      
-      1 = #4aa8ff
+      ▏ctx║║║━━━╸────── 37%
+      12221113456777777 333
+
+      1 = #4aa8ff bg:#4b5160
       2 = #d8dee9 bg:#4b5160
-      3 = #4aa8ff bg:#4b5160
+      3 = #4aa8ff
       4 = #66b5ff
       5 = #85c4ff
       6 = #a4d3ff
@@ -59,12 +59,12 @@ Feature: Saber theme
     When the status line renders
     Then the output is:
       """
-      ▕5h║║║━━━━━━━━━─┃───────── 45% · ▕7d║║║━━━━━━━━──┃───────── 40%
-      1223331111114567B777777777 111 d 1223331111145677B777777777 111
-      
-      1 = #4aa8ff
+      ▏5h║║║━━━━━━━━━─┃───────── 45% · ▏7d║║║━━━━━━━━──┃───────── 40%
+      1221113333334567B777777777 333 d 1221113333345677B777777777 333
+
+      1 = #4aa8ff bg:#4b5160
       2 = #d8dee9 bg:#4b5160
-      3 = #4aa8ff bg:#4b5160
+      3 = #4aa8ff
       4 = #66b5ff
       5 = #85c4ff
       6 = #a4d3ff
@@ -91,12 +91,12 @@ Feature: Saber theme
     When the status line renders
     Then the output is:
       """
-      ▕5h║║║━━━━━━━━━━┃━━━━───── 75%
-      1223331111111111B145677777 111
-      
-      1 = #b26bff
+      ▏5h║║║━━━━━━━━━━┃━━━━───── 75%
+      1221113333333333B345677777 333
+
+      1 = #b26bff bg:#4b5160
       2 = #d8dee9 bg:#4b5160
-      3 = #b26bff bg:#4b5160
+      3 = #b26bff
       4 = #be82ff
       5 = #cb9bff
       6 = #d8b5ff
@@ -123,12 +123,12 @@ Feature: Saber theme
     When the status line renders
     Then the output is:
       """
-      ▕5h║║║━━━━━━━━━━┃━━━━━━━╸─ 92%
-      1223331111111111B111114567 111
-      
-      1 = #ff3b30
+      ▏5h║║║━━━━━━━━━━┃━━━━━━━╸─ 92%
+      1221113333333333B333334567 333
+
+      1 = #ff3b30 bg:#4b5160
       2 = #d8dee9 bg:#4b5160
-      3 = #ff3b30 bg:#4b5160
+      3 = #ff3b30
       4 = #ff5a51
       5 = #ff7b74
       6 = #ff9d97

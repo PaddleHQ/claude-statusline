@@ -38,8 +38,10 @@ bar:
   # a grip in this #rrggbb color holding the label in hilt_text_color.
   hilt_color: "#4b5160"
   hilt_text_color: "#d8dee9"
-  # The pommel glyphs. The right eighth block puts a thin line against the grip.
-  hilt_pommel: "▕"
+  # The pommel glyphs. The left eighth block is a thin line at the cell's edge.
+  hilt_pommel: "▏"
+  # Draw the pommel over the grip color, so the grip starts at the pommel cell.
+  hilt_pommel_on_grip: true
   # The pommel color: "fill" follows the bar's state color, or give a #rrggbb.
   # Defaults to the hilt color.
   hilt_pommel_color: fill

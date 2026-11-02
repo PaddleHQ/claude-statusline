@@ -145,7 +145,8 @@ func TestLoadHilt(t *testing.T) {
 	assert.Equal(t, "\033[38;2;75;81;96m", got.HiltFG)
 	assert.Equal(t, "\033[48;2;75;81;96m", got.HiltBG)
 	assert.Equal(t, "\033[38;2;216;222;233m", got.HiltText)
-	assert.Equal(t, "▕", got.HiltPommel)
+	assert.Equal(t, "▏", got.HiltPommel)
+	assert.True(t, got.HiltPommelOnGrip)
 	assert.True(t, got.HiltPommelFill)
 	assert.Empty(t, got.HiltPommelFG)
 	assert.Equal(t, 3, got.HiltFins)
@@ -215,6 +216,24 @@ func TestHiltPommelColorIsDefaultFixedOrFill(t *testing.T) {
 	assert.False(t, follow.WithoutColor().HiltPommelFill)
 }
 
+func TestHiltPommelOnGripDefaultsToFalse(t *testing.T) {
+	t.Parallel()
+
+	const base = "style: solid\n  hilt_color: \"#102030\"\n"
+	def, err := theme.Open(writeTheme(t, t.TempDir(), "d.yaml", strings.Replace(validTheme, "style: solid", base+"  hilt_pommel: \"▇\"", 1)), "", "")
+	require.NoError(t, err)
+	assert.False(t, def.HiltPommelOnGrip)
+
+	on, err := theme.Open(writeTheme(t, t.TempDir(), "t.yaml", strings.Replace(validTheme, "style: solid", base+"  hilt_pommel_on_grip: true", 1)), "", "")
+	require.NoError(t, err)
+	assert.True(t, on.HiltPommelOnGrip)
+	assert.False(t, on.WithoutColor().HiltPommelOnGrip)
+
+	off, err := theme.Open(writeTheme(t, t.TempDir(), "f.yaml", strings.Replace(validTheme, "style: solid", base+"  hilt_pommel_on_grip: false", 1)), "", "")
+	require.NoError(t, err)
+	assert.False(t, off.HiltPommelOnGrip)
+}
+
 func TestHiltFinDefaultsAndOverrides(t *testing.T) {
 	t.Parallel()
 
@@ -245,25 +264,26 @@ func TestInvalidHiltFinsAndPommelAreRejected(t *testing.T) {
 
 	const hilt = "hilt_color: \"#102030\"\n  "
 	for name, line := range map[string]string{
-		"fins without a fin color":    hilt + "hilt_fins: 2",
-		"bad fin color":               hilt + "hilt_fins: 2\n  hilt_fin_color: red",
-		"negative fins":               hilt + "hilt_fins: -1\n  hilt_fin_color: \"#010203\"",
-		"too many fins":               hilt + "hilt_fins: 9\n  hilt_fin_color: \"#010203\"",
-		"fin color without fins":      hilt + "hilt_fin_color: \"#010203\"",
-		"fill without fins":           hilt + "hilt_fin_color: fill",
-		"fill in the wrong case":      hilt + "hilt_fins: 2\n  hilt_fin_color: Fill",
-		"wide fin":                    hilt + "hilt_fins: 2\n  hilt_fin_color: \"#010203\"\n  hilt_fin: \"字\"",
-		"two column fin glyphs":       hilt + "hilt_fins: 2\n  hilt_fin_color: \"#010203\"\n  hilt_fin: \"||\"",
-		"empty fin":                   hilt + "hilt_fins: 2\n  hilt_fin_color: \"#010203\"\n  hilt_fin: \"\"",
-		"control fin":                 hilt + "hilt_fins: 2\n  hilt_fin_color: \"#010203\"\n  hilt_fin: \"\\t\"",
-		"fin glyph without fins":      hilt + "hilt_fin: \"|\"",
-		"fin glyph without a hilt":    "hilt_fin: \"|\"",
-		"bad pommel color":            hilt + "hilt_pommel_color: red",
-		"pommel fill in wrong case":   hilt + "hilt_pommel_color: Fill",
-		"pommel color without a hilt": "hilt_pommel_color: fill",
-		"empty pommel":                hilt + "hilt_pommel: \"\"",
-		"pommel with a control glyph": hilt + "hilt_pommel: \"█\\t\"",
-		"pommel without a hilt":       "hilt_pommel: \"█\"",
+		"fins without a fin color":      hilt + "hilt_fins: 2",
+		"bad fin color":                 hilt + "hilt_fins: 2\n  hilt_fin_color: red",
+		"negative fins":                 hilt + "hilt_fins: -1\n  hilt_fin_color: \"#010203\"",
+		"too many fins":                 hilt + "hilt_fins: 9\n  hilt_fin_color: \"#010203\"",
+		"fin color without fins":        hilt + "hilt_fin_color: \"#010203\"",
+		"fill without fins":             hilt + "hilt_fin_color: fill",
+		"fill in the wrong case":        hilt + "hilt_fins: 2\n  hilt_fin_color: Fill",
+		"wide fin":                      hilt + "hilt_fins: 2\n  hilt_fin_color: \"#010203\"\n  hilt_fin: \"字\"",
+		"two column fin glyphs":         hilt + "hilt_fins: 2\n  hilt_fin_color: \"#010203\"\n  hilt_fin: \"||\"",
+		"empty fin":                     hilt + "hilt_fins: 2\n  hilt_fin_color: \"#010203\"\n  hilt_fin: \"\"",
+		"control fin":                   hilt + "hilt_fins: 2\n  hilt_fin_color: \"#010203\"\n  hilt_fin: \"\\t\"",
+		"fin glyph without fins":        hilt + "hilt_fin: \"|\"",
+		"fin glyph without a hilt":      "hilt_fin: \"|\"",
+		"bad pommel color":              hilt + "hilt_pommel_color: red",
+		"pommel fill in wrong case":     hilt + "hilt_pommel_color: Fill",
+		"pommel color without a hilt":   "hilt_pommel_color: fill",
+		"pommel on grip without a hilt": "hilt_pommel_on_grip: true",
+		"empty pommel":                  hilt + "hilt_pommel: \"\"",
+		"pommel with a control glyph":   hilt + "hilt_pommel: \"█\\t\"",
+		"pommel without a hilt":         "hilt_pommel: \"█\"",
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

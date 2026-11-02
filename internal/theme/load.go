@@ -96,6 +96,7 @@ type barSpec struct {
 	HiltText    *string  `yaml:"hilt_text_color"`
 	HiltPommel  *string  `yaml:"hilt_pommel"`
 	HiltPomCol  *string  `yaml:"hilt_pommel_color"`
+	HiltPomGrip *bool    `yaml:"hilt_pommel_on_grip"`
 	HiltFins    *int     `yaml:"hilt_fins"`
 	HiltFinCol  *string  `yaml:"hilt_fin_color"`
 	HiltFin     *string  `yaml:"hilt_fin"`
@@ -409,11 +410,15 @@ func (t *Theme) compileHilt(b barSpec) error {
 }
 
 func (b *barSpec) hasHiltFields() bool {
-	return b.HiltText != nil || b.HiltPommel != nil || b.HiltPomCol != nil || b.HiltFins != nil || b.HiltFinCol != nil || b.HiltFin != nil
+	return b.HiltText != nil || b.HiltPommel != nil || b.HiltPomCol != nil || b.HiltPomGrip != nil ||
+		b.HiltFins != nil || b.HiltFinCol != nil || b.HiltFin != nil
 }
 
 func (t *Theme) compilePommel(b barSpec) error {
 	t.HiltPommel = defaultHiltPommel
+	if b.HiltPomGrip != nil {
+		t.HiltPommelOnGrip = *b.HiltPomGrip
+	}
 	if b.HiltPomCol != nil {
 		var err error
 		if t.HiltPommelFG, t.HiltPommelFill, err = compileFillColor(*b.HiltPomCol); err != nil {
