@@ -23,6 +23,7 @@ import (
 const (
 	keyTheme       = "theme"
 	keySeparator   = "separator"
+	keyIcons       = "icons"
 	defaultColumns = 999
 	percentScale   = 100
 	maxPercent     = 1e9
@@ -33,7 +34,7 @@ var ctxKeys = []string{"ctx.width", "ctx.width_medium", "ctx.width_narrow", "ctx
 
 // Keys lists every config key the subagent rows read, for checking against defaults.yaml.
 func Keys() []string {
-	return append([]string{keyTheme, keySeparator}, ctxKeys...)
+	return append([]string{keyTheme, keySeparator, keyIcons}, ctxKeys...)
 }
 
 type row struct {
@@ -62,7 +63,8 @@ func Build(input []byte, getenv func(string) string) string {
 	if c := root.Get("columns"); c.Type == gjson.Number && c.Num >= 0 && c.Num < maxPercent {
 		columns = int(c.Num)
 	}
-	r := &renderer{cfg: cfg, th: th, columns: columns}
+	iconSet, _ := icons.Parse(cfg.String(keyIcons))
+	r := &renderer{cfg: cfg, th: th, icons: iconSet, columns: columns}
 
 	var out bytes.Buffer
 	enc := json.NewEncoder(&out)
@@ -81,6 +83,7 @@ func Build(input []byte, getenv func(string) string) string {
 type renderer struct {
 	cfg     *config.Config
 	th      theme.Theme
+	icons   icons.Set
 	columns int
 }
 
@@ -149,7 +152,7 @@ func (r *renderer) ctx(raw float64) string {
 	cfg := r.cfg.Section("ctx")
 	meter := &bar.Meter{Theme: r.th, Width: bar.WidthOf(r.columns, cfg), FillPercent: true}
 	pct := math.Floor(math.Min(math.Max(raw, 0), maxPercent))
-	return ctx.New(ctx.Deps{Session: &reported{pct: pct}, Config: cfg, Paint: &r.th, Meter: meter, Icons: &icons.Set{}}).Render()
+	return ctx.New(ctx.Deps{Session: &reported{pct: pct}, Config: cfg, Paint: &r.th, Meter: meter, Icons: &r.icons}).Render()
 }
 
 // truthy mirrors jq: only null, false and a missing field count as absent.
