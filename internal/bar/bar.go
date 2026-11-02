@@ -101,10 +101,10 @@ func (p *Params) Fill(th theme.Theme) string {
 }
 
 // PercentColor is the color for the percentage printed after the bar. A gradient
-// bar colors its cells by position, a saber bar by blade, and a capsule bar by
+// bar colors its cells by position, a saber bar by blade, and a capsule bar with Nerd glyphs by
 // pace, so the state color moves to the text.
 func (p *Params) PercentColor(th theme.Theme) string {
-	if th.Gradient || th.Saber || th.Capsule {
+	if th.Gradient || th.Saber || (th.Capsule && p.Nerd) {
 		return p.Fill(th)
 	}
 	return ""

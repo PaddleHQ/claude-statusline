@@ -149,7 +149,7 @@ func (r *renderer) appendDescription(parts []string, task gjson.Result) []string
 
 func (r *renderer) ctx(raw float64) string {
 	cfg := r.cfg.Section("ctx")
-	meter := &bar.Meter{Theme: r.th, Width: bar.WidthOf(r.columns, cfg), FillPercent: true}
+	meter := &bar.Meter{Theme: r.th, Width: bar.WidthOf(r.columns, cfg), FillPercent: true, Nerd: r.icons.Nerd()}
 	pct := math.Floor(math.Min(math.Max(raw, 0), maxPercent))
 	return ctx.New(ctx.Deps{Session: &reported{pct: pct}, Config: cfg, Paint: &r.th, Meter: meter, Icons: &r.icons}).Render()
 }

@@ -19,8 +19,8 @@ var capsule = theme.Theme{
 // glyphs maps L/M/R to the filled first, middle and last capsule glyphs and l/m/r to the empty ones.
 func glyphs(s string) string {
 	return strings.NewReplacer(
-		"L", "", "M", "", "R", "",
-		"l", "", "m", "", "r", "",
+		"L", "\uee03", "M", "\uee04", "R", "\uee05",
+		"l", "\uee00", "m", "\uee01", "r", "\uee02",
 	).Replace(s)
 }
 
@@ -68,20 +68,28 @@ func TestRenderCapsuleFallsBackToSolidWithoutNerd(t *testing.T) {
 	solid.Capsule = false
 	p := bar.Params{Usage: 40, Target: 30, Width: 10, Warn: 20, Bad: 40, HardCap: 95}
 	assert.Equal(t, p.Render(solid), p.Render(capsule))
+
+	capsuleMeter := &bar.Meter{Theme: capsule, Width: 10}
+	solidMeter := &bar.Meter{Theme: solid, Width: 10}
+	assert.Equal(t, solidMeter.Usage(60, 50, 90), capsuleMeter.Usage(60, 50, 90), "the percentage is not colored either")
+	assert.Equal(t, solidMeter.Pace(40, 30, 20, 40, 95), capsuleMeter.Pace(40, 30, 20, 40, 95))
 }
 
 func TestMeterCopiesNerd(t *testing.T) {
 	t.Parallel()
 
 	m := &bar.Meter{Theme: capsule, Width: 4, Nerd: true}
-	assert.Contains(t, m.Usage(100, 50, 90), "")
+	assert.Contains(t, m.Usage(100, 50, 90), "\uee05")
 	m.Nerd = false
-	assert.NotContains(t, m.Usage(100, 50, 90), "")
+	assert.NotContains(t, m.Usage(100, 50, 90), "\uee05")
 }
 
 func TestPercentColorOnCapsule(t *testing.T) {
 	t.Parallel()
 
-	p := bar.Params{Usage: 60, Width: 4, Warn: 50, Bad: 90, NoTarget: true}
+	p := bar.Params{Usage: 60, Width: 4, Warn: 50, Bad: 90, NoTarget: true, Nerd: true}
 	assert.Equal(t, "<w>", p.PercentColor(capsule))
+
+	p.Nerd = false
+	assert.Empty(t, p.PercentColor(capsule), "without Nerd the bar is solid, so the percentage stays uncolored")
 }
