@@ -277,7 +277,7 @@ Some details:
 
 ## Themes
 
-A theme sets the colours and the bar glyphs. Three come built in:
+A theme sets the colours and the bar glyphs. Four come built in:
 
 - `classic` is the default: eighth-block bars filled in green, amber or red by pace, in basic terminal colours that suit light and dark backgrounds.
 - `gradient` draws whole-cell bars whose colour runs from green through amber to red along the bar. The pace colour moves to the percentage after the bar, so the bar shows how much you have used and the number shows how you are doing against the pace.
@@ -304,6 +304,16 @@ theme: saber
   <img alt="The status line with the saber theme: each bar is a lightsaber blade coloured by pace, brightening towards its tip, with the percentage in the same colour" src="images/saber-light.svg">
 </picture>
 
+```yaml
+theme: capsule
+icons: nerd
+```
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/capsule-dark.svg">
+  <img alt="The status line with the capsule theme: each bar is a row of rounded capsules filled in the pace colour, with the target cell marked" src="images/capsule-light.svg">
+</picture>
+
 The older name `default` still works and means `classic`.
 
 ### Your own theme
@@ -314,7 +324,7 @@ Point `theme` at a YAML file. A value that contains `/` or starts with `~` is a 
 theme: "~/.config/claude-statusline/ocean.yaml"
 ```
 
-To write one, copy a built-in theme and edit it: [`classic.yaml`](../themes/classic.yaml) for solid bars, [`gradient.yaml`](../themes/gradient.yaml) for gradient ones, or [`saber.yaml`](../themes/saber.yaml) for saber ones. All three are commented, and the file you point `theme` at must be complete: every field below is required, with two exceptions. `colors.branch`, `colors.worktree` and the `glyphs` section can be left out, and so can `bar.empty_color` and `bar.marker_color` in a `gradient` or `saber` bar. A theme does not inherit from another.
+To write one, copy a built-in theme and edit it: [`classic.yaml`](../themes/classic.yaml) for solid bars, [`gradient.yaml`](../themes/gradient.yaml) for gradient ones, [`saber.yaml`](../themes/saber.yaml) for saber ones, or [`capsule.yaml`](../themes/capsule.yaml) for capsule ones. All four are commented, and the file you point `theme` at must be complete: every field below is required, with two exceptions. `colors.branch`, `colors.worktree` and the `glyphs` section can be left out, and so can `bar.empty_color` and `bar.marker_color` in a `gradient` or `saber` bar. A theme does not inherit from another.
 
 ```yaml
 colors:

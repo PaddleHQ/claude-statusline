@@ -65,6 +65,13 @@ Or try `theme: saber`, which draws each bar as a lightsaber blade coloured by pa
   <img alt="The status line with the saber theme: each bar is a lightsaber blade coloured blue, purple or red by pace, brightening towards its tip, with a vertical bar marking the pace point" src="docs/images/saber-light.svg">
 </picture>
 
+Or `theme: capsule` with `icons: nerd`, which draws rounded capsule bars coloured by pace. It needs a Nerd Font in your terminal:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/capsule-dark.svg">
+  <img alt="The status line with the capsule theme: each bar is a row of rounded capsules filled in the pace colour, with the target cell marked" src="docs/images/capsule-light.svg">
+</picture>
+
 `theme` picks the colours and bar glyphs, `segments` chooses what to show and in what order, and `icons: nerd` swaps the labels for [Nerd Font](https://www.nerdfonts.com/) icons if your terminal uses a Nerd Font (a "Mono" variant). Every key, custom segments, wrapping and themes are in [Customising](docs/customising.md). To see what your own line shows, run `/statusline:help` in Claude Code, or `claude-statusline help` if you installed by hand. If the status line shows a red row about your config file, run `/statusline:config-check`, or `claude-statusline config-check` if you installed by hand.
 
 ## More
