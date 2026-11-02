@@ -15,6 +15,7 @@
 			"default": "default",
 			"options": [
 				"default",
+				"capsule",
 				"classic",
 				"gradient",
 				"saber"

@@ -40,6 +40,10 @@ func TestRenderCapsule(t *testing.T) {
 		p    bar.Params
 		want string
 	}{
+		{"width 1 empty is a left cap only", untargeted(0, 1), paint("<e>", "l")},
+		{"width 1 full is a left cap only", untargeted(100, 1), paint("<b>", "L")},
+		{"width 2 empty", untargeted(0, 2), paint("<e>", "lr")},
+		{"width 2 full", untargeted(100, 2), paint("<b>", "LR")},
 		{"empty, no target", untargeted(0, 4), paint("<e>", "lmmr")},
 		{"30% no target, good", untargeted(30, 10), paint("<g>", "LMM") + paint("<e>", "mmmmmmr")},
 		{"on pace with the marker inside the fill", targeted(40, 30, 10), paint("<g>", "LMM") + paint("<m>", "M") + paint("<e>", "mmmmmr")},

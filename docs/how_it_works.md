@@ -76,6 +76,8 @@ A `saber` bar does the same, keeping its blade, tip and marker glyphs:
   <img alt="A saber 5 hour rate-limit bar with no colour, drawn as a line of heavy and light strokes with a vertical bar for the pace marker, at 75%" src="images/saber-no-color-light.svg">
 </picture>
 
+A `capsule` bar still shows usage, because its filled and empty glyphs differ, but the pace marker blends in, because it is drawn with the filled glyph. If the marker matters, set `icons: none` for solid bars with the `┃` marker, or pick another theme.
+
 ## How the plugin installs and updates
 
 The plugin route adds a step before any of this, so that the binary is installed and wired in without you doing it by hand:
