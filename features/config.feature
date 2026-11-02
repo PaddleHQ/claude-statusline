@@ -80,3 +80,33 @@ Feature: Configuration
       Opus 4.7 [high] \$(touch @TMP@/pwned)\ "quoted" it's Opus 4.7 [high]
                       dddddddddddddddddddddddddddddddddddd
       """
+
+  Scenario: A plugin option in settings.json wins over the config file, and an unset one leaves the config file in charge
+    Given the session:
+      """json
+      {
+        "model": {
+          "display_name": "Opus 4.7"
+        },
+        "effort": {
+          "level": "high"
+        }
+      }
+      """
+    And the file "settings.json":
+      """
+      {"enabledPlugins": {"statusline@claude-statusline": true},
+       "pluginConfigs": {"statusline@claude-statusline": {"options": {"segments": ["model", "model"], "separator": "", "model_effort": "off"}}}}
+      """
+    And the config:
+      """
+      segments: [model]
+      separator: "|"
+      model:
+        effort: true
+      """
+    When the status line renders
+    Then the text is:
+      """
+      Opus 4.7 | Opus 4.7
+      """

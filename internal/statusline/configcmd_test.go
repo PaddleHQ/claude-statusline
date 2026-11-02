@@ -134,3 +134,62 @@ func writeText(text string) func(t *testing.T, path string) {
 		require.NoError(t, os.WriteFile(path, []byte(text), 0o600))
 	}
 }
+
+func TestConfigCheckPluginOptions(t *testing.T) {
+	t.Parallel()
+
+	const enabled = `{"enabledPlugins": {"statusline@m": true}, "pluginConfigs": {"statusline@m": {"options": {"theme": "saber", "path_emoji": "on"}}}}`
+
+	tests := []struct {
+		name     string
+		settings string
+		want     string
+	}{
+		{"no settings file is silent", "", ""},
+		{"settings without options are silent", `{"model": "opus"}`, ""},
+		{
+			name:     "options are reported with where each setting came from",
+			settings: enabled,
+			want: `
+Plugin options: ~/settings.json (statusline@m)
+  theme: plugin options
+  segments: default
+  separator: config.yaml
+  path.strip: default
+  path.worktrees: default
+  path.branch: default
+  path.emoji: plugin options
+  model.effort: default
+  snapshot.enabled: default
+  snapshot.path: default
+`,
+		},
+		{
+			name:     "malformed settings are reported and ignored",
+			settings: `{"pluginConfigs": `,
+			want: `
+Plugin options: ~/settings.json
+  not usable as settings: unexpected end of JSON input
+  Ignored, so the config file and the defaults apply.
+`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			home := t.TempDir()
+			require.NoError(t, os.Mkdir(filepath.Join(home, "claude-statusline"), 0o700))
+			require.NoError(t, os.WriteFile(filepath.Join(home, "claude-statusline", "config.yaml"), []byte("separator: \"|\"\n"), 0o600))
+			if tt.settings != "" {
+				require.NoError(t, os.WriteFile(filepath.Join(home, "settings.json"), []byte(tt.settings), 0o600))
+			}
+			env := map[string]string{"HOME": home, "CLAUDE_CONFIG_DIR": home}
+
+			got, ok := statusline.ConfigCheck(func(k string) string { return env[k] })
+
+			assert.True(t, ok)
+			assert.Equal(t, "Config file: ~/claude-statusline/config.yaml\nParsed without errors.\n"+tt.want, got)
+		})
+	}
+}

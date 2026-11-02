@@ -19,17 +19,16 @@ type helper struct {
 	names      []string
 	configPath string
 	problem    *config.Problem
+	options    *config.PluginOptions
+	home       string
 }
 
 // Help describes the user's status line in plain text: what is shown now, the custom segments and the built-ins left out.
 // It reads the same config and hook directory as Build, and names the config file with why it cannot be used, if it cannot.
 func Help(getenv func(string) string) string {
 	defaults := segments.Defaults()
-	cfg := config.New("", defaults...)
+	cfg := config.Resolve(getenv, defaults...)
 	path := config.Path(getenv)
-	if path != "" {
-		cfg = config.Load(path, defaults...)
-	}
 	th := theme.Load(cfg.String(keyTheme), getenv("HOME"), config.AppDir(getenv))
 	th = th.WithoutColor()
 	env := segments.NewEnv(segments.Env{Config: cfg, Theme: th, Home: getenv("HOME"), Columns: defaultColumns})
@@ -40,6 +39,8 @@ func Help(getenv func(string) string) string {
 		names:      cfg.Strings("segments"),
 		configPath: path,
 		problem:    cfg.Problem(),
+		options:    cfg.PluginOptions(),
+		home:       getenv("HOME"),
 	}
 	return h.text()
 }
@@ -71,6 +72,10 @@ func (h *helper) text() string {
 	}
 
 	b.WriteString("\n" + h.configFooter())
+	if h.options.Active() {
+		shown := config.Clean(collapseHome(h.options.Path, h.home))
+		fmt.Fprintf(&b, "Plugin options: %s (%s), which win over the config file\n", shown, config.Clean(h.options.Entry))
+	}
 	b.WriteString("Documentation: " + docsURL + "\n")
 	return b.String()
 }
