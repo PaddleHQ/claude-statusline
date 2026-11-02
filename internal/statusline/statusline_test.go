@@ -262,8 +262,7 @@ func TestBuildSnapshot(t *testing.T) {
 	})
 }
 
-// Not parallel: t.Chdir changes the working directory of the whole process.
-func TestBuildIgnoresRelativeHookDir(t *testing.T) {
+func TestBuildIgnoresRelativeHookDir(t *testing.T) { //nolint:paralleltest // t.Chdir changes the working directory of the whole process
 	tmp := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(tmp, "rel"), 0o750))
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "rel", "x.sh"), []byte("#!/bin/sh\nprintf PWNED\n"), 0o700)) //nolint:gosec // test hook must be executable
@@ -274,8 +273,7 @@ func TestBuildIgnoresRelativeHookDir(t *testing.T) {
 	assert.NotContains(t, got, "PWNED")
 }
 
-// Not parallel: t.Chdir changes the working directory of the whole process.
-func TestBuildResolvesRelativeSnapshotPath(t *testing.T) {
+func TestBuildResolvesRelativeSnapshotPath(t *testing.T) { //nolint:paralleltest // t.Chdir changes the working directory of the whole process
 	work := t.TempDir()
 	t.Chdir(work)
 	dir := t.TempDir()
