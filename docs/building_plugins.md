@@ -135,7 +135,7 @@ In `segments/all.go`, add your package's `Defaults` to `Defaults()`, then add on
 }},
 ```
 
-`cfg` is the config scoped to the segment's name, and a `*config.Section` already has the `Bool`, `Int`, `String` and `Strings` methods the plugins ask for. The session is `payload.Payload`, the painter is `theme.Theme`, the transcript is `transcript.Info` and the rate limits are `ratecache.Limits`; when your interface needs a new question answered, add a method to the internal type. Name the method so that it does not collide with a field of that type (`Payload.Cwd` is why the session asks for `WorkingDir`). The transcript and rate-limit functions are memoised by `NewEnv`, so however many segments ask, the work happens once, and not at all if none does.
+`cfg` is the config scoped to the segment's name, and a `*config.Section` already has the `Bool`, `Int`, `String` and `Strings` methods the plugins ask for. The session is `payload.Payload`, the painter is `theme.Theme`, the transcript is `transcript.Info` and the rate limits are `ratecache.Limits`; when your interface needs a new question answered, add a method to the internal type. Name the method so that it does not collide with a field of that type (`Payload.Cwd` is why the session asks for `WorkingDir`). The transcript function is memoised by `NewEnv`, so however many segments ask, the work happens once, and not at all if none does. The rate limits are synced to the shared cache on every run, whether or not a rate segment is shown, because other tools read that cache.
 
 The layout group decides how the segment behaves when the line is too narrow for one row (see [Wrapping](customising.md#wrapping)):
 
