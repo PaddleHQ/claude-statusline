@@ -147,6 +147,7 @@ func (r *renderer) deps(cfg *config.Section, at time.Time, limits *ratecache.Lim
 		Config: cfg,
 		Paint:  &unpainted{},
 		Meter:  &r.meter,
+		Icons:  &r.icons,
 		Now:    at,
 		Limits: func() rate.Limits { return limits },
 	}

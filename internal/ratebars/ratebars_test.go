@@ -237,3 +237,15 @@ func TestBuildAcceptsTheBounds(t *testing.T) {
 }
 
 func stripped(s string) string { return sgr.ReplaceAllString(s, "") }
+
+func TestRateBarsWithNerdIcons(t *testing.T) {
+	t.Parallel()
+
+	args := []string{"--min-cells=10", "--max-cells=12"}
+	plain, err := (&env{cache: cache, config: "icons: none"}).run(t, args...)
+	require.NoError(t, err)
+	nerd, err := (&env{cache: cache, config: "icons: nerd"}).run(t, args...)
+	require.NoError(t, err)
+
+	assert.Equal(t, decode(t, plain), decode(t, nerd), "the label is not part of the bars")
+}

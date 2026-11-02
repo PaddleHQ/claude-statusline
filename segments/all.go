@@ -117,6 +117,7 @@ func (e *Env) registrations() []registration {
 			Config: cfg,
 			Paint:  &e.Theme,
 			Meter:  meter(cfg),
+			Icons:  &e.Icons,
 			Now:    e.Now,
 			Limits: func() rate.Limits { return e.limits() },
 		}
