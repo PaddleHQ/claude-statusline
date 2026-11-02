@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"strings"
+	"unicode"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/icons"
@@ -87,7 +88,8 @@ func invalidValues(cfg *config.Config) string {
 	if !set || raw == nil {
 		return ""
 	}
-	if value, isString := raw.(string); isString {
+	// Config.String drops a value with a control character, so the render falls back to none even when Parse would trim it.
+	if value, isString := raw.(string); isString && !strings.ContainsFunc(value, unicode.IsControl) {
 		if _, valid := icons.Parse(value); valid {
 			return ""
 		}

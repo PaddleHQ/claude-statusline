@@ -205,7 +205,9 @@ func TestConfigCheckIconsValue(t *testing.T) {
 	}{
 		{name: "an unknown set is listed", config: "icons: emoji\n", want: "\nInvalid values (ignored):\n  icons: emoji (use none or nerd)\n"},
 		{name: "a boolean is listed as written", config: "icons: true\n", want: "  icons: true (use none or nerd)"},
-		{name: "a control character is cleaned", config: "icons: \"a\\tb\"\n", want: "  icons: "},
+		{name: "a control character is cleaned", config: "icons: \"a\\tb\"\n", want: "  icons: ab (use none or nerd)"},
+		{name: "a trailing newline is listed", config: "icons: |\n  nerd\n", want: "  icons: nerd (use none or nerd)"},
+		{name: "a leading tab is listed", config: "icons: \"\\tnerd\"\n", want: "Invalid values"},
 		{name: "nerd is accepted", config: "icons: nerd\n", notWant: "Invalid values"},
 		{name: "a different case is accepted", config: "icons: NERD\n", notWant: "Invalid values"},
 		{name: "none is accepted", config: "icons: none\n", notWant: "Invalid values"},
