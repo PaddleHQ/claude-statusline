@@ -8,7 +8,6 @@ import (
 	"github.com/PaddleHQ/claude-statusline/segments/rate/mocks"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 const now = 1760000000
@@ -29,7 +28,6 @@ func newFixture(t *testing.T, cfg map[string]string) *fixture {
 	for key, value := range map[string]int{"warn": 20, "bad": 40, "hard_cap": 95} {
 		config.EXPECT().Int(key).Return(value).Maybe()
 	}
-	f.meter.EXPECT().Label(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + ": </>" }).Maybe()
 	f.deps = rate.Deps{
 		Config: config,
 		Meter:  f.meter,
@@ -44,9 +42,9 @@ func TestFiveHourDrawsItsReading(t *testing.T) {
 
 	f := newFixture(t, map[string]string{"label": "5h"})
 	f.limits.EXPECT().FiveHourReading().Return(45, now+9000, true)
-	f.meter.EXPECT().Pace(45, 50, 20, 40, 95).Return("BAR 45%")
+	f.meter.EXPECT().Pace("5h", 45, 50, 20, 40, 95).Return("BAR 45%")
 
-	assert.Equal(t, "<t>5h: </>BAR 45%", rate.NewFiveHour(f.deps).Render())
+	assert.Equal(t, "BAR 45%", rate.NewFiveHour(f.deps).Render())
 }
 
 func TestSevenDayDrawsItsReading(t *testing.T) {
@@ -54,9 +52,9 @@ func TestSevenDayDrawsItsReading(t *testing.T) {
 
 	f := newFixture(t, map[string]string{"label": "7d"})
 	f.limits.EXPECT().SevenDayReading().Return(40, now+302400, true)
-	f.meter.EXPECT().Pace(40, 50, 20, 40, 95).Return("BAR 40%")
+	f.meter.EXPECT().Pace("7d", 40, 50, 20, 40, 95).Return("BAR 40%")
 
-	assert.Equal(t, "<t>7d: </>BAR 40%", rate.NewSevenDay(f.deps).Render())
+	assert.Equal(t, "BAR 40%", rate.NewSevenDay(f.deps).Render())
 }
 
 func TestTargetIsTheElapsedShareOfTheWindowClamped(t *testing.T) {
@@ -79,7 +77,7 @@ func TestTargetIsTheElapsedShareOfTheWindowClamped(t *testing.T) {
 			t.Parallel()
 			f := newFixture(t, map[string]string{"label": "5h"})
 			f.limits.EXPECT().FiveHourReading().Return(10, tt.resetsAt, true)
-			f.meter.EXPECT().Pace(10, tt.want, 20, 40, 95).Return("BAR").Once()
+			f.meter.EXPECT().Pace("5h", 10, tt.want, 20, 40, 95).Return("BAR").Once()
 			rate.NewFiveHour(f.deps).Render()
 		})
 	}
@@ -131,7 +129,7 @@ func TestLabelIsDrawnAsText(t *testing.T) {
 
 	f := newFixture(t, map[string]string{"label": "`touch x`; $(y)"})
 	f.limits.EXPECT().SevenDayReading().Return(40, now+302400, true)
-	f.meter.EXPECT().Pace(40, 50, 20, 40, 95).Return("BAR 40%")
+	f.meter.EXPECT().Pace("`touch x`; $(y)", 40, 50, 20, 40, 95).Return("BAR 40%")
 
-	assert.Equal(t, "<t>`touch x`; $(y): </>BAR 40%", rate.NewSevenDay(f.deps).Render())
+	assert.Equal(t, "BAR 40%", rate.NewSevenDay(f.deps).Render())
 }

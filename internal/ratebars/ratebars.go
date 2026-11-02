@@ -122,16 +122,17 @@ func parseCells(args []string) (lo, hi int, err error) {
 	return lo, hi, nil
 }
 
+// drawn is what capture returns, so that a window with a reading is not mistaken for a hidden one.
+const drawn = "drawn"
+
 // capture is the Meter the rate segments draw through: it records the pace arguments they derive, so the target and
 // thresholds here are the segments' own.
 type capture struct{ params bar.Params }
 
-func (c *capture) Pace(usage, target, warn, bad, hardCap int) string {
+func (c *capture) Pace(_ string, usage, target, warn, bad, hardCap int) string {
 	c.params = bar.Params{Usage: usage, Target: target, Warn: warn, Bad: bad, HardCap: hardCap}
-	return ""
+	return drawn
 }
-
-func (c *capture) Label(text string) string { return text }
 
 type renderer struct {
 	th     theme.Theme

@@ -244,10 +244,10 @@ func TestMeterDrawsTheBarAndItsPercentage(t *testing.T) {
 	m := &bar.Meter{Theme: classic, Width: 10}
 
 	usage := &bar.Params{Usage: 85, Width: 10, Warn: 70, Bad: 90, NoTarget: true}
-	assert.Equal(t, usage.Render(classic)+" 85%", m.Usage(85, 70, 90), "a solid theme leaves the percentage uncolored")
+	assert.Equal(t, classic.Text(": ")+usage.Render(classic)+" 85%", m.Usage("", 85, 70, 90), "a solid theme leaves the percentage uncolored")
 
 	pace := &bar.Params{Usage: 60, Target: 50, Width: 10, Warn: 20, Bad: 40, HardCap: 95}
-	assert.Equal(t, pace.Render(classic)+" 60%", m.Pace(60, 50, 20, 40, 95))
+	assert.Equal(t, classic.Text(": ")+pace.Render(classic)+" 60%", m.Pace("", 60, 50, 20, 40, 95))
 }
 
 func TestMeterColorsThePercentageByStateOnAGradientTheme(t *testing.T) {
@@ -257,7 +257,7 @@ func TestMeterColorsThePercentageByStateOnAGradientTheme(t *testing.T) {
 	params := &bar.Params{Usage: 95, Width: 4, Warn: 70, Bad: 90, NoTarget: true}
 
 	m := &bar.Meter{Theme: gradient, Width: 4}
-	assert.Equal(t, params.Render(gradient)+" "+gradient.BadColor+"95%"+gradient.Reset, m.Usage(95, 70, 90))
+	assert.Equal(t, gradient.Text(": ")+params.Render(gradient)+" "+gradient.BadColor+"95%"+gradient.Reset, m.Usage("", 95, 70, 90))
 }
 
 func TestMeterFillPercentColorsThePercentageWithTheFill(t *testing.T) {
@@ -267,5 +267,5 @@ func TestMeterFillPercentColorsThePercentageWithTheFill(t *testing.T) {
 	params := &bar.Params{Usage: 95, Width: 4, Warn: 70, Bad: 90, NoTarget: true}
 
 	m := &bar.Meter{Theme: classic, Width: 4, FillPercent: true}
-	assert.Equal(t, params.Render(classic)+" "+classic.BadColor+"95%"+classic.Reset, m.Usage(95, 70, 90))
+	assert.Equal(t, classic.Text(": ")+params.Render(classic)+" "+classic.BadColor+"95%"+classic.Reset, m.Usage("", 95, 70, 90))
 }

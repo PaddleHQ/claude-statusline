@@ -68,6 +68,8 @@ type Theme struct {
 	HiltFin    string
 	HiltFins   int
 	HiltFinFG  string
+	// HiltFinFill makes the fins take the bar's state color instead of HiltFinFG.
+	HiltFinFill bool
 }
 
 // WithoutColor clears every color and style, keeping the glyphs.
@@ -77,6 +79,7 @@ func (t *Theme) WithoutColor() Theme {
 	c.BranchColor, c.WorktreeColor = "", ""
 	c.Ramp, c.Blade, c.EmptyColor, c.MarkerColor = nil, nil, "", ""
 	c.HiltFG, c.HiltBG, c.HiltText, c.HiltFinFG = "", "", "", ""
+	c.HiltFinFill = false
 	return c
 }
 

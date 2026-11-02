@@ -33,10 +33,9 @@ type Config interface {
 
 // Meter draws a bar with a percentage after it, and has no pace marker.
 type Meter interface {
-	// Usage draws the bar for a usage percentage. Warn and bad are usage percentages at which the fill changes color.
-	Usage(usage, warn, bad int) string
-	// Label draws the text before the bar.
-	Label(text string) string
+	// Usage draws the label and the bar for a usage percentage. Warn and bad are usage percentages at which the fill
+	// changes color.
+	Usage(label string, usage, warn, bad int) string
 }
 
 // Deps is everything the segment is built from.
@@ -72,5 +71,5 @@ func (c *Context) Render() string {
 		return ""
 	}
 	pct := int(math.RoundToEven(used))
-	return c.d.Meter.Label("ctx") + c.d.Meter.Usage(pct, c.d.Config.Int("warn"), c.d.Config.Int("bad"))
+	return c.d.Meter.Usage("ctx", pct, c.d.Config.Int("warn"), c.d.Config.Int("bad"))
 }

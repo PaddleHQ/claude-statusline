@@ -148,7 +148,8 @@ func TestLoadHilt(t *testing.T) {
 	assert.Equal(t, "▐▬▐", got.HiltPommel)
 	assert.Equal(t, 3, got.HiltFins)
 	assert.Equal(t, "║", got.HiltFin)
-	assert.Equal(t, "\033[38;2;154;163;181m", got.HiltFinFG)
+	assert.True(t, got.HiltFinFill)
+	assert.Empty(t, got.HiltFinFG)
 
 	plain := theme.Load("classic", "", "")
 	assert.Empty(t, plain.HiltFG)
@@ -172,6 +173,22 @@ func TestHiltDefaultsToNoFinsAndTheStandardPommel(t *testing.T) {
 	assert.Zero(t, got.HiltFins)
 	assert.Empty(t, got.HiltFinFG)
 	assert.Empty(t, got.HiltFin)
+}
+
+func TestHiltFinColorIsFixedOrFill(t *testing.T) {
+	t.Parallel()
+
+	const base = "style: solid\n  hilt_color: \"#102030\"\n  hilt_fins: 2\n  hilt_fin_color: "
+	fixed, err := theme.Open(writeTheme(t, t.TempDir(), "x.yaml", strings.Replace(validTheme, "style: solid", base+"\"#010203\"", 1)), "", "")
+	require.NoError(t, err)
+	assert.Equal(t, "\033[38;2;1;2;3m", fixed.HiltFinFG)
+	assert.False(t, fixed.HiltFinFill)
+
+	follow, err := theme.Open(writeTheme(t, t.TempDir(), "y.yaml", strings.Replace(validTheme, "style: solid", base+"fill", 1)), "", "")
+	require.NoError(t, err)
+	assert.True(t, follow.HiltFinFill)
+	assert.Empty(t, follow.HiltFinFG)
+	assert.False(t, follow.WithoutColor().HiltFinFill)
 }
 
 func TestHiltFinDefaultsAndOverrides(t *testing.T) {
@@ -209,6 +226,8 @@ func TestInvalidHiltFinsAndPommelAreRejected(t *testing.T) {
 		"negative fins":               hilt + "hilt_fins: -1\n  hilt_fin_color: \"#010203\"",
 		"too many fins":               hilt + "hilt_fins: 9\n  hilt_fin_color: \"#010203\"",
 		"fin color without fins":      hilt + "hilt_fin_color: \"#010203\"",
+		"fill without fins":           hilt + "hilt_fin_color: fill",
+		"fill in the wrong case":      hilt + "hilt_fins: 2\n  hilt_fin_color: Fill",
 		"wide fin":                    hilt + "hilt_fins: 2\n  hilt_fin_color: \"#010203\"\n  hilt_fin: \"字\"",
 		"two column fin glyphs":       hilt + "hilt_fins: 2\n  hilt_fin_color: \"#010203\"\n  hilt_fin: \"||\"",
 		"empty fin":                   hilt + "hilt_fins: 2\n  hilt_fin_color: \"#010203\"\n  hilt_fin: \"\"",

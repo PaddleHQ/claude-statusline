@@ -217,34 +217,38 @@ type Meter struct {
 	FillPercent bool
 }
 
-// Usage draws a bar with no pace marker; warn and bad are usage percentages at which the fill changes color.
-func (m *Meter) Usage(usage, warn, bad int) string {
-	return m.draw(&Params{Usage: usage, Width: m.Width, Warn: warn, Bad: bad, NoTarget: true})
+// Usage draws a labeled bar with no pace marker; warn and bad are usage percentages at which the fill changes color.
+func (m *Meter) Usage(label string, usage, warn, bad int) string {
+	return m.draw(label, &Params{Usage: usage, Width: m.Width, Warn: warn, Bad: bad, NoTarget: true})
 }
 
-// Pace draws a bar with a marker at the target; warn and bad are deviations from it, and the fill is bad from hardCap.
-func (m *Meter) Pace(usage, target, warn, bad, hardCap int) string {
-	return m.draw(&Params{Usage: usage, Target: target, Width: m.Width, Warn: warn, Bad: bad, HardCap: hardCap})
+// Pace draws a labeled bar with a marker at the target; warn and bad are deviations from it, and the fill is bad from hardCap.
+func (m *Meter) Pace(label string, usage, target, warn, bad, hardCap int) string {
+	return m.draw(label, &Params{Usage: usage, Target: target, Width: m.Width, Warn: warn, Bad: bad, HardCap: hardCap})
 }
 
-// Label draws the text before a bar: "text: " in the text color, or on a theme with a hilt, a pommel, a grip holding the
-// text and optional fins, which meet the blade directly.
-func (m *Meter) Label(text string) string {
+// label draws the text before a bar: "text: " in the text color, or on a theme with a hilt, a pommel, a grip holding the
+// text and optional fins, which meet the blade directly. Fins that follow the fill take the bar's state color.
+func (m *Meter) label(text string, params *Params) string {
 	th := &m.Theme
 	if th.HiltBG == "" {
 		return th.Text(text + ": ")
 	}
 	label := th.HiltFG + th.HiltPommel + th.Reset + th.HiltBG + th.HiltText + text + th.Reset
 	if th.HiltFins > 0 {
-		label += th.HiltFinFG + th.HiltBG + strings.Repeat(th.HiltFin, th.HiltFins) + th.Reset
+		finColor := th.HiltFinFG
+		if th.HiltFinFill {
+			finColor = params.Fill(*th)
+		}
+		label += finColor + th.HiltBG + strings.Repeat(th.HiltFin, th.HiltFins) + th.Reset
 	}
 	return label
 }
 
-func (m *Meter) draw(params *Params) string {
+func (m *Meter) draw(label string, params *Params) string {
 	color := params.PercentColor(m.Theme)
 	if m.FillPercent {
 		color = params.Fill(m.Theme)
 	}
-	return params.Render(m.Theme) + " " + m.Theme.Paint(color, strconv.Itoa(params.Usage)+"%")
+	return m.label(label, params) + params.Render(m.Theme) + " " + m.Theme.Paint(color, strconv.Itoa(params.Usage)+"%")
 }

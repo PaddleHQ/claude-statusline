@@ -1,6 +1,7 @@
 package bar_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/PaddleHQ/claude-statusline/internal/bar"
@@ -86,40 +87,49 @@ func TestMeterColorsThePercentageByStateOnASaberTheme(t *testing.T) {
 	t.Parallel()
 
 	saber := theme.Load("saber", "", "")
+	saber.HiltBG = ""
 	params := &bar.Params{Usage: 95, Width: 4, Warn: 70, Bad: 90, NoTarget: true}
 
 	m := &bar.Meter{Theme: saber, Width: 4}
-	assert.Equal(t, params.Render(saber)+" "+saber.BadColor+"95%"+saber.Reset, m.Usage(95, 70, 90))
+	assert.Equal(t, saber.Text(": ")+params.Render(saber)+" "+saber.BadColor+"95%"+saber.Reset, m.Usage("", 95, 70, 90))
 }
 
 func TestMeterLabel(t *testing.T) {
 	t.Parallel()
 
 	hilt := theme.Theme{
-		TextColor: "<t>", Reset: "</>",
+		TextColor: "<t>", Reset: "</>", Good: "<g>", WarnColor: "<w>", BadColor: "<r>",
 		HiltFG: "<f>", HiltBG: "<b>", HiltText: "<x>", HiltPommel: "▐▬", HiltFin: "║",
 	}
 	finned := hilt
 	finned.HiltFins, finned.HiltFinFG = 2, "<n>"
 	custom := finned
 	custom.HiltFin = "|"
+	fill := hilt
+	fill.HiltFins, fill.HiltFinFill = 2, true
 	tests := []struct {
-		name string
-		th   theme.Theme
-		want string
+		name  string
+		th    theme.Theme
+		usage int
+		want  string
 	}{
-		{"plain label", theme.Theme{TextColor: "<t>", Reset: "</>"}, "<t>5h: </>"},
-		{"pommel and grip", hilt, "<f>▐▬</><b><x>5h</>"},
-		{"with fins", finned, "<f>▐▬</><b><x>5h</><n><b>║║</>"},
-		{"with a custom fin", custom, "<f>▐▬</><b><x>5h</><n><b>||</>"},
-		{"zero fins draw none", hilt, "<f>▐▬</><b><x>5h</>"},
-		{"hilt without color falls back to the plain label", hilt.WithoutColor(), "5h: "},
+		{"plain label", theme.Theme{TextColor: "<t>", Reset: "</>"}, 50, "<t>5h: </>"},
+		{"pommel and grip", hilt, 50, "<f>▐▬</><b><x>5h</>"},
+		{"with fins", finned, 50, "<f>▐▬</><b><x>5h</><n><b>║║</>"},
+		{"with a custom fin", custom, 50, "<f>▐▬</><b><x>5h</><n><b>||</>"},
+		{"zero fins draw none", hilt, 50, "<f>▐▬</><b><x>5h</>"},
+		{"fins follow a good fill", fill, 50, "<f>▐▬</><b><x>5h</><g><b>║║</>"},
+		{"fins follow a warn fill", fill, 75, "<f>▐▬</><b><x>5h</><w><b>║║</>"},
+		{"fins follow a bad fill", fill, 95, "<f>▐▬</><b><x>5h</><r><b>║║</>"},
+		{"fixed fins ignore the fill", finned, 95, "<f>▐▬</><b><x>5h</><n><b>║║</>"},
+		{"hilt without color falls back to the plain label", hilt.WithoutColor(), 50, "5h: "},
+		{"fill fins without color fall back to the plain label", fill.WithoutColor(), 95, "5h: "},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			m := &bar.Meter{Theme: tt.th}
-			assert.Equal(t, tt.want, m.Label("5h"))
+			m := &bar.Meter{Theme: tt.th, Width: 4}
+			assert.True(t, strings.HasPrefix(m.Usage("5h", tt.usage, 70, 90), tt.want), tt.name)
 		})
 	}
 }

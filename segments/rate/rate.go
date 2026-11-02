@@ -40,11 +40,9 @@ type Config interface {
 
 // Meter draws a bar with a pace marker and a percentage after it.
 type Meter interface {
-	// Pace draws the bar for a usage percentage against a target percentage. Warn and bad are deviations from the
-	// target in percentage points, and the fill is always bad from hardCap.
-	Pace(usage, target, warn, bad, hardCap int) string
-	// Label draws the text before the bar.
-	Label(text string) string
+	// Pace draws the label and the bar for a usage percentage against a target percentage. Warn and bad are
+	// deviations from the target in percentage points, and the fill is always bad from hardCap.
+	Pace(label string, usage, target, warn, bad, hardCap int) string
 }
 
 // Deps is everything the segments are built from.
@@ -98,8 +96,7 @@ func (w *Window) Render() string {
 	}
 	cfg := w.d.Config
 	target := elapsedPercent(w.d.Now.Unix(), resetsAt, w.seconds)
-	bar := w.d.Meter.Pace(int(used), target, cfg.Int("warn"), cfg.Int("bad"), cfg.Int("hard_cap"))
-	return w.d.Meter.Label(cfg.String("label")) + bar
+	return w.d.Meter.Pace(cfg.String("label"), int(used), target, cfg.Int("warn"), cfg.Int("bad"), cfg.Int("hard_cap"))
 }
 
 // elapsedPercent is how much of a window, ending at resetsAt, has passed by now, clamped to 0..100.

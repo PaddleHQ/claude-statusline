@@ -28,7 +28,7 @@ Feature: Saber theme
       
       1 = #4b5160
       2 = #d8dee9 bg:#4b5160
-      3 = #9aa3b5 bg:#4b5160
+      3 = #4aa8ff bg:#4b5160
       4 = #4aa8ff
       5 = #66b5ff
       6 = #85c4ff
@@ -65,7 +65,7 @@ Feature: Saber theme
       
       1 = #4b5160
       2 = #d8dee9 bg:#4b5160
-      3 = #9aa3b5 bg:#4b5160
+      3 = #4aa8ff bg:#4b5160
       4 = #4aa8ff
       5 = #66b5ff
       6 = #85c4ff
@@ -98,7 +98,7 @@ Feature: Saber theme
       
       1 = #4b5160
       2 = #d8dee9 bg:#4b5160
-      3 = #9aa3b5 bg:#4b5160
+      3 = #b26bff bg:#4b5160
       4 = #b26bff
       5 = #be82ff
       6 = #cb9bff
@@ -131,7 +131,7 @@ Feature: Saber theme
       
       1 = #4b5160
       2 = #d8dee9 bg:#4b5160
-      3 = #9aa3b5 bg:#4b5160
+      3 = #ff3b30 bg:#4b5160
       4 = #ff3b30
       5 = #ff5a51
       6 = #ff7b74

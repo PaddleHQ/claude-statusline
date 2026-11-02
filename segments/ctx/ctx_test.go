@@ -7,7 +7,6 @@ import (
 	"github.com/PaddleHQ/claude-statusline/segments/ctx/mocks"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func build(t *testing.T, used float64, reported bool, warn, bad int) (*ctx.Context, *mocks.Meter) {
@@ -19,7 +18,6 @@ func build(t *testing.T, used float64, reported bool, warn, bad int) (*ctx.Conte
 	cfg.EXPECT().Int("warn").Return(warn).Maybe()
 	cfg.EXPECT().Int("bad").Return(bad).Maybe()
 	meter := mocks.NewMeter(t)
-	meter.EXPECT().Label(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + ": </>" }).Maybe()
 	return ctx.New(ctx.Deps{Session: sess, Config: cfg, Meter: meter}), meter
 }
 
@@ -41,8 +39,8 @@ func TestRender(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			seg, meter := build(t, tt.used, true, 50, 90)
-			meter.EXPECT().Usage(tt.wantUsage, 50, 90).Return("BAR").Once()
-			assert.Equal(t, "<t>ctx: </>BAR", seg.Render())
+			meter.EXPECT().Usage("ctx", tt.wantUsage, 50, 90).Return("BAR").Once()
+			assert.Equal(t, "BAR", seg.Render())
 		})
 	}
 }
@@ -51,8 +49,8 @@ func TestRenderPassesTheConfiguredThresholds(t *testing.T) {
 	t.Parallel()
 
 	seg, meter := build(t, 20, true, 10, 20)
-	meter.EXPECT().Usage(20, 10, 20).Return("BAR").Once()
-	assert.Equal(t, "<t>ctx: </>BAR", seg.Render())
+	meter.EXPECT().Usage("ctx", 20, 10, 20).Return("BAR").Once()
+	assert.Equal(t, "BAR", seg.Render())
 }
 
 func TestAbsentUsageHidesTheSegment(t *testing.T) {

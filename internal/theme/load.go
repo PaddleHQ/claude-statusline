@@ -38,6 +38,7 @@ var (
 const (
 	defaultHiltPommel = "▐▬"
 	defaultHiltFin    = "║"
+	finFill           = "fill"
 	maxHiltFins       = 8
 	fallbackName      = "classic"
 	legacyName        = "default"
@@ -440,14 +441,25 @@ func (t *Theme) compileFins(b barSpec) error {
 	if b.HiltFinCol == nil {
 		return fmt.Errorf("bar.hilt_fin_color %w", errMissing)
 	}
-	r, g, bl, err := parseRampStop(*b.HiltFinCol)
-	if err != nil {
+	if err := t.compileFinColor(*b.HiltFinCol); err != nil {
 		return err
 	}
 	if err := t.compileFinGlyph(b); err != nil {
 		return err
 	}
 	t.HiltFins = *b.HiltFins
+	return nil
+}
+
+func (t *Theme) compileFinColor(spec string) error {
+	if spec == finFill {
+		t.HiltFinFill = true
+		return nil
+	}
+	r, g, bl, err := parseRampStop(spec)
+	if err != nil {
+		return err
+	}
 	t.HiltFinFG = fmt.Sprintf("\033[38;2;%d;%d;%dm", r, g, bl)
 	return nil
 }

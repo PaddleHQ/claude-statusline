@@ -42,11 +42,11 @@ bar:
   # grip before the label.
   hilt_pommel: "▐▬▐"
   # Cooling fins after the grip (0 to 8, default 0), each one column wide glyph
-  # (default "║") in this #rrggbb color on the hilt color. The color is required
-  # when there are fins.
+  # (default "║") on the hilt color. The color is required when there are fins:
+  # "fill" follows the bar's state color, or give a fixed #rrggbb.
   hilt_fins: 3
   hilt_fin: "║"
-  hilt_fin_color: "#9aa3b5"
+  hilt_fin_color: fill
 
 # Optional. Emoji shown before a branch and a worktree in the path segment.
 glyphs:
