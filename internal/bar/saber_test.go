@@ -97,7 +97,7 @@ func TestMeterLabel(t *testing.T) {
 
 	hilt := theme.Theme{
 		TextColor: "<t>", Reset: "</>",
-		HiltFG: "<f>", HiltBG: "<b>", HiltText: "<x>", HiltPommel: "█▀",
+		HiltFG: "<f>", HiltBG: "<b>", HiltText: "<x>", HiltPommel: "▐▬",
 	}
 	finned := hilt
 	finned.HiltFins, finned.HiltFinFG = 2, "<n>"
@@ -107,9 +107,9 @@ func TestMeterLabel(t *testing.T) {
 		want string
 	}{
 		{"plain label", theme.Theme{TextColor: "<t>", Reset: "</>"}, "<t>5h: </>"},
-		{"pommel and grip", hilt, "<f>█▀</><b><x> 5h </>"},
-		{"with fins", finned, "<f>█▀</><b><x> 5h </><n><b>▕▕</>"},
-		{"zero fins draw none", hilt, "<f>█▀</><b><x> 5h </>"},
+		{"pommel and grip", hilt, "<f>▐▬</><b><x>5h</>"},
+		{"with fins", finned, "<f>▐▬</><b><x>5h</><n><b>▕▕</>"},
+		{"zero fins draw none", hilt, "<f>▐▬</><b><x>5h</>"},
 		{"hilt without color falls back to the plain label", hilt.WithoutColor(), "5h: "},
 	}
 	for _, tt := range tests {

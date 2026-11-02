@@ -294,7 +294,7 @@ bar:
 | `bar.glow` | A whole number from 0 to 100: how far, in percent, the tip of the blade is blended towards white. Needed for `saber`. |
 | `bar.glow_cells` | A whole number of at least 1: how many of the last lit cells glow. The glow ramps up evenly to `bar.glow` at the tip, and cells before the window keep the plain blade colour. Needed for `saber`. |
 | `bar.hilt_color`, `bar.hilt_text_color` | Optional, in any style. A `#rrggbb` colour that draws each bar's label as a hilt: a grip in that colour holding the label, preceded by a pommel and followed directly by the bar with no colon. `hilt_text_color` is the colour of the label on the grip. Without `hilt_color`, or with `NO_COLOR`, the label is plain `label: `. The other `bar.hilt_*` fields need `hilt_color`. |
-| `bar.hilt_pommel` | Optional. The printable glyphs drawn before the grip, in the hilt colour. Defaults to `█▀`. |
+| `bar.hilt_pommel` | Optional. The printable glyphs drawn before the grip, in the hilt colour. Defaults to `▐▬`. |
 | `bar.hilt_fins`, `bar.hilt_fin_color` | Optional. A whole number of fin cells from 0 to 8 (default 0, none) drawn after the grip as `▕` in the `#rrggbb` fin colour over the hilt colour, so each is a thin light line on the dark hilt. `hilt_fin_color` is required when `hilt_fins` is above 0. |
 | `bar.tip` | The glyph for a half-lit final cell, drawn when the usage ends mid-cell. Needed for `saber`. |
 

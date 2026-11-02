@@ -235,7 +235,7 @@ func (m *Meter) Label(text string) string {
 	if th.HiltBG == "" {
 		return th.Text(text + ": ")
 	}
-	label := th.HiltFG + th.HiltPommel + th.Reset + th.HiltBG + th.HiltText + " " + text + " " + th.Reset
+	label := th.HiltFG + th.HiltPommel + th.Reset + th.HiltBG + th.HiltText + text + th.Reset
 	if th.HiltFins > 0 {
 		label += th.HiltFinFG + th.HiltBG + strings.Repeat(hiltFin, th.HiltFins) + th.Reset
 	}
