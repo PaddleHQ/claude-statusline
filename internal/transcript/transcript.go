@@ -187,10 +187,10 @@ func nextLine(br *bufio.Reader) (line string, ok bool) {
 				buf = append(buf, chunk...)
 			}
 		}
-		switch err {
-		case nil:
+		switch {
+		case err == nil:
 			return strings.TrimSuffix(string(buf), "\n"), true
-		case bufio.ErrBufferFull:
+		case errors.Is(err, bufio.ErrBufferFull):
 		default:
 			// A final line with no newline may be cut by the byte bound, so it is not trusted.
 			return "", false
@@ -202,37 +202,44 @@ func nextLine(br *bufio.Reader) (line string, ok bool) {
 func lastAssistant(f io.ReaderAt, size int64) []byte {
 	var pending []byte
 	off, seen := size, 0
-	trailing := true
 	for off > 0 && size-off < tailBytes {
 		n := min(chunkBytes, off)
 		off -= n
-		buf := make([]byte, n+int64(len(pending)))
-		if _, err := f.ReadAt(buf[:n], off); err != nil && err != io.EOF {
+		complete, rest, found, err := readChunk(f, off, n, pending, off+n == size)
+		if err != nil {
 			return nil
 		}
-		copy(buf[n:], pending)
-		pending = nil
-
-		complete := buf
-		if off > 0 {
-			before, after, ok := bytes.Cut(buf, []byte{'\n'})
-			if !ok {
-				pending = buf
-				continue
-			}
-			pending, complete = before, after
-		}
-		if trailing {
-			complete, trailing = bytes.TrimSuffix(complete, []byte("\n")), false
+		pending = rest
+		if !found {
+			continue
 		}
 		if m, done := scanBackwards(complete, &seen); done {
 			return m
 		}
-		if seen >= tailLines {
-			return nil
-		}
 	}
 	return nil
+}
+
+// readChunk reads the n bytes at off followed by pending, dropping the file's final newline when the chunk is its end.
+// Unless off is the start of the file, the leading partial line is split off into rest; found is false when the chunk
+// holds no complete line yet.
+func readChunk(f io.ReaderAt, off, n int64, pending []byte, end bool) (complete, rest []byte, found bool, err error) {
+	buf := make([]byte, n+int64(len(pending)))
+	if _, err := f.ReadAt(buf[:n], off); err != nil && !errors.Is(err, io.EOF) {
+		return nil, nil, false, fmt.Errorf("read transcript tail: %w", err)
+	}
+	copy(buf[n:], pending)
+	if end {
+		buf = bytes.TrimSuffix(buf, []byte("\n"))
+	}
+	if off == 0 {
+		return buf, nil, true, nil
+	}
+	before, after, ok := bytes.Cut(buf, []byte{'\n'})
+	if !ok {
+		return nil, buf, false, nil
+	}
+	return after, before, true, nil
 }
 
 // scanBackwards looks through complete lines from the last to the first. It reports done once an assistant line
@@ -249,7 +256,7 @@ func scanBackwards(data []byte, seen *int) ([]byte, bool) {
 		}
 		end = start - 1
 	}
-	return nil, false
+	return nil, *seen >= tailLines
 }
 
 // requestOf reads an assistant line's timestamp and cache lifetime. A cache is only taken to be short-lived when the
@@ -308,18 +315,24 @@ func skillCounts(lines []string) (bare, total int, ok bool) {
 		if a.Get("isInitial").Type != gjson.True {
 			continue
 		}
-		for entry := range strings.SplitSeq(a.Get("content").String(), "\n") {
-			if !strings.HasPrefix(entry, "- ") {
-				continue
-			}
-			total++
-			if bareSkill.MatchString(entry) {
-				bare++
-			}
-		}
+		bare, total = countEntries(a.Get("content").String())
 		return bare, total, true
 	}
 	return 0, 0, false
+}
+
+// countEntries counts the "- " entries in a skill listing, and those with no description.
+func countEntries(content string) (bare, total int) {
+	for entry := range strings.SplitSeq(content, "\n") {
+		if !strings.HasPrefix(entry, "- ") {
+			continue
+		}
+		total++
+		if bareSkill.MatchString(entry) {
+			bare++
+		}
+	}
+	return bare, total
 }
 
 func memDropped(lines []string) bool {
