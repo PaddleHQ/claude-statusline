@@ -126,7 +126,7 @@ func (e *Env) registrations() []registration {
 	regs := make([]registration, 0, 7+len(names))
 	regs = append(regs, []registration{
 		{"path", layout.Identity, func(cfg *config.Section) Segment {
-			return path.New(path.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Git: &gitbranch.Reader{}, Home: e.Home})
+			return path.New(path.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Git: &gitbranch.Reader{}, Icons: &e.Icons, Home: e.Home})
 		}},
 		{"model", layout.Identity, func(cfg *config.Section) Segment {
 			return model.New(model.Deps{
@@ -134,6 +134,7 @@ func (e *Env) registrations() []registration {
 				Transcript: func() model.Transcript { return e.info() },
 				Config:     cfg,
 				Paint:      &e.Theme,
+				Icons:      &e.Icons,
 			})
 		}},
 		{"ctx", layout.Identity, func(cfg *config.Section) Segment {
