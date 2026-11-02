@@ -106,7 +106,7 @@ func (p *Path) Render() string {
 	showBranch := p.d.Config.Bool("branch")
 	worktrees := p.d.Config.Strings("worktrees")
 	strip := p.d.Config.Strings("strip")
-	icon := p.d.Icons.Pick("", "\uf07b ")
+	icon := p.d.Icons.Pick("", "\uF07B ")
 	if !showBranch && len(worktrees) == 0 {
 		return p.d.Paint.Path(icon + displayPath(dir, p.d.Home, strip))
 	}
@@ -150,9 +150,9 @@ func (p *Path) paintBranch(branch string, isWorktree bool) string {
 	}
 	if p.d.Config.Bool("emoji") {
 		glyph, worktreeGlyph := p.d.Paint.Glyphs()
-		glyph = p.d.Icons.Pick(glyph, "\ue0a0")
+		glyph = p.d.Icons.Pick(glyph, "\uE0A0")
 		if isWorktree {
-			glyph = p.d.Icons.Pick(worktreeGlyph, "\uf1bb")
+			glyph = p.d.Icons.Pick(worktreeGlyph, "\uF1BB")
 		}
 		branch = glyph + " " + branch
 	}

@@ -82,12 +82,12 @@ type Window struct {
 
 // NewFiveHour builds the rate5h segment.
 func NewFiveHour(d Deps) *Window {
-	return &Window{d: d, name: fiveHour, window: "5 hour", seconds: fiveHourSeconds, icon: "\uf017", reading: Limits.FiveHourReading}
+	return &Window{d: d, name: fiveHour, window: "5 hour", seconds: fiveHourSeconds, icon: "\uF017", reading: Limits.FiveHourReading}
 }
 
 // NewSevenDay builds the rate7d segment.
 func NewSevenDay(d Deps) *Window {
-	return &Window{d: d, name: sevenDay, window: "7 day", seconds: sevenDaySeconds, icon: "\uf073", reading: Limits.SevenDayReading}
+	return &Window{d: d, name: sevenDay, window: "7 day", seconds: sevenDaySeconds, icon: "\uF073", reading: Limits.SevenDayReading}
 }
 
 // Name is the segment's name in the segments list.

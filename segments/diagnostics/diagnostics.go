@@ -67,14 +67,14 @@ var specs = []spec{
 		if boot <= 0 {
 			return ""
 		}
-		return icons.Pick("\u2302 ", "\uf135 ") + tokens(boot)
+		return icons.Pick("\u2302 ", "\uF135 ") + tokens(boot)
 	}, text},
 	{"skills", "The size of the always-loaded skill listing, in tokens.", func(t Transcript, tokens tokenFn, icons Icons) string {
 		chars := t.SkillListChars()
 		if chars <= 0 {
 			return ""
 		}
-		return icons.Pick("\u2699 ", "\uf013 ") + tokens(int64(chars/charsPerToken))
+		return icons.Pick("\u2699 ", "\uF013 ") + tokens(int64(chars/charsPerToken))
 	}, text},
 	{
 		"skills_stripped", "Red when skills lost their descriptions to fit the budget; shows how many.",
@@ -83,7 +83,7 @@ var specs = []spec{
 			if bare <= 0 {
 				return ""
 			}
-			return icons.Pick("\u2717 ", "\uf071 ") + "skills " + counts(bare, total)
+			return icons.Pick("\u2717 ", "\uF071 ") + "skills " + counts(bare, total)
 		}, bad,
 	},
 	{"agent_skills", "Amber when a subagent lost skill descriptions; shows how many.", func(t Transcript, _ tokenFn, icons Icons) string {
@@ -91,13 +91,13 @@ var specs = []spec{
 		if bare <= 0 {
 			return ""
 		}
-		return icons.Pick("\u2717 ", "\uf071 ") + "agent skills " + counts(bare, total)
+		return icons.Pick("\u2717 ", "\uF071 ") + "agent skills " + counts(bare, total)
 	}, warn},
 	{"mem", "Red when a SessionStart hook output was too large to inject.", func(t Transcript, _ tokenFn, icons Icons) string {
 		if !t.MemoryDropped() {
 			return ""
 		}
-		return icons.Pick("\u2717 ", "\uf071 ") + "mem"
+		return icons.Pick("\u2717 ", "\uF071 ") + "mem"
 	}, bad},
 }
 
