@@ -1,6 +1,6 @@
 // Package ratecache shares rate-limit readings between sessions. Limits belong to the
 // account, so an idle session re-sending its stale payload must not overwrite a fresher
-// reading: a lower reading is accepted only from a session whose own reading changed.
+// reading: a same-window reading moves the cache only when the session's own reading changed.
 package ratecache
 
 import (
@@ -70,8 +70,9 @@ func fromWindow(w payload.Window) *Reading {
 
 // Merge keeps each window's reading in l unless the incoming one is newer, and reports
 // whether anything changed. previous is the incoming session's last reported readings: a
-// same-window drop is a quota reset only when the session's own reading differs from it,
-// as an idle session repeats the same stale reading on every render.
+// same-window reading moves the cache only when it differs from previous, as an idle
+// session repeats the same stale reading on every render. A first-seen session can only
+// raise the cache.
 func (l *Limits) Merge(incoming, previous Limits) (Limits, bool) {
 	five, fiveChanged := pick(l.FiveHour, incoming.FiveHour, previous.FiveHour)
 	seven, sevenChanged := pick(l.SevenDay, incoming.SevenDay, previous.SevenDay)
@@ -92,7 +93,7 @@ func isNewer(in Reading, cached, previous *Reading) bool {
 	case in.ResetsAt != cached.ResetsAt:
 		return in.ResetsAt > cached.ResetsAt
 	case in.Used > cached.Used:
-		return true
+		return previous == nil || *previous != in
 	case in.Used < cached.Used:
 		return previous != nil && *previous != in
 	}

@@ -271,6 +271,30 @@ func TestSyncFreshnessBySession(t *testing.T) {
 			`{"five_hour":{"used":5,"resets_at":100},"sessions":{"a":{"five_hour":{"used":5,"resets_at":100}}}}`,
 		},
 		{
+			"an idle session repeating a stale higher reading cannot undo a reset",
+			[]step{
+				{"idle", ratecache.Limits{FiveHour: r(71, 100)}},
+				{"active", ratecache.Limits{FiveHour: r(72, 100)}},
+				{"active", ratecache.Limits{FiveHour: r(9, 100)}},
+				{"idle", ratecache.Limits{FiveHour: r(71, 100)}},
+				{"active", ratecache.Limits{FiveHour: r(9, 100)}},
+			},
+			`{"five_hour":{"used":9,"resets_at":100},"sessions":{` +
+				`"active":{"five_hour":{"used":9,"resets_at":100}},"idle":{"five_hour":{"used":71,"resets_at":100}}}}`,
+		},
+		{
+			"a session whose reading rose raises the cache after a reset",
+			[]step{
+				{"idle", ratecache.Limits{FiveHour: r(71, 100)}},
+				{"active", ratecache.Limits{FiveHour: r(72, 100)}},
+				{"active", ratecache.Limits{FiveHour: r(9, 100)}},
+				{"idle", ratecache.Limits{FiveHour: r(71, 100)}},
+				{"active", ratecache.Limits{FiveHour: r(12, 100)}},
+			},
+			`{"five_hour":{"used":12,"resets_at":100},"sessions":{` +
+				`"active":{"five_hour":{"used":12,"resets_at":100}},"idle":{"five_hour":{"used":71,"resets_at":100}}}}`,
+		},
+		{
 			"a session sees its own change in one window only",
 			[]step{
 				{"a", ratecache.Limits{FiveHour: r(71, 100), SevenDay: r(83, 500)}},
