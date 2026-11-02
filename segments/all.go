@@ -160,6 +160,7 @@ func (e *Env) registrations() []registration {
 				Transcript: func() diagnostics.Transcript { return e.info() },
 				Paint:      &e.Theme,
 				Tokens:     tokens.FormatTokens,
+				Icons:      &e.Icons,
 			})
 			return d
 		}})
