@@ -13,7 +13,7 @@ Feature: Help
         model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
         ctx: How full the context window is. Amber from 50%, red from 90%.
         tokens: Session token totals: input after the down arrow, output after the up arrow.
-        cache: How much of the latest request's input was read from the prompt cache. Red below 5%.
+        cache: How much of the latest request's input was read from the prompt cache. Red below 5%, and a red ⧉ cold once the cache has expired, as in a resumed session.
         boot: The prompt size on the first turn, before you said anything.
         skills: The size of the always-loaded skill listing, in tokens.
         skills_stripped: Red when skills lost their descriptions to fit the budget; shows how many.
@@ -52,7 +52,7 @@ Feature: Help
 
       Also available, not in your segments list:
         tokens: Session token totals: input after the down arrow, output after the up arrow.
-        cache: How much of the latest request's input was read from the prompt cache. Red below 5%.
+        cache: How much of the latest request's input was read from the prompt cache. Red below 5%, and a red ⧉ cold once the cache has expired, as in a resumed session.
         rate5h: Your 5 hour usage, with a marker at an even pace. Amber when more than 20 points off it, red beyond 40 points or from 95% used.
         rate7d: Your 7 day usage, with a marker at an even pace. Amber when more than 10 points off it, red beyond 20 points or from 95% used.
         boot: The prompt size on the first turn, before you said anything.

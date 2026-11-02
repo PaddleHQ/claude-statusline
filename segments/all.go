@@ -140,7 +140,13 @@ func (e *Env) registrations() []registration {
 			return tokens.New(tokens.Deps{Session: &e.Payload, Paint: &e.Theme, Separator: e.Separator()})
 		}},
 		{"cache", layout.Usage, func(cfg *config.Section) Segment {
-			return cache.New(cache.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme})
+			return cache.New(cache.Deps{
+				Session:    &e.Payload,
+				Transcript: func() cache.Transcript { return e.info() },
+				Config:     cfg,
+				Paint:      &e.Theme,
+				Now:        e.Now,
+			})
 		}},
 		{"rate5h", layout.Rates, func(cfg *config.Section) Segment { return rate.NewFiveHour(rates(cfg)) }},
 		{"rate7d", layout.Rates, func(cfg *config.Section) Segment { return rate.NewSevenDay(rates(cfg)) }},
