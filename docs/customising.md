@@ -18,7 +18,7 @@ ctx: {warn: 60, bad: 85}
 
 Lists are YAML lists, `true` and `false` are YAML booleans, numbers are whole numbers and everything else is a string. Quote a string that YAML would otherwise read as something else, such as a separator of `|` or a path starting with `~`. The file is parsed, never executed, so values are always plain text.
 
-A setting you leave out keeps its default (unless a [plugin option](#plugin-options) sets it), including the other keys of a segment you only partly set. If the file is not valid YAML (or is not a mapping), the whole file is ignored and the defaults apply. The status line then shows a [red row](#mistakes-in-the-config-file) above the line to say so. A key the status line does not know, a value of the wrong type (such as `width: wide`), an empty string or list, a string with control characters, or a number that is negative or has more than 12 digits is ignored on its own. That one key falls back to its default while the rest of the file still applies. None of these shows the row, but `config-check` lists the keys it does not know.
+A setting you leave out keeps its default (unless a [plugin option](#plugin-options) sets it), including the other keys of a segment you only partly set. If the file is not valid YAML (or is not a mapping), the whole file is ignored and the defaults apply. The status line then shows a [red row](#mistakes-in-the-config-file) above the line to say so. A key the status line does not know, a value of the wrong type (such as `width: wide`), an empty string or list, a string with control characters, or a number that is negative or has more than 12 digits is ignored on its own. That one key falls back to its default while the rest of the file still applies. None of these shows the row, but `config-check` lists the keys it does not know, and an `icons` value other than `none` or `nerd`, under "Invalid values (ignored):". An invalid `icons` value draws as `none`.
 
 [`internal/config/defaults.yaml`](../internal/config/defaults.yaml) documents the global keys with a comment and their default values, and each segment's own `defaults.yaml` under [`segments/`](../segments) does the same for the keys in its section. In the table, `section.key` means `key` inside the `section` mapping. The current keys are:
 
@@ -236,6 +236,38 @@ Each part is left out when Claude Code does not send it, so older versions show 
 `bars` has one entry for every cell count from `N` to `M`, keyed by the count. Each is a bar exactly that many cells wide, with no label or percentage, painted with your `theme` and drawn as the `rate5h` and `rate7d` segments draw theirs: the pace marker, and the `warn`, `bad` and `hard_cap` settings of the matching section. `percent` is the painted `75%` that follows the bar in the status line. The readings come from the same shared cache the segments use, which the command only reads. When a window has no reading, or it has already reset, `ok` is `false`, `percent` is a muted `--` and every bar is empty cells without a marker. `NO_COLOR` removes the colours.
 
 `N` must be at least 1, `M` at most 200 and `N` no more than `M`; both are required. Otherwise the command prints a message to stderr, nothing to stdout, and exits 2. That is the only way it fails: a missing cache is `ok: false`.
+
+## Icons
+
+With `icons: nerd`, each segment's label is drawn as a [Nerd Font](https://www.nerdfonts.com/) icon. The default, `icons: none`, keeps the plain text and symbols.
+
+```yaml
+icons: nerd
+```
+
+The status line cannot tell which font your terminal uses, so `nerd` is something you turn on. It needs a Nerd Font set as your terminal's font. Without one, the icons show as empty boxes or question marks. Pick a "Mono" variant of the font, such as "JetBrainsMono Nerd Font Mono": the other variants draw the icons wider than one cell, so they overlap the character after them, and the status line counts each icon as one column.
+
+| Segment | `none` | `nerd` |
+|---|---|---|
+| `path` | no label | folder (U+F07B) before the path |
+| `path`, branch | the theme's `glyphs.branch` (🌿) | git branch (U+E0A0) |
+| `path`, worktree | the theme's `glyphs.worktree` (🌳) | tree (U+F1BB) |
+| `model` | no label | robot (U+F06A9) before the name |
+| `ctx` | `ctx:` | memory chip (U+F035B) |
+| `tokens` | `↓` and `↑` | download (U+F019) and upload (U+F093) |
+| `cache` | `⧉` | bolt (U+F0E7) |
+| `boot` | `⌂` | rocket (U+F135) |
+| `skills` | `⚙` | gear (U+F013) |
+| `skills_stripped`, `agent_skills`, `mem` | `✗` | warning triangle (U+F071) |
+| `rate5h` | `5h:` | clock (U+F017), then `5h` |
+| `rate7d` | `7d:` | calendar (U+F073), then `7d` |
+
+Some details:
+
+- The rate bars keep their label, because a clock and a calendar are hard to tell apart at a glance. The colon goes, so the segment reads as the icon, the label and the bar. If you set `label: ""`, only the icon is drawn.
+- The branch and worktree icons replace the theme's glyphs, and they appear only when `path.emoji` is `true`, as the glyphs do.
+- The separators and the colours do not change: an icon takes the colour of the label it replaces.
+- The rows of Claude Code's agent panel follow the setting too.
 
 ## Themes
 

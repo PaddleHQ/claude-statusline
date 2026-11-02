@@ -2,6 +2,8 @@
 
 Shows how much of the latest request's input came from the prompt cache, for example `⧉ 80%`. It turns red when the figure is low. Once the cache has expired since the last response, as in a session resumed after a break, it shows `⧉ cold` in red instead.
 
+With `icons: nerd` the `⧉` becomes the Nerd Font bolt icon (U+F0E7).
+
 ## Settings
 
 | Key | Default | Meaning |
