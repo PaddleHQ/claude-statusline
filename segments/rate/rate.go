@@ -52,7 +52,8 @@ type Meter interface {
 	Pace(usage, target, warn, bad, hardCap int) string
 }
 
-// Deps is everything the segments are built from.
+// Deps is everything the segments are built from. Limits is a function, like the Env field it comes from, so a line
+// without a rate bar never filters the readings.
 type Deps struct {
 	Config Config
 	Paint  Painter

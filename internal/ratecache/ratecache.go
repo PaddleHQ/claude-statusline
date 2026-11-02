@@ -217,12 +217,16 @@ func (c *Cache) write(s state) {
 // Sync merges the incoming readings of one session into the cache, writing only when
 // something changed, and returns the merged limits. An empty path skips the file, and an
 // empty session can raise readings but never lower them. Concurrent callers are serialized
-// by a lock file beside the cache, when one can be taken.
+// by a lock file beside the cache, when one can be taken. Incoming limits with neither window
+// only read the cache, without the lock.
 func (c *Cache) Sync(session string, incoming Limits) Limits {
 	if c.path == "" {
 		empty := Limits{}
 		merged, _ := empty.Merge(incoming, Limits{})
 		return merged
+	}
+	if incoming.FiveHour == nil && incoming.SevenDay == nil {
+		return c.Load()
 	}
 	defer c.lock()()
 
