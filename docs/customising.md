@@ -269,10 +269,10 @@ The status line cannot tell which font your terminal uses, so `nerd` is somethin
 
 Some details:
 
-- The rate bars keep their label, because a clock and a calendar are hard to tell apart at a glance. The colon goes, so the segment reads as the icon, the label and the bar. If you set `label: ""`, only the icon is drawn.
+- The rate bars keep their label, because a clock and a calendar are hard to tell apart at a glance. The colon goes, so the segment reads as the icon, the label and the bar.
 - The branch and worktree icons replace the theme's glyphs, and they appear only when `path.emoji` is `true`, as the glyphs do.
 - The separators and the colours do not change: an icon takes the colour of the label it replaces.
-- The rows of Claude Code's agent panel follow the setting too.
+- In the rows of Claude Code's agent panel, the context label follows the setting too.
 
 ## Themes
 

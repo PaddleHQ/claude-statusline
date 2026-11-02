@@ -2,7 +2,7 @@
 
 Shows usage of the 5 hour (`rate5h`) and 7 day (`rate7d`) windows as a bar with a pace marker, for example `5h: █▊┃░ 45%`.
 
-With `icons: nerd` a Nerd Font clock (U+F017, `rate5h`) or calendar (U+F073, `rate7d`) icon is drawn before the label, and the label loses its colon, for example `5h ▰▰▱`. An empty label leaves only the icon.
+With `icons: nerd` a Nerd Font clock (U+F017, `rate5h`) or calendar (U+F073, `rate7d`) icon is drawn before the label, and the label loses its colon, for example `5h ▰▰▱`.
 
 ## Settings
 

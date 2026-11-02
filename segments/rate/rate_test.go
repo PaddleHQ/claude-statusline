@@ -152,8 +152,6 @@ func TestWindowNerdLabel(t *testing.T) {
 	}{
 		{"five hour", rate.NewFiveHour, "5h", "\uf017 5h "},
 		{"seven day", rate.NewSevenDay, "7d", "\uf073 7d "},
-		{"five hour without a label", rate.NewFiveHour, "", "\uf017 "},
-		{"seven day without a label", rate.NewSevenDay, "", "\uf073 "},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

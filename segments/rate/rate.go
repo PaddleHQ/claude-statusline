@@ -121,9 +121,6 @@ func (w *Window) Render() string {
 
 // nerdLabel keeps the window label after the icon, since a clock and a calendar are hard to tell apart alone.
 func (w *Window) nerdLabel(label string) string {
-	if label == "" {
-		return w.icon + " "
-	}
 	return w.icon + " " + label + " "
 }
 
