@@ -48,7 +48,7 @@ func ConfigCheck(getenv func(string) string) (report string, ok bool) {
 			b.WriteString("  " + config.Clean(key) + "\n")
 		}
 	}
-	b.WriteString(invalidValues(cfg))
+	b.WriteString(invalidIconsValue(cfg))
 	writePluginOptions(&b, cfg, collapseHome(opts.Path, getenv("HOME")))
 	return b.String(), ok
 }
@@ -81,9 +81,9 @@ func writePluginOptions(b *strings.Builder, cfg *config.Config, shown string) {
 	}
 }
 
-// invalidValues lists the settings whose value is of the wrong kind or not one of the choices, so the user learns why
-// a setting seems to do nothing.
-func invalidValues(cfg *config.Config) string {
+// invalidIconsValue reports an icons value that draws as none, so the user learns why the setting seems to do nothing.
+// It is the only setting checked here: other bad values fall back silently.
+func invalidIconsValue(cfg *config.Config) string {
 	raw, set := cfg.Raw(icons.Key)
 	if !set || raw == nil {
 		return ""
