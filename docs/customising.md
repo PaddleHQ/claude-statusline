@@ -27,7 +27,7 @@ A setting you leave out keeps its default (unless a [plugin option](#plugin-opti
 | `segments` | `[path, model, ctx, tokens, cache, boot, skills, skills_stripped, agent_skills, mem, rate5h, rate7d]` | Segments to show, in order, as a list. Unknown names are skipped. |
 | `separator` | `·` | Glyph drawn between segments. |
 | `theme` | `classic` | Colour theme: a built-in name (`classic`, `gradient`, `saber` or `capsule`) or the path to a theme file. Anything that cannot be used falls back to `classic`. See [Themes](#themes). |
-| `icons` | `none` | Icon set for segment labels: `none` keeps the plain text and symbols, `nerd` uses Nerd Font icons. Needs a Nerd Font set as your terminal font. Anything else is ignored and `config-check` lists it. |
+| `icons` | `none` | Icon set for segment labels: `none` keeps the plain text and symbols, `nerd` uses Nerd Font icons. Needs a Nerd Font v3 or later set as your terminal font. Anything else is ignored and `config-check` lists it. |
 | `path.strip` | `[]` | Directory prefixes to strip from the path, as a list; an entry may contain spaces, and a leading `~` means your home directory. |
 | `path.branch` | `true` | Show the git branch after the path (`true` or `false`). |
 | `path.worktrees` | `[]` | Directories that hold git worktrees, as a list; relative entries are relative to the main repository, and a leading `~` means your home directory. Empty means off. |
@@ -236,7 +236,7 @@ Each part is left out when Claude Code does not send it, so older versions show 
 
 `bars` has one entry for every cell count from `N` to `M`, keyed by the count. Each is a bar exactly that many cells wide, with no label or percentage, painted with your `theme` and drawn as the `rate5h` and `rate7d` segments draw theirs: the pace marker, and the `warn`, `bad` and `hard_cap` settings of the matching section. `percent` is the painted `75%` that follows the bar in the status line. The readings come from the same shared cache the segments use, which the command only reads. When a window has no reading, or it has already reset, `ok` is `false`, `percent` is a muted `--` and every bar is empty cells without a marker. `NO_COLOR` removes the colours.
 
-With `theme: capsule` and `icons: nerd`, the bars are Nerd Font capsule glyphs (U+EE00 to U+EE05), so the tool that draws them needs a Nerd Font too. Without `icons: nerd` they are solid bars.
+With `theme: capsule` and `icons: nerd`, the bars are Nerd Font capsule glyphs (U+EE00 to U+EE05), so the tool that draws them needs a Nerd Font v3 or later too. Without `icons: nerd` they are the theme's plain `▮` and `▯` glyphs.
 
 `N` must be at least 1, `M` at most 200 and `N` no more than `M`; both are required. Otherwise the command prints a message to stderr, nothing to stdout, and exits 2. That is the only way it fails: a missing cache is `ok: false`.
 
@@ -253,7 +253,7 @@ icons: nerd
   <img alt="The status line with Nerd Font icons: a folder before the path, a git branch icon before the branch name, a robot before the model, a memory chip before the context bar, download and upload arrows on the token counts, a bolt on the cache rate, a rocket on the boot size, a gear on the skills count, and a clock and a calendar before the 5h and 7d bars" src="images/icons-light.svg">
 </picture>
 
-The status line cannot tell which font your terminal uses, so `nerd` is something you turn on. It needs a Nerd Font set as your terminal's font. Without one, the icons show as empty boxes or question marks. Pick a "Mono" variant of the font, such as "JetBrainsMono Nerd Font Mono": the other variants draw the icons wider than one cell, so they overlap the character after them, and the status line counts each icon as one column.
+The status line cannot tell which font your terminal uses, so `nerd` is something you turn on. It needs a Nerd Font v3 or later set as your terminal's font; older Nerd Fonts lack some of the icons. Without one, the icons show as empty boxes or question marks. Pick a "Mono" variant of the font, such as "JetBrainsMono Nerd Font Mono": the other variants draw the icons wider than one cell, so they overlap the character after them, and the status line counts each icon as one column.
 
 | Segment | `none` | `nerd` |
 |---|---|---|
@@ -284,7 +284,7 @@ A theme sets the colours and the bar glyphs. Four come built in:
 - `classic` is the default: eighth-block bars filled in green, amber or red by pace, in basic terminal colours that suit light and dark backgrounds.
 - `gradient` draws whole-cell bars whose colour runs from green through amber to red along the bar. The pace colour moves to the percentage after the bar, so the bar shows how much you have used and the number shows how you are doing against the pace.
 - `saber` draws each bar as a lightsaber blade. The whole blade takes one colour for the pace state (blue when on pace, purple when drifting, red when well off it), and the last few lit cells brighten towards white, ending in a half-lit tip. The percentage after the bar takes the blade's plain colour for the state.
-- `capsule` draws rounded bars coloured by pace, like `classic`, from Nerd Font capsule glyphs. It needs a Nerd Font in your terminal and `icons: nerd`; without the setting it draws solid bars.
+- `capsule` draws rounded bars coloured by pace, like `classic`, from Nerd Font capsule glyphs. It needs a Nerd Font v3 or later in your terminal and `icons: nerd`; without the setting it draws plain `▮▯` bars. It fills whole cells, so usage under half a cell, such as 4% on a 10-cell bar, shows as an empty bar.
 
 Pick one in your config file:
 

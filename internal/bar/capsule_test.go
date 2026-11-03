@@ -40,8 +40,6 @@ func TestRenderCapsule(t *testing.T) {
 		p    bar.Params
 		want string
 	}{
-		{"width 1 empty is a left cap only", untargeted(0, 1), paint("<e>", "l")},
-		{"width 1 full is a left cap only", untargeted(100, 1), paint("<b>", "L")},
 		{"width 2 empty", untargeted(0, 2), paint("<e>", "lr")},
 		{"width 2 full", untargeted(100, 2), paint("<b>", "LR")},
 		{"empty, no target", untargeted(0, 4), paint("<e>", "lmmr")},
@@ -77,6 +75,18 @@ func TestRenderCapsuleFallsBackToSolidWithoutNerd(t *testing.T) {
 	solidMeter := &bar.Meter{Theme: solid, Width: 10}
 	assert.Equal(t, solidMeter.Usage(60, 50, 90), capsuleMeter.Usage(60, 50, 90), "the percentage is not colored either")
 	assert.Equal(t, solidMeter.Pace(40, 30, 20, 40, 95), capsuleMeter.Pace(40, 30, 20, 40, 95))
+}
+
+func TestRenderCapsuleOfOneCellUsesTheThemeGlyphs(t *testing.T) {
+	t.Parallel()
+
+	solid := capsule
+	solid.Capsule = false
+	for _, usage := range []int{0, 100} {
+		p := bar.Params{Usage: usage, Width: 1, Warn: 50, Bad: 90, NoTarget: true, Nerd: true}
+		assert.Equal(t, p.Render(solid), p.Render(capsule), "usage %d", usage)
+		assert.Empty(t, p.PercentColor(capsule), "usage %d", usage)
+	}
 }
 
 func TestMeterCopiesNerd(t *testing.T) {

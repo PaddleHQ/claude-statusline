@@ -104,7 +104,7 @@ func (p *Params) Fill(th theme.Theme) string {
 // bar colors its cells by position, a saber bar by blade, and a capsule bar with Nerd glyphs by
 // pace, so the state color moves to the text.
 func (p *Params) PercentColor(th theme.Theme) string {
-	if th.Gradient || th.Saber || (th.Capsule && p.Nerd) {
+	if th.Gradient || th.Saber || p.capsule(th) {
 		return p.Fill(th)
 	}
 	return ""
@@ -128,10 +128,16 @@ func (p *Params) Render(th theme.Theme) string {
 		return p.saberCells(th, targetCell)
 	case th.Gradient:
 		return p.gradientCells(th, filled, targetCell)
-	case th.Capsule && p.Nerd:
+	case p.capsule(th):
 		return p.capsuleCells(th, targetCell)
 	}
 	return p.solidCells(th, filled, targetCell)
+}
+
+// capsule reports whether to draw Nerd Font capsule cells. One cell cannot hold both caps, so it
+// gets the theme's own glyphs instead of half a capsule.
+func (p *Params) capsule(th theme.Theme) bool {
+	return th.Capsule && p.Nerd && p.Width > 1
 }
 
 func (p *Params) gradientCells(th theme.Theme, filled, targetCell int) string {

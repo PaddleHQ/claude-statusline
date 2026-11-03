@@ -68,7 +68,7 @@ Also available, not in your segments list:
   agent_skills: Amber when a subagent lost skill descriptions; shows how many.
   mem: Red when a SessionStart hook output was too large to inject.
 
-Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font set as your terminal font.
+Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font v3 or later set as your terminal font.
 Config file: @TMP@/claude-statusline/config.yaml
 Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md`,
 		},
@@ -105,7 +105,7 @@ Also available, not in your segments list:
   agent_skills: Amber when a subagent lost skill descriptions; shows how many.
   mem: Red when a SessionStart hook output was too large to inject.
 
-Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font set as your terminal font.
+Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font v3 or later set as your terminal font.
 Config file: @TMP@/claude-statusline/config.yaml
 Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md`,
 		},
@@ -130,7 +130,7 @@ Also available, not in your segments list:
   agent_skills: Amber when a subagent lost skill descriptions; shows how many.
   mem: Red when a SessionStart hook output was too large to inject.
 
-Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font set as your terminal font.
+Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font v3 or later set as your terminal font.
 Config file: @TMP@/claude-statusline/config.yaml
 Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md`,
 		},
@@ -160,7 +160,7 @@ Also available, not in your segments list:
   agent_skills: Amber when a subagent lost skill descriptions; shows how many.
   mem: Red when a SessionStart hook output was too large to inject.
 
-Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font set as your terminal font.
+Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font v3 or later set as your terminal font.
 Config file: @TMP@/claude-statusline/config.yaml
 Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md`,
 		},
@@ -246,7 +246,7 @@ func TestHelpShowsConfigProblem(t *testing.T) {
 		{
 			name:    "icons nerd is reported with the font it needs",
 			setup:   writeText("icons: nerd\n"),
-			want:    []string{"Icons: nerd (Nerd Font icons; needs a Nerd Font set as your terminal font)"},
+			want:    []string{"Icons: nerd (Nerd Font icons; needs a Nerd Font v3 or later set as your terminal font)"},
 			notWant: []string{"Icons: none"},
 		},
 		{

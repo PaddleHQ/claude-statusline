@@ -136,7 +136,9 @@ func TestLoadCapsule(t *testing.T) {
 	got := theme.Load("capsule", "", "")
 	assert.True(t, got.Capsule)
 	assert.False(t, got.Gradient)
-	assert.Equal(t, "█", got.Full)
+	assert.Equal(t, "▮", got.Full)
+	assert.Equal(t, "▯", got.Empty)
+	assert.Equal(t, [7]string{"▯", "▯", "▯", "▮", "▮", "▮", "▮"}, got.Partials, "cells round to whole capsules")
 	assert.Equal(t, "\033[38;2;90;90;90m", got.EmptyColor)
 }
 
