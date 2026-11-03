@@ -30,11 +30,11 @@ const (
 // symbolsFont is a subset of Symbols Nerd Font Mono, embedded in images that draw icons because
 // GitHub shows the images through <img>, where no font of the reader's can be relied upon.
 //
-//go:embed symbols.woff2
+//go:embed symbols.woff
 var symbolsFont []byte
 
 var symbolsFontFace = "<defs><style>@font-face{font-family:'" + symbolsFamily +
-	"';src:url(data:font/woff2;base64," + base64.StdEncoding.EncodeToString(symbolsFont) + ") format('woff2');}</style></defs>\n"
+	"';src:url(data:font/woff;base64," + base64.StdEncoding.EncodeToString(symbolsFont) + ") format('woff');}</style></defs>\n"
 
 // Theme is the palette an image is drawn with.
 type Theme struct {

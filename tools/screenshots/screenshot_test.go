@@ -82,7 +82,7 @@ func TestWriteSavesEveryImage(t *testing.T) {
 func TestSVGEmbedsTheSymbolsFontOnlyForIcons(t *testing.T) {
 	t.Parallel()
 
-	const fontFace = `@font-face{font-family:'Symbols Nerd Font Mono';src:url(data:font/woff2;base64,`
+	const fontFace = `@font-face{font-family:'Symbols Nerd Font Mono';src:url(data:font/woff;base64,`
 	tests := []struct {
 		name  string
 		in    string

@@ -1,15 +1,15 @@
 # Symbols font
 
-`symbols.woff2` is a subset of Symbols Nerd Font Mono (`SymbolsNerdFontMono-Regular.ttf`), from `NerdFontsSymbolsOnly.zip` in the [Nerd Fonts v3.5.1 release](https://github.com/ryanoasis/nerd-fonts/releases/tag/v3.5.1). The screenshot generator embeds it in an image only when the image draws a Nerd Font icon, because GitHub shows the images through `<img>`, where the reader's own fonts cannot be relied upon.
+`symbols.woff` is a subset of Symbols Nerd Font Mono (`SymbolsNerdFontMono-Regular.ttf`), from `NerdFontsSymbolsOnly.zip` in the [Nerd Fonts v3.5.1 release](https://github.com/ryanoasis/nerd-fonts/releases/tag/v3.5.1). The screenshot generator embeds it in an image only when the image draws a Nerd Font icon, because GitHub shows the images through `<img>`, where the reader's own fonts cannot be relied upon.
 
-The subset holds the icons the status line draws with `icons: nerd`, and the progress capsule glyphs U+EE00 to U+EE05. It was made with fontTools 4.68.0:
+The subset holds the icons the status line draws with `icons: nerd`, and the progress capsule glyphs U+EE00 to U+EE05. It is WOFF rather than WOFF2 so that `TestSymbolsFontCoversEveryIcon` can read it with the standard library, which has zlib but no Brotli. It was made with fontTools 4.68.0:
 
 ```sh
-pyftsubset SymbolsNerdFontMono-Regular.ttf --flavor=woff2 --output-file=tools/screenshots/symbols.woff2 \
+pyftsubset SymbolsNerdFontMono-Regular.ttf --flavor=woff --output-file=tools/screenshots/symbols.woff \
   --unicodes=U+E0A0,U+EE00-EE05,U+F013,U+F017,U+F019,U+F071,U+F073,U+F07B,U+F093,U+F0E7,U+F135,U+F1BB,U+F035B,U+F06A9
 ```
 
-To add an icon, append its code point to `--unicodes`, run the command again on the same release's font, and run `go run ./tools/screenshots`.
+To add an icon, append its code point to `--unicodes`, run the command again on the same release's font, and run `go run ./tools/screenshots`. `TestSymbolsFontCoversEveryIcon` fails while a Private Use Area code point in the Go code is missing from the subset.
 
 ## Licences
 
