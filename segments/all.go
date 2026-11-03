@@ -123,9 +123,7 @@ func (e *Env) registrations() []registration {
 			Limits: func() rate.Limits { return e.limits() },
 		}
 	}
-	names := diagnostics.Names()
-	regs := make([]registration, 0, 8+len(names))
-	regs = append(regs, []registration{
+	return append([]registration{
 		{"path", layout.Identity, func(cfg *config.Section) Segment {
 			return path.New(path.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Git: &gitbranch.Reader{}, Icons: &e.Icons, Home: e.Home})
 		}},
@@ -159,7 +157,12 @@ func (e *Env) registrations() []registration {
 		}},
 		{"rate5h", layout.Rates, func(cfg *config.Section) Segment { return rate.NewFiveHour(rates(cfg)) }},
 		{"rate7d", layout.Rates, func(cfg *config.Section) Segment { return rate.NewSevenDay(rates(cfg)) }},
-	}...)
+	}, e.diagnosticRegistrations()...)
+}
+
+func (e *Env) diagnosticRegistrations() []registration {
+	names := diagnostics.Names()
+	regs := make([]registration, 0, len(names))
 	for _, name := range names {
 		regs = append(regs, registration{name, layout.Usage, func(*config.Section) Segment {
 			d, _ := diagnostics.New(name, diagnostics.Deps{
