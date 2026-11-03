@@ -2,6 +2,7 @@ package statusline
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
@@ -18,6 +19,7 @@ type helper struct {
 	env        *segments.Env
 	hooks      []hook.Hook
 	names      []string
+	excluded   []string
 	configPath string
 	problem    *config.Problem
 	options    *config.PluginOptions
@@ -35,10 +37,12 @@ func Help(getenv func(string) string) string {
 	th = th.WithoutColor()
 	env := segments.NewEnv(segments.Env{Config: cfg, Theme: th, Home: getenv("HOME"), Columns: defaultColumns})
 
+	excluded := cfg.StringsOrNone(keyExcluded)
 	h := &helper{
 		env:        env,
 		hooks:      hook.Discover(hookDir(getenv)),
-		names:      cfg.Strings("segments"),
+		names:      segmentNames(cfg, excluded),
+		excluded:   excluded,
 		configPath: path,
 		problem:    cfg.Problem(),
 		options:    cfg.PluginOptions(),
@@ -75,6 +79,11 @@ func (h *helper) text() string {
 		writeList(&b, left)
 	}
 
+	if excluded := h.excludedLines(); len(excluded) > 0 {
+		b.WriteString("\nLeft out by segments_excluded:\n")
+		writeList(&b, excluded)
+	}
+
 	b.WriteString("\n" + h.iconsLine())
 	b.WriteString(h.configFooter())
 	if h.options.Active() {
@@ -85,7 +94,7 @@ func (h *helper) text() string {
 	return b.String()
 }
 
-// shown describes what the name stands for in the segments list: the hooks of that name, which replace a built-in, else the built-in.
+// shown describes what a segment name stands for: the hooks of that name, which replace a built-in, else the built-in.
 func (h *helper) shown(name string) []string {
 	var lines []string
 	for i := range h.hooks {
@@ -117,8 +126,21 @@ func (h *helper) unlisted() []string {
 	}
 	var lines []string
 	for _, seg := range h.env.All() {
-		if !listed[seg.Name()] {
+		if !listed[seg.Name()] && !slices.Contains(h.excluded, seg.Name()) {
 			lines = append(lines, seg.Name()+": "+seg.Help())
+		}
+	}
+	return lines
+}
+
+// excludedLines describes each excluded built-in once; segments_excluded leaves hooks and unknown names alone.
+func (h *helper) excludedLines() []string {
+	lines := make([]string, 0, len(h.excluded))
+	seen := map[string]bool{}
+	for _, name := range h.excluded {
+		if seg, ok := h.builtin(name); ok && !seen[name] {
+			seen[name] = true
+			lines = append(lines, name+": "+seg.Help())
 		}
 	}
 	return lines
