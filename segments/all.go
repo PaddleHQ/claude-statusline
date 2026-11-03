@@ -110,7 +110,7 @@ type registration struct {
 // registrations is the one list of segments. To add a plugin, add its entries here.
 func (e *Env) registrations() []registration {
 	meter := func(cfg *config.Section) *bar.Meter {
-		return &bar.Meter{Theme: e.Theme, Width: bar.WidthOf(e.Columns, cfg), Nerd: e.Icons.Nerd()}
+		return &bar.Meter{Theme: e.Theme, Width: bar.WidthOf(e.Columns, cfg)}
 	}
 	rates := func(cfg *config.Section) rate.Deps {
 		return rate.Deps{

@@ -236,7 +236,7 @@ Each part is left out when Claude Code does not send it, so older versions show 
 
 `bars` has one entry for every cell count from `N` to `M`, keyed by the count. Each is a bar exactly that many cells wide, with no label or percentage, painted with your `theme` and drawn as the `rate5h` and `rate7d` segments draw theirs: the pace marker, and the `warn`, `bad` and `hard_cap` settings of the matching section. `percent` is the painted `75%` that follows the bar in the status line. The readings come from the same shared cache the segments use, which the command only reads. When a window has no reading, or it has already reset, `ok` is `false`, `percent` is a muted `--` and every bar is empty cells without a marker. `NO_COLOR` removes the colours.
 
-With `theme: capsule` and `icons: nerd`, the bars are Nerd Font capsule glyphs (U+EE00 to U+EE05), so the tool that draws them needs a Nerd Font v3 or later too. Without `icons: nerd` they are the theme's plain `▮` and `▯` glyphs.
+With `theme: capsule`, the bars are Nerd Font capsule glyphs (U+EE00 to U+EE05), so the tool that draws them needs a Nerd Font v3 or later too. A one-cell bar uses the theme's plain `▮` and `▯` glyphs, because a capsule needs two cells.
 
 `N` must be at least 1, `M` at most 200 and `N` no more than `M`; both are required. Otherwise the command prints a message to stderr, nothing to stdout, and exits 2. That is the only way it fails: a missing cache is `ok: false`.
 
@@ -284,7 +284,7 @@ A theme sets the colours and the bar glyphs. Four come built in:
 - `classic` is the default: eighth-block bars filled in green, amber or red by pace, in basic terminal colours that suit light and dark backgrounds.
 - `gradient` draws whole-cell bars whose colour runs from green through amber to red along the bar. The pace colour moves to the percentage after the bar, so the bar shows how much you have used and the number shows how you are doing against the pace.
 - `saber` draws each bar as a lightsaber blade. The whole blade takes one colour for the pace state (blue when on pace, purple when drifting, red when well off it), and the last few lit cells brighten towards white, ending in a half-lit tip. The percentage after the bar takes the blade's plain colour for the state.
-- `capsule` draws rounded bars coloured by pace, like `classic`, from Nerd Font capsule glyphs. It needs a Nerd Font v3 or later in your terminal and `icons: nerd`; without the setting it draws plain `▮▯` bars. It fills whole cells, so usage under half a cell, such as 4% on a 10-cell bar, shows as an empty bar.
+- `capsule` draws rounded bars coloured by pace, like `classic`, from Nerd Font capsule glyphs. It needs a Nerd Font v3 or later in your terminal, whether or not `icons` is `nerd`. It fills whole cells, so usage under half a cell, such as 4% on a 10-cell bar, shows as an empty bar.
 
 Pick one in your config file:
 
@@ -356,7 +356,7 @@ bar:
 
 | Field | Meaning |
 |---|---|
-| `colors.text`, `muted`, `good`, `warn`, `bad`, `marker`, `path` | A colour for each role. `text` is labels and figures, `muted` is separators and empty bar cells, `good`, `warn` and `bad` colour the bar fill and, in a `gradient` theme or a `capsule` bar with `icons: nerd`, the percentage (a `saber` bar and its percentage take their colour from `bar.blade` instead, so `good` goes unused and `warn` and `bad` colour only the cache and diagnostics warnings and the error row), `marker` is the pace marker and `path` is the working directory. An empty string uses the terminal's own colour. |
+| `colors.text`, `muted`, `good`, `warn`, `bad`, `marker`, `path` | A colour for each role. `text` is labels and figures, `muted` is separators and empty bar cells, `good`, `warn` and `bad` colour the bar fill and, in a `gradient` or `capsule` theme, the percentage (a `saber` bar and its percentage take their colour from `bar.blade` instead, so `good` goes unused and `warn` and `bad` colour only the cache and diagnostics warnings and the error row), `marker` is the pace marker and `path` is the working directory. An empty string uses the terminal's own colour. |
 | `colors.branch`, `colors.worktree` | Optional. The branch, and the branch of a linked worktree, in the `path` segment. `branch` defaults to the `path` colour and `worktree` to `bold 208`. |
 | `glyphs.branch`, `glyphs.worktree` | Optional. The emoji shown before a branch and before a worktree, 🌿 and 🌳 by default. Each must be a non-empty string without control characters, and must take at least one column. A character followed by the emoji selector U+FE0F (such as `❤️`) counts as two columns, as it does in Claude Code. |
 | `bar.style` | `solid`, `gradient`, `saber` or `capsule`. |

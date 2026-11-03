@@ -1,6 +1,6 @@
 @capsule_theme
 Feature: Capsule theme
-  The capsule theme draws rounded Nerd Font bars coloured by pace when icons are nerd, and plain capsule glyphs otherwise.
+  The capsule theme draws rounded Nerd Font bars coloured by pace, whether or not icons are nerd.
 
   Background:
     Given the environment variable "STATUSLINE_NOW" is "1760000000"
@@ -33,7 +33,7 @@ Feature: Capsule theme
       1 = #5a5a5a
       """
 
-  Scenario: The capsule theme without Nerd icons draws plain capsule glyphs in whole cells
+  Scenario: The capsule theme draws capsules with plain labels when icons are none
     Given the session:
       """json
       {
@@ -54,8 +54,10 @@ Feature: Capsule theme
     When the status line renders
     Then the output is:
       """
-      5h: ▮▮▮▮▮▮▮▮▮▯┃▯▯▯▯▯▯▯▯▯ 45%
-          gggggggggdBddddddddd
+      5h:  45%
+          ggggggggg1B111111111 ggg
+
+      1 = #5a5a5a
       """
 
   Scenario: The capsule theme without colour

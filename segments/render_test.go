@@ -223,7 +223,7 @@ func TestSegmentsDrawnWithTheRealTheme(t *testing.T) {
 	}
 }
 
-func TestCapsuleThemeUsesNerdOnlyWithNerdIcons(t *testing.T) {
+func TestCapsuleThemeWithEitherIcons(t *testing.T) {
 	t.Parallel()
 
 	render := func(setting string) string {
@@ -243,5 +243,5 @@ func TestCapsuleThemeUsesNerdOnlyWithNerdIcons(t *testing.T) {
 	}
 
 	assert.Regexp(t, "[\uee03\uee00]", render("nerd"))
-	assert.NotRegexp(t, "[\uee00-\uee05]", render("none"))
+	assert.Regexp(t, "[\uee03\uee00]", render("none"))
 }

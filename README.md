@@ -65,7 +65,7 @@ Or try `theme: saber`, which draws each bar as a lightsaber blade coloured by pa
   <img alt="The status line with the saber theme: each bar is a lightsaber blade coloured blue, purple or red by pace, brightening towards its tip, with a vertical bar marking the pace point" src="docs/images/saber-light.svg">
 </picture>
 
-Or `theme: capsule` with `icons: nerd`, which draws rounded capsule bars coloured by pace. It needs a Nerd Font in your terminal:
+Or `theme: capsule`, which draws rounded capsule bars coloured by pace, with or without `icons: nerd`. It needs a Nerd Font v3 or later in your terminal:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/capsule-dark.svg">

@@ -1,6 +1,6 @@
 # capsule: classic with rounded, pace-colored Nerd Font capsule bars. It needs
-# a Nerd Font v3 or later in the terminal and `icons: nerd` in the config;
-# without that the bars are drawn with the plain glyphs below.
+# a Nerd Font v3 or later in the terminal, whatever the icons setting. A
+# one-cell bar, which cannot hold a capsule, uses the plain glyphs below.
 #
 # A theme file uses this same format. Every field below is required except
 # colors.branch, colors.worktree and glyphs, so copy a built-in theme and edit
@@ -24,12 +24,12 @@ colors:
   worktree: bold 208
 
 bar:
-  # capsule: rounded Nerd Font bar colored by pace. Needs icons: nerd;
-  # without it the bar is drawn with the glyphs below.
+  # capsule: rounded Nerd Font bar colored by pace. A one-cell bar is drawn
+  # with the glyphs below.
   style: capsule
   full: "▮"
   # Seven partial-cell glyphs, from one eighth to seven eighths. A cell at least
-  # half full draws full, so the bar fills whole cells like the Nerd capsules.
+  # half full draws full, so the cell rounds like the Nerd capsules.
   partials: ["▯", "▯", "▯", "▮", "▮", "▮", "▮"]
   empty: "▯"
   marker: "┃"

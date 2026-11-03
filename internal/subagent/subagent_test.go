@@ -220,12 +220,12 @@ func TestBuildIconsSetting(t *testing.T) {
 	assert.NotContains(t, nerd, "ctx: ")
 }
 
-func TestBuildCapsuleThemeUsesNerdOnlyWithNerdIcons(t *testing.T) {
+func TestBuildCapsuleThemeWithEitherIcons(t *testing.T) {
 	t.Parallel()
 
 	session := `{"tasks":[{"id":"t1","name":"r","contextWindowSize":200000,"tokenCount":50000}]}`
-	nerd := (&scenario{session: session, config: "theme: capsule\nicons: nerd"}).rows(t)
-	none := (&scenario{session: session, config: "theme: capsule\nicons: none"}).rows(t)
-	assert.Regexp(t, "[\uee03\uee00]", nerd)
-	assert.NotRegexp(t, "[\uee00-\uee05]", none)
+	for _, set := range []string{"nerd", "none"} {
+		rows := (&scenario{session: session, config: "theme: capsule\nicons: " + set}).rows(t)
+		assert.Regexp(t, "[\uee03\uee00]", rows, "icons: %s", set)
+	}
 }

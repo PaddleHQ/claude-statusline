@@ -158,7 +158,6 @@ func (r *renderer) window(seg *rate.Window) Window {
 		return r.absent()
 	}
 	p := r.meter.params
-	p.Nerd = r.icons.Nerd()
 	bars := make([]string, 0, r.hi-r.lo+1)
 	for width := r.lo; width <= r.hi; width++ {
 		p.Width = width
@@ -171,7 +170,7 @@ func (r *renderer) window(seg *rate.Window) Window {
 func (r *renderer) absent() Window {
 	bars := make([]string, 0, r.hi-r.lo+1)
 	for width := r.lo; width <= r.hi; width++ {
-		empty := bar.Params{Width: width, NoTarget: true, Nerd: r.icons.Nerd()}
+		empty := bar.Params{Width: width, NoTarget: true}
 		bars = append(bars, empty.Render(r.th))
 	}
 	return Window{OK: false, Percent: r.th.Paint(r.th.Muted, absent), Bars: Series{Min: r.lo, Bars: bars}}

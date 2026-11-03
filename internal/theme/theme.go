@@ -67,7 +67,7 @@ type Theme struct {
 	Tip       string
 
 	// Capsule asks for rounded Nerd Font bars colored by pace. It keeps the
-	// theme's own glyphs, which the bar falls back to when Nerd icons are off.
+	// theme's own glyphs for a one-cell bar, which cannot hold a capsule.
 	Capsule bool
 }
 

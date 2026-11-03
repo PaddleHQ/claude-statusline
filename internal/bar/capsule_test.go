@@ -57,24 +57,9 @@ func TestRenderCapsule(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			tt.p.Nerd = true
 			assert.Equal(t, tt.want, tt.p.Render(capsule))
 		})
 	}
-}
-
-func TestRenderCapsuleFallsBackToSolidWithoutNerd(t *testing.T) {
-	t.Parallel()
-
-	solid := capsule
-	solid.Capsule = false
-	p := bar.Params{Usage: 40, Target: 30, Width: 10, Warn: 20, Bad: 40, HardCap: 95}
-	assert.Equal(t, p.Render(solid), p.Render(capsule))
-
-	capsuleMeter := &bar.Meter{Theme: capsule, Width: 10}
-	solidMeter := &bar.Meter{Theme: solid, Width: 10}
-	assert.Equal(t, solidMeter.Usage(60, 50, 90), capsuleMeter.Usage(60, 50, 90), "the percentage is not colored either")
-	assert.Equal(t, solidMeter.Pace(40, 30, 20, 40, 95), capsuleMeter.Pace(40, 30, 20, 40, 95))
 }
 
 func TestRenderCapsuleOfOneCellUsesTheThemeGlyphs(t *testing.T) {
@@ -83,27 +68,22 @@ func TestRenderCapsuleOfOneCellUsesTheThemeGlyphs(t *testing.T) {
 	solid := capsule
 	solid.Capsule = false
 	for _, usage := range []int{0, 100} {
-		p := bar.Params{Usage: usage, Width: 1, Warn: 50, Bad: 90, NoTarget: true, Nerd: true}
+		p := bar.Params{Usage: usage, Width: 1, Warn: 50, Bad: 90, NoTarget: true}
 		assert.Equal(t, p.Render(solid), p.Render(capsule), "usage %d", usage)
 		assert.Empty(t, p.PercentColor(capsule), "usage %d", usage)
 	}
 }
 
-func TestMeterCopiesNerd(t *testing.T) {
+func TestMeterDrawsCapsules(t *testing.T) {
 	t.Parallel()
 
-	m := &bar.Meter{Theme: capsule, Width: 4, Nerd: true}
-	assert.Contains(t, m.Usage(100, 50, 90), "\uee05")
-	m.Nerd = false
-	assert.NotContains(t, m.Usage(100, 50, 90), "\uee05")
+	m := &bar.Meter{Theme: capsule, Width: 4}
+	assert.Equal(t, paint("<w>", "LM")+paint("<e>", "mr")+" <w>60%</>", m.Usage(60, 50, 90))
 }
 
 func TestPercentColorOnCapsule(t *testing.T) {
 	t.Parallel()
 
-	p := bar.Params{Usage: 60, Width: 4, Warn: 50, Bad: 90, NoTarget: true, Nerd: true}
+	p := bar.Params{Usage: 60, Width: 4, Warn: 50, Bad: 90, NoTarget: true}
 	assert.Equal(t, "<w>", p.PercentColor(capsule))
-
-	p.Nerd = false
-	assert.Empty(t, p.PercentColor(capsule), "without Nerd the bar is solid, so the percentage stays uncolored")
 }
