@@ -65,6 +65,10 @@ type Theme struct {
 	// GlowCells is how many of the last lit cells glow.
 	GlowCells int
 	Tip       string
+
+	// Capsule asks for rounded Nerd Font bars colored by pace. It keeps the
+	// theme's own glyphs for a one-cell bar, which cannot hold a capsule.
+	Capsule bool
 }
 
 // WithoutColor clears every color and style, keeping the glyphs.

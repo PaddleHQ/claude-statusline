@@ -26,7 +26,7 @@ var (
 	errPartialsPrintable = errors.New("bar.partials must be printable glyphs")
 	errPartialsCount     = errors.New("bar.partials must hold")
 	errRampCount         = errors.New("bar.ramp must hold")
-	errStyle             = errors.New("not solid, gradient or saber")
+	errStyle             = errors.New("not solid, gradient, saber or capsule")
 	errBladeCount        = errors.New("bar.blade must hold")
 	errGlowCells         = errors.New("bar.glow_cells must be a whole number of at least 1")
 	errGlowRange         = errors.New("bar.glow must be a whole number from 0 to 100")
@@ -40,6 +40,7 @@ const (
 	styleSolid   = "solid"
 	styleGrad    = "gradient"
 	styleSaber   = "saber"
+	styleCapsule = "capsule"
 	glowMax      = 100
 	partialCount = 7
 	resetSeq     = "\033[0m"
@@ -216,10 +217,11 @@ func (t *Theme) compileStyle(b barSpec) error {
 		return fmt.Errorf("bar.style %w", errMissing)
 	}
 	switch *b.Style {
-	case styleSolid:
+	case styleSolid, styleCapsule:
 		if len(b.Partials) == 0 {
 			return fmt.Errorf("%w %d glyphs", errPartialsCount, partialCount)
 		}
+		t.Capsule = *b.Style == styleCapsule
 		return nil
 	case styleGrad:
 		return t.compileRamp(b.Ramp)

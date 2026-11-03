@@ -249,3 +249,14 @@ func TestRateBarsWithNerdIcons(t *testing.T) {
 
 	assert.Equal(t, decode(t, plain), decode(t, nerd), "the label is not part of the bars")
 }
+
+func TestRateBarsCapsuleWithEitherIcons(t *testing.T) {
+	t.Parallel()
+
+	args := []string{"--min-cells=10", "--max-cells=10"}
+	for _, set := range []string{"nerd", "none"} {
+		out, err := (&env{cache: cache, config: "theme: capsule\nicons: " + set}).run(t, args...)
+		require.NoError(t, err)
+		assert.Regexp(t, "[\uee03\uee00]", decode(t, out).Rate5h.Bars["10"], "icons: %s", set)
+	}
+}

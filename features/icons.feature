@@ -1,6 +1,6 @@
 @icons
 Feature: Nerd Font icons
-  With icons: nerd, each label is drawn as a Nerd Font icon. The icons need a Nerd Font set as the
+  With icons: nerd, each label is drawn as a Nerd Font icon. The icons need a Nerd Font v3 or later set as the
   terminal font, and the harness counts each as one column, as a Mono variant of the font draws it.
 
   Background:

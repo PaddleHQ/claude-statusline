@@ -163,7 +163,7 @@ func (h *helper) problemText() string {
 
 func (h *helper) iconsLine() string {
 	if h.iconsOn {
-		return "Icons: nerd (Nerd Font icons; needs a Nerd Font set as your terminal font). Set icons: none for plain labels.\n"
+		return "Icons: nerd (Nerd Font icons; needs a Nerd Font v3 or later set as your terminal font). Set icons: none for plain labels.\n"
 	}
-	return "Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font set as your terminal font.\n"
+	return "Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font v3 or later set as your terminal font.\n"
 }

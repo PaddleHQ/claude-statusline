@@ -130,6 +130,18 @@ bar:
   marker: "|"
 `
 
+func TestLoadCapsule(t *testing.T) {
+	t.Parallel()
+
+	got := theme.Load("capsule", "", "")
+	assert.True(t, got.Capsule)
+	assert.False(t, got.Gradient)
+	assert.Equal(t, "▮", got.Full)
+	assert.Equal(t, "▯", got.Empty)
+	assert.Equal(t, [7]string{"▯", "▯", "▯", "▮", "▮", "▮", "▮"}, got.Partials, "cells round to whole capsules")
+	assert.Equal(t, "\033[38;2;90;90;90m", got.EmptyColor)
+}
+
 func TestInvalidThemesFallBack(t *testing.T) {
 	t.Parallel()
 
@@ -166,6 +178,7 @@ func TestInvalidThemesFallBack(t *testing.T) {
 		{"control character in a glyph", "", broken("full: \"#\"", "full: \"\\e[0m\"")},
 		{"solid without partials", "", broken("  partials: [\"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\"]\n", "")},
 		{"wrong number of partials", "", broken("partials: [\"1\", ", "partials: [")},
+		{"capsule without partials", "", strings.Replace(broken("style: solid", "style: capsule"), "  partials: [\"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\"]\n", "", 1)},
 		{"gradient without a ramp", "", broken("style: solid", "style: gradient")},
 		{"bad ramp stop", "", broken("style: solid", "style: gradient\n  ramp: [\"#000000\", \"red\", \"#ffffff\"]")},
 		{"short hex ramp stop", "", broken("style: solid", "style: gradient\n  ramp: [\"#fff\", \"#000000\", \"#000000\"]")},

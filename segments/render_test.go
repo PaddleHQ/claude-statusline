@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
+	"github.com/PaddleHQ/claude-statusline/internal/icons"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
@@ -220,4 +221,27 @@ func TestSegmentsDrawnWithTheRealTheme(t *testing.T) {
 			assert.Equal(t, tt.want, draw(t, tt))
 		})
 	}
+}
+
+func TestCapsuleThemeWithEitherIcons(t *testing.T) {
+	t.Parallel()
+
+	render := func(setting string) string {
+		set, _ := icons.Parse(setting)
+		env := segments.NewEnv(segments.Env{
+			Payload: payload.Parse([]byte(`{"context_window":{"used_percentage":30}}`)),
+			Config:  config.New("", segments.Defaults()...),
+			Theme:   theme.Load("capsule", "", ""),
+			Now:     time.Unix(drawNow, 0),
+			Columns: 200,
+			Home:    "/home/me",
+			Icons:   set,
+		})
+		seg, _, ok := env.Lookup("ctx")
+		require.True(t, ok)
+		return seg.Render()
+	}
+
+	assert.Regexp(t, "[\uee03\uee00]", render("nerd"))
+	assert.Regexp(t, "[\uee03\uee00]", render("none"))
 }
