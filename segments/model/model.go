@@ -59,12 +59,20 @@ type Painter interface {
 	Text(s string) string
 }
 
+//go:generate go run github.com/vektra/mockery/v2 --name=Icons
+
+// Icons picks a label for the user's icon set.
+type Icons interface {
+	Pick(plain, nerd string) string
+}
+
 // Deps is everything the segment is built from. Transcript is a function so that the transcript is only read when the segment needs it.
 type Deps struct {
 	Session    Session
 	Transcript func() Transcript
 	Config     Config
 	Paint      Painter
+	Icons      Icons
 }
 
 // Model shows the model in use.
@@ -114,7 +122,7 @@ func (m *Model) Render() string {
 	if level != "" && m.d.Config.Bool("effort") {
 		display += " [" + level + "]"
 	}
-	return m.d.Paint.Text(display)
+	return m.d.Paint.Text(m.d.Icons.Pick("", "\U000F06A9 ") + display)
 }
 
 // parse reads a model id into its label and lower-case family.

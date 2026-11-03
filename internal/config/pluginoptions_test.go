@@ -104,6 +104,17 @@ func TestResolveEveryKey(t *testing.T) {
 			assert.Equal(t, "·", c.String("separator"))
 			assert.Equal(t, config.SourceDefaults, c.Source("separator"))
 		}},
+		{"icons", `{"icons": "nerd"}`, func(t *testing.T, c *config.Config) {
+			assert.Equal(t, "nerd", c.String("icons"))
+			assert.Equal(t, config.SourcePlugin, c.Source("icons"))
+		}},
+		{"icons default falls through", `{"icons": "default"}`, func(t *testing.T, c *config.Config) {
+			assert.Equal(t, "none", c.String("icons"))
+			assert.Equal(t, config.SourceDefaults, c.Source("icons"))
+		}},
+		{"an unknown icons value falls through", `{"icons": "emoji"}`, func(t *testing.T, c *config.Config) {
+			assert.Equal(t, config.SourceDefaults, c.Source("icons"))
+		}},
 		{"path_strip", `{"path_strip": ["~/code"]}`, func(t *testing.T, c *config.Config) {
 			assert.Equal(t, []string{"~/code"}, c.Strings("path.strip"))
 			assert.Equal(t, config.SourcePlugin, c.Source("path.strip"))

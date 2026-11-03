@@ -10,6 +10,7 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/bar"
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/gitbranch"
+	"github.com/PaddleHQ/claude-statusline/internal/icons"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
@@ -47,6 +48,7 @@ type Env struct {
 	Payload    payload.Payload
 	Config     *config.Config
 	Theme      theme.Theme
+	Icons      icons.Set
 	Now        time.Time
 	Columns    int
 	Home       string
@@ -115,6 +117,7 @@ func (e *Env) registrations() []registration {
 			Config: cfg,
 			Paint:  &e.Theme,
 			Meter:  meter(cfg),
+			Icons:  &e.Icons,
 			Now:    e.Now,
 			Limits: func() rate.Limits { return e.limits() },
 		}
@@ -123,7 +126,7 @@ func (e *Env) registrations() []registration {
 	regs := make([]registration, 0, 7+len(names))
 	regs = append(regs, []registration{
 		{"path", layout.Identity, func(cfg *config.Section) Segment {
-			return path.New(path.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Git: &gitbranch.Reader{}, Home: e.Home})
+			return path.New(path.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Git: &gitbranch.Reader{}, Icons: &e.Icons, Home: e.Home})
 		}},
 		{"model", layout.Identity, func(cfg *config.Section) Segment {
 			return model.New(model.Deps{
@@ -131,13 +134,14 @@ func (e *Env) registrations() []registration {
 				Transcript: func() model.Transcript { return e.info() },
 				Config:     cfg,
 				Paint:      &e.Theme,
+				Icons:      &e.Icons,
 			})
 		}},
 		{"ctx", layout.Identity, func(cfg *config.Section) Segment {
-			return ctx.New(ctx.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Meter: meter(cfg)})
+			return ctx.New(ctx.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme, Meter: meter(cfg), Icons: &e.Icons})
 		}},
 		{"tokens", layout.Usage, func(*config.Section) Segment {
-			return tokens.New(tokens.Deps{Session: &e.Payload, Paint: &e.Theme, Separator: e.Separator()})
+			return tokens.New(tokens.Deps{Session: &e.Payload, Paint: &e.Theme, Icons: &e.Icons, Separator: e.Separator()})
 		}},
 		{"cache", layout.Usage, func(cfg *config.Section) Segment {
 			return cache.New(cache.Deps{
@@ -146,6 +150,7 @@ func (e *Env) registrations() []registration {
 				Config:     cfg,
 				Paint:      &e.Theme,
 				Now:        e.Now,
+				Icons:      &e.Icons,
 			})
 		}},
 		{"rate5h", layout.Rates, func(cfg *config.Section) Segment { return rate.NewFiveHour(rates(cfg)) }},
@@ -157,6 +162,7 @@ func (e *Env) registrations() []registration {
 				Transcript: func() diagnostics.Transcript { return e.info() },
 				Paint:      &e.Theme,
 				Tokens:     tokens.FormatTokens,
+				Icons:      &e.Icons,
 			})
 			return d
 		}})

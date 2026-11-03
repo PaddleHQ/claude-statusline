@@ -2,6 +2,8 @@
 
 Shows how full the context window is as a bar, for example `ctx: ████░░░░░░ 42%`.
 
+With `icons: nerd` the label `ctx:` becomes the Nerd Font memory chip icon (U+F035B).
+
 ## Settings
 
 | Key | Default | Meaning |

@@ -21,7 +21,9 @@ func build(t *testing.T, used float64, reported bool, warn, bad int) (*ctx.Conte
 	paint := mocks.NewPainter(t)
 	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + "</>" }).Maybe()
 	meter := mocks.NewMeter(t)
-	return ctx.New(ctx.Deps{Session: sess, Config: cfg, Paint: paint, Meter: meter}), meter
+	icons := mocks.NewIcons(t)
+	icons.EXPECT().Pick(mock.Anything, mock.Anything).RunAndReturn(func(plain, _ string) string { return plain }).Maybe()
+	return ctx.New(ctx.Deps{Session: sess, Config: cfg, Paint: paint, Meter: meter, Icons: icons}), meter
 }
 
 func TestRender(t *testing.T) {
@@ -71,4 +73,21 @@ func TestNameKeysAndHelp(t *testing.T) {
 	assert.Equal(t, []string{"width", "width_medium", "width_narrow", "warn", "bad"}, seg.Keys())
 	assert.Contains(t, seg.Help(), "40%")
 	assert.Contains(t, seg.Help(), "80%")
+}
+
+func TestContextNerdIcon(t *testing.T) {
+	t.Parallel()
+
+	sess := mocks.NewSession(t)
+	sess.EXPECT().UsedPercentage().Return(49, true)
+	cfg := mocks.NewConfig(t)
+	cfg.EXPECT().Int(mock.Anything).Return(50)
+	paint := mocks.NewPainter(t)
+	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return s })
+	meter := mocks.NewMeter(t)
+	meter.EXPECT().Usage(mock.Anything, mock.Anything, mock.Anything).Return("BAR")
+	icons := mocks.NewIcons(t)
+	icons.EXPECT().Pick("ctx: ", "\U000F035B ").RunAndReturn(func(_, nerd string) string { return nerd })
+	seg := ctx.New(ctx.Deps{Session: sess, Config: cfg, Paint: paint, Meter: meter, Icons: icons})
+	assert.Equal(t, "\U000F035B BAR", seg.Render())
 }

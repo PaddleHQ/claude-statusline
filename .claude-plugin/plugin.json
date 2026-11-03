@@ -39,6 +39,17 @@
 			"description": "Glyph drawn between segments. Empty means use config.yaml, else the built-in default.",
 			"default": ""
 		},
+		"icons": {
+			"type": "string",
+			"title": "Icons",
+			"description": "Icon set for segment labels: none for plain text, nerd for Nerd Font icons (needs a Nerd Font as your terminal font). \"default\" means use config.yaml, else the built-in default.",
+			"default": "default",
+			"options": [
+				"default",
+				"none",
+				"nerd"
+			]
+		},
 		"path_strip": {
 			"type": "string",
 			"title": "Path prefixes to strip",

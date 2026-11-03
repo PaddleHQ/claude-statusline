@@ -52,12 +52,20 @@ type Meter interface {
 	Pace(usage, target, warn, bad, hardCap int) string
 }
 
+//go:generate go run github.com/vektra/mockery/v2 --name=Icons
+
+// Icons picks a label for the user's icon set.
+type Icons interface {
+	Pick(plain, nerd string) string
+}
+
 // Deps is everything the segments are built from. Limits is a function, like the Env field it comes from, so a line
 // without a rate bar never filters the readings.
 type Deps struct {
 	Config Config
 	Paint  Painter
 	Meter  Meter
+	Icons  Icons
 	Now    time.Time
 	Limits func() Limits
 }
@@ -68,17 +76,18 @@ type Window struct {
 	name    string
 	window  string
 	seconds int64
+	icon    string
 	reading func(Limits) (used, resetsAt int64, ok bool)
 }
 
 // NewFiveHour builds the rate5h segment.
 func NewFiveHour(d Deps) *Window {
-	return &Window{d: d, name: fiveHour, window: "5 hour", seconds: fiveHourSeconds, reading: Limits.FiveHourReading}
+	return &Window{d: d, name: fiveHour, window: "5 hour", seconds: fiveHourSeconds, icon: "\uF017", reading: Limits.FiveHourReading}
 }
 
 // NewSevenDay builds the rate7d segment.
 func NewSevenDay(d Deps) *Window {
-	return &Window{d: d, name: sevenDay, window: "7 day", seconds: sevenDaySeconds, reading: Limits.SevenDayReading}
+	return &Window{d: d, name: sevenDay, window: "7 day", seconds: sevenDaySeconds, icon: "\uF073", reading: Limits.SevenDayReading}
 }
 
 // Name is the segment's name in the segments list.
@@ -106,7 +115,13 @@ func (w *Window) Render() string {
 	cfg := w.d.Config
 	target := elapsedPercent(w.d.Now.Unix(), resetsAt, w.seconds)
 	bar := w.d.Meter.Pace(int(used), target, cfg.Int("warn"), cfg.Int("bad"), cfg.Int("hard_cap"))
-	return w.d.Paint.Text(cfg.String("label")+": ") + bar
+	label := cfg.String("label")
+	return w.d.Paint.Text(w.d.Icons.Pick(label+": ", w.nerdLabel(label))) + bar
+}
+
+// nerdLabel keeps the window label after the icon, since a clock and a calendar are hard to tell apart alone.
+func (w *Window) nerdLabel(label string) string {
+	return w.icon + " " + label + " "
 }
 
 // elapsedPercent is how much of a window, ending at resetsAt, has passed by now, clamped to 0..100.

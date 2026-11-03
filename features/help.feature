@@ -22,6 +22,7 @@ Feature: Help
         rate5h: Your 5 hour usage, with a marker at an even pace. Amber when more than 20 points off it, red beyond 40 points or from 95% used.
         rate7d: Your 7 day usage, with a marker at an even pace. Amber when more than 10 points off it, red beyond 20 points or from 95% used.
 
+      Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font set as your terminal font.
       Config file: @TMP@/claude-statusline/config.yaml (not created yet, so the defaults apply)
       Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md
       """
@@ -61,6 +62,7 @@ Feature: Help
         agent_skills: Amber when a subagent lost skill descriptions; shows how many.
         mem: Red when a SessionStart hook output was too large to inject.
 
+      Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font set as your terminal font.
       Config file: @TMP@/claude-statusline/config.yaml
       Documentation: https://github.com/PaddleHQ/claude-statusline/blob/main/docs/customising.md
       """

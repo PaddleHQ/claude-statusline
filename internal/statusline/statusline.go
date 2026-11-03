@@ -7,6 +7,7 @@ import (
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/hook"
+	"github.com/PaddleHQ/claude-statusline/internal/icons"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
@@ -29,7 +30,7 @@ const (
 
 // Keys lists every config key the status line reads, for checking against defaults.yaml.
 func Keys() []string {
-	keys := append(render.Keys(), keyTheme, keyHookTTL, keyHookTimeout, keySnapEnabled, keySnapPath)
+	keys := append(render.Keys(), keyTheme, icons.Key, keyHookTTL, keyHookTimeout, keySnapEnabled, keySnapPath)
 	for _, seg := range segments.NewEnv(segments.Env{Config: config.New("")}).All() {
 		for _, k := range seg.Keys() {
 			keys = append(keys, seg.Name()+"."+k)
@@ -55,8 +56,11 @@ func Build(input []byte, getenv func(string) string) string {
 	// Synced on every run, not only when a rate segment renders: other tools read the shared cache.
 	limits := ratecache.NewCache(cachePath(getenv)).Sync(p.SessionID, ratecache.FromPayload(p.RateLimits))
 
+	iconSet := icons.FromConfig(cfg)
+
 	env := segments.NewEnv(segments.Env{
 		Payload: p,
+		Icons:   iconSet,
 		Config:  cfg,
 		Theme:   th,
 		Now:     at,

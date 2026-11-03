@@ -207,3 +207,15 @@ separator: "|"`,
 		})
 	}
 }
+
+func TestBuildIconsSetting(t *testing.T) {
+	t.Parallel()
+
+	session := `{"tasks":[{"id":"t1","name":"r","contextWindowSize":200000,"tokenCount":50000}]}`
+	plain := (&scenario{session: session}).rows(t)
+	nerd := (&scenario{session: session, config: "icons: nerd"}).rows(t)
+	assert.Contains(t, plain, "ctx: ")
+	assert.NotContains(t, plain, "\U000F035B ")
+	assert.Contains(t, nerd, "\U000F035B ")
+	assert.NotContains(t, nerd, "ctx: ")
+}

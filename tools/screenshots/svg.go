@@ -1,19 +1,22 @@
 package main
 
 import (
+	_ "embed"
+	"encoding/base64"
 	"fmt"
 	"strings"
 )
 
 const (
-	fontSize   = 15
-	cellWidth  = 9
-	lineHeight = 20
-	baseline   = 15
-	padding    = 16
-	radius     = 8
-	dimOpacity = "0.55"
-	fontFamily = "ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace"
+	fontSize      = 15
+	cellWidth     = 9
+	lineHeight    = 20
+	baseline      = 15
+	padding       = 16
+	radius        = 8
+	dimOpacity    = "0.55"
+	fontFamily    = "ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono'"
+	symbolsFamily = "Symbols Nerd Font Mono"
 
 	cubeStart  = 16
 	cubeSize   = 6
@@ -23,6 +26,15 @@ const (
 	cubeStep   = 40
 	cubeOffset = 55
 )
+
+// symbolsFont is a subset of Symbols Nerd Font Mono, embedded in images that draw icons because
+// GitHub shows the images through <img>, where no font of the reader's can be relied upon.
+//
+//go:embed symbols.woff
+var symbolsFont []byte
+
+var symbolsFontFace = "<defs><style>@font-face{font-family:'" + symbolsFamily +
+	"';src:url(data:font/woff;base64," + base64.StdEncoding.EncodeToString(symbolsFont) + ") format('woff');}</style></defs>\n"
 
 // Theme is the palette an image is drawn with.
 type Theme struct {
@@ -74,7 +86,12 @@ func (s *Screen) SVG(th *Theme) []byte {
 	fmt.Fprintf(&b, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%d\" height=\"%d\" ", width, height)
 	fmt.Fprintf(&b, "viewBox=\"0 0 %d %d\">\n", width, height)
 	fmt.Fprintf(&b, "<rect width=\"%d\" height=\"%d\" rx=\"%d\" fill=\"%s\"/>\n", width, height, radius, th.Background)
-	fmt.Fprintf(&b, "<g font-family=\"%s\" font-size=\"%d\" fill=\"%s\" xml:space=\"preserve\">\n", fontFamily, fontSize, th.Foreground)
+	family := fontFamily
+	if s.hasIcons() {
+		b.WriteString(symbolsFontFace)
+		family += ", '" + symbolsFamily + "'"
+	}
+	fmt.Fprintf(&b, "<g font-family=\"%s, monospace\" font-size=\"%d\" fill=\"%s\" xml:space=\"preserve\">\n", family, fontSize, th.Foreground)
 	for i, line := range s.lines {
 		y := padding + i*lineHeight + baseline
 		fmt.Fprintf(&b, "<text y=\"%d\">", y)
@@ -87,10 +104,28 @@ func (s *Screen) SVG(th *Theme) []byte {
 	return []byte(b.String())
 }
 
+func (s *Screen) hasIcons() bool {
+	for _, line := range s.lines {
+		for _, c := range line {
+			if isIcon(c.r) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// isIcon reports whether r is in a Private Use Area, where Nerd Font icons live.
+func isIcon(r rune) bool {
+	return (r >= 0xE000 && r <= 0xF8FF) || r >= 0xF0000
+}
+
+// runsOf groups cells into runs. An icon gets a run of its own, because its glyph is a full em
+// wide rather than one cell, and would push the text after it off the grid.
 func runsOf(line []cell) []run {
 	var runs []run
 	for col, c := range line {
-		if n := len(runs); n > 0 && runs[n-1].st == c.st {
+		if n := len(runs); n > 0 && runs[n-1].st == c.st && !isIcon(c.r) && !isIcon(runs[n-1].text[0]) {
 			runs[n-1].text = append(runs[n-1].text, c.r)
 			continue
 		}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/hook"
+	"github.com/PaddleHQ/claude-statusline/internal/icons"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments"
 )
@@ -21,6 +22,7 @@ type helper struct {
 	problem    *config.Problem
 	options    *config.PluginOptions
 	home       string
+	iconsOn    bool
 }
 
 // Help describes the user's status line in plain text: what is shown now, the custom segments and the built-ins left out.
@@ -42,6 +44,8 @@ func Help(getenv func(string) string) string {
 		options:    cfg.PluginOptions(),
 		home:       getenv("HOME"),
 	}
+	set := icons.FromConfig(cfg)
+	h.iconsOn = set.Nerd()
 	return h.text()
 }
 
@@ -71,7 +75,8 @@ func (h *helper) text() string {
 		writeList(&b, left)
 	}
 
-	b.WriteString("\n" + h.configFooter())
+	b.WriteString("\n" + h.iconsLine())
+	b.WriteString(h.configFooter())
 	if h.options.Active() {
 		shown := config.Clean(collapseHome(h.options.Path, h.home))
 		fmt.Fprintf(&b, "Plugin options: %s (%s), which win over the config file\n", shown, config.Clean(h.options.Entry))
@@ -154,4 +159,11 @@ func (h *helper) configFooter() string {
 // problemText follows the path: the line, when the parser gave one, and the reason.
 func (h *helper) problemText() string {
 	return lineSuffix(h.problem.Line) + config.Clean(h.problem.Reason)
+}
+
+func (h *helper) iconsLine() string {
+	if h.iconsOn {
+		return "Icons: nerd (Nerd Font icons; needs a Nerd Font set as your terminal font). Set icons: none for plain labels.\n"
+	}
+	return "Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font set as your terminal font.\n"
 }

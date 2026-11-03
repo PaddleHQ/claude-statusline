@@ -30,7 +30,7 @@ func TestDefaultKeys(t *testing.T) {
 
 	keys := config.DefaultKeys()
 	slices.Sort(keys)
-	want := []string{"hooks.timeout", "hooks.ttl", "segments", "separator", "snapshot.enabled", "snapshot.path", "theme"}
+	want := []string{"hooks.timeout", "hooks.ttl", "icons", "segments", "separator", "snapshot.enabled", "snapshot.path", "theme"}
 	assert.Equal(t, want, keys)
 }
 
@@ -392,4 +392,34 @@ func TestNow(t *testing.T) {
 
 func getenvFrom(m map[string]string) func(string) string {
 	return func(name string) string { return m[name] }
+}
+
+func TestRaw(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		user   string
+		key    string
+		want   any
+		wantOK bool
+	}{
+		{"a string", "icons: nerd", "icons", "nerd", true},
+		{"a bool is not turned into a string", "icons: true", "icons", true, true},
+		{"a number", "icons: 5", "icons", 5, true},
+		{"a nested key", "path:\n  emoji: 1", "path.emoji", 1, true},
+		{"a null is present and nil", "icons:", "icons", nil, true},
+		{"a missing key", "segments: [a]", "icons", nil, false},
+		{"a default is not a user value", "", "separator", nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, ok := config.New(tt.user).Raw(tt.key)
+
+			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.wantOK, ok)
+		})
+	}
 }

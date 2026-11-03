@@ -6,8 +6,10 @@ import (
 	"io/fs"
 	"os"
 	"strings"
+	"unicode"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
+	"github.com/PaddleHQ/claude-statusline/internal/icons"
 	"github.com/PaddleHQ/claude-statusline/segments"
 )
 
@@ -46,6 +48,7 @@ func ConfigCheck(getenv func(string) string) (report string, ok bool) {
 			b.WriteString("  " + config.Clean(key) + "\n")
 		}
 	}
+	b.WriteString(invalidIconsValue(cfg))
 	writePluginOptions(&b, cfg, collapseHome(opts.Path, getenv("HOME")))
 	return b.String(), ok
 }
@@ -76,6 +79,22 @@ func writePluginOptions(b *strings.Builder, cfg *config.Config, shown string) {
 			fmt.Fprintf(b, "  %s: %s\n", o.Key, cfg.Source(o.Key))
 		}
 	}
+}
+
+// invalidIconsValue reports an icons value that draws as none, so the user learns why the setting seems to do nothing.
+// It is the only setting checked here: other bad values fall back silently.
+func invalidIconsValue(cfg *config.Config) string {
+	raw, set := cfg.Raw(icons.Key)
+	if !set || raw == nil {
+		return ""
+	}
+	// Config.String drops a value with a control character, so the render falls back to none even when Parse would trim it.
+	if value, isString := raw.(string); isString && !strings.ContainsFunc(value, unicode.IsControl) {
+		if _, valid := icons.Parse(value); valid {
+			return ""
+		}
+	}
+	return "\nInvalid values (ignored):\n  " + icons.Key + ": " + config.Clean(fmt.Sprint(raw)) + " (use none or nerd)\n"
 }
 
 // missing reports a file that is not there; Load treats it as an empty config, not a problem.

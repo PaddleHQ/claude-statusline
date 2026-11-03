@@ -2,6 +2,8 @@
 
 Shows the model in use and its effort level, for example `Opus 4.7 [high]`. While a skill or subagent runs a different model it reads `Haiku 4.5 (skill)`.
 
+With `icons: nerd` a Nerd Font robot icon (U+F06A9) is drawn before the model.
+
 ## Settings
 
 | Key | Default | Meaning |

@@ -17,7 +17,9 @@ var Defaults string
 const (
 	name         = "cache"
 	percentScale = 100
-	cold         = "⧉ cold"
+	plainLabel   = "\u29C9 "
+	nerdLabel    = "\uF0E7 "
+	cold         = "cold"
 )
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Session
@@ -53,6 +55,13 @@ type Painter interface {
 	Bad(s string) string
 }
 
+//go:generate go run github.com/vektra/mockery/v2 --name=Icons
+
+// Icons picks a label for the user's icon set.
+type Icons interface {
+	Pick(plain, nerd string) string
+}
+
 // Deps is everything the segment is built from. Transcript is a function so that the transcript is only read when the segment needs it.
 type Deps struct {
 	Session    Session
@@ -60,6 +69,7 @@ type Deps struct {
 	Config     Config
 	Paint      Painter
 	Now        time.Time
+	Icons      Icons
 }
 
 // Cache shows the prompt cache hit rate.
@@ -74,7 +84,7 @@ func (c *Cache) Name() string { return name }
 // Help says what the segment shows, for the help command.
 func (c *Cache) Help() string {
 	return fmt.Sprintf("How much of the latest request's input was read from the prompt cache. Red below %d%%, "+
-		"and a red %s once the cache has expired, as in a resumed session.", c.d.Config.Int("warn"), cold)
+		"and a red %s once the cache has expired, as in a resumed session.", c.d.Config.Int("warn"), c.label()+cold)
 }
 
 // Keys lists the config keys the segment reads, relative to its section.
@@ -83,7 +93,7 @@ func (c *Cache) Keys() []string { return []string{"warn"} }
 // Render returns the segment's text, or "" to hide it.
 func (c *Cache) Render() string {
 	if c.expired() {
-		return c.d.Paint.Bad(cold)
+		return c.d.Paint.Bad(c.label() + cold)
 	}
 	input, creation, read := c.d.Session.LatestRequest()
 	total := input + creation + read
@@ -91,7 +101,7 @@ func (c *Cache) Render() string {
 		return ""
 	}
 	pct := read * percentScale / total
-	text := "⧉ " + strconv.FormatInt(pct, 10) + "%"
+	text := c.label() + strconv.FormatInt(pct, 10) + "%"
 	if pct < int64(c.d.Config.Int("warn")) {
 		return c.d.Paint.Bad(text)
 	}
@@ -105,4 +115,8 @@ func (c *Cache) expired() bool {
 	}
 	at, ttl := c.d.Transcript().LastRequest()
 	return !at.IsZero() && !c.d.Now.Before(at.Add(ttl))
+}
+
+func (c *Cache) label() string {
+	return c.d.Icons.Pick(plainLabel, nerdLabel)
 }

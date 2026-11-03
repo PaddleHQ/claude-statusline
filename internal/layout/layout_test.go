@@ -274,3 +274,10 @@ func FuzzWidth(f *testing.F) {
 		assert.LessOrEqual(t, w, len(s))
 	})
 }
+
+func TestWidthCountsNerdIconsAsOneColumn(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, 3, layout.Width("\uf07b a"))
+	assert.Equal(t, 1, layout.Width("\U000F06A9"))
+}

@@ -14,6 +14,7 @@ import (
 
 	"github.com/PaddleHQ/claude-statusline/internal/bar"
 	"github.com/PaddleHQ/claude-statusline/internal/config"
+	"github.com/PaddleHQ/claude-statusline/internal/icons"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments"
@@ -89,7 +90,8 @@ func Build(args []string, getenv func(string) string) (string, error) {
 		limits = cached.Visible(at.Unix())
 	}
 
-	r := &renderer{th: th, lo: lo, hi: hi}
+	iconSet := icons.FromConfig(cfg)
+	r := &renderer{th: th, icons: iconSet, lo: lo, hi: hi}
 	out := Output{
 		Rate5h: r.window(rate.NewFiveHour(r.deps(cfg.Section("rate5h"), at, &limits))),
 		Rate7d: r.window(rate.NewSevenDay(r.deps(cfg.Section("rate7d"), at, &limits))),
@@ -134,6 +136,7 @@ func (u *unpainted) Text(s string) string { return s }
 
 type renderer struct {
 	th     theme.Theme
+	icons  icons.Set
 	lo, hi int
 	meter  capture
 }
@@ -143,6 +146,7 @@ func (r *renderer) deps(cfg *config.Section, at time.Time, limits *ratecache.Lim
 		Config: cfg,
 		Paint:  &unpainted{},
 		Meter:  &r.meter,
+		Icons:  &r.icons,
 		Now:    at,
 		Limits: func() rate.Limits { return limits },
 	}

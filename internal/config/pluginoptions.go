@@ -55,6 +55,7 @@ var options = []Option{
 	{"theme_file", themeKey, KindString, nil},
 	{"segments", "segments", KindList, nil},
 	{"separator", "separator", KindString, nil},
+	{"icons", "icons", KindChoice, []string{"none", "nerd"}},
 	{"path_strip", "path.strip", KindList, nil},
 	{"path_worktrees", "path.worktrees", KindList, nil},
 	{"path_branch", "path.branch", KindToggle, nil},
