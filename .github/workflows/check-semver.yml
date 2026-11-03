@@ -23,10 +23,8 @@ jobs:
       - name: Harden the runner
         uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
-          egress-policy: block
-          # The job makes no outbound calls. One host is listed because an empty allowlist configures no rules at all.
-          allowed-endpoints: >
-            github.com:443
+          use-policy-store: true
+          api-key: ${{ secrets.STEPSECURITY_POLICY_STORE_API_KEY }}
 
       - name: Require exactly one SemVer label
         # The label is checked on the PR; the merge queue re-runs the same commit.
