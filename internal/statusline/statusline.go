@@ -10,6 +10,7 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/hook"
 	"github.com/PaddleHQ/claude-statusline/internal/icons"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
+	"github.com/PaddleHQ/claude-statusline/internal/overage"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/render"
@@ -59,6 +60,13 @@ func Build(input []byte, getenv func(string) string) string {
 	// Synced on every run, not only when a rate segment renders: other tools read the shared cache.
 	limits := ratecache.NewCache(cachePath(getenv)).Sync(p.SessionID, ratecache.FromPayload(p.RateLimits))
 
+	tracker := overage.New(overagePath(getenv))
+	// Recorded on every main-line run, not only when the overage segment renders: other tools read the shared file.
+	if cost, ok := p.TotalCost(); ok {
+		visible := limits.Visible(at.Unix())
+		tracker.Record(p.SessionID, cost, visible.AtLimit(), at)
+	}
+
 	iconSet := icons.FromConfig(cfg)
 
 	env := segments.NewEnv(segments.Env{
@@ -69,6 +77,7 @@ func Build(input []byte, getenv func(string) string) string {
 		Now:     at,
 		Columns: columns(getenv),
 		Home:    getenv("HOME"),
+		Overage: tracker,
 		Transcript: func() transcript.Info {
 			return transcript.Read(p.TranscriptPath)
 		},
@@ -185,6 +194,14 @@ func cachePath(getenv func(string) string) string {
 		return ""
 	}
 	return ratecache.PathIn(dir)
+}
+
+func overagePath(getenv func(string) string) string {
+	dir := config.StateDir(getenv)
+	if dir == "" {
+		return ""
+	}
+	return overage.PathIn(dir)
 }
 
 func columns(getenv func(string) string) int {

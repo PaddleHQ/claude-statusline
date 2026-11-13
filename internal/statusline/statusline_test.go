@@ -101,10 +101,10 @@ func TestBuildExcludesSegments(t *testing.T) {
 		want   string
 	}{
 		{"cost is excluded by default", "", "", "Opus"},
-		{"an empty list excludes nothing", "segments_excluded: []", "", "Opus · $1.00"},
+		{"an empty list excludes nothing", "segments_excluded: []", "", "Opus · $1.00 · » ~$0.00"},
 		{"a built-in is dropped from the user's own list", "segments: [cost, model]\nsegments_excluded: [model]", "", "$1.00"},
 		{"a name that is not listed changes nothing", "segments: [model]\nsegments_excluded: [path]", "", "Opus"},
-		{"the user's list replaces the default, so cost comes back", "segments_excluded: [path]", "", "Opus · $1.00"},
+		{"the user's list replaces the default, so cost comes back", "segments_excluded: [path]", "", "Opus · $1.00 · » ~$0.00"},
 		{"excluding every listed built-in leaves an empty line", "segments: [model]\nsegments_excluded: [model]", "", ""},
 		{"a custom segment of an excluded name still runs, in its slot", "segments: [cost, model]", "cost", "Opus · mine"},
 	}
@@ -332,4 +332,74 @@ func TestBuildStateDir(t *testing.T) {
 	assert.FileExists(t, filepath.Join(state, "cache", "ratelimits"))
 	assert.DirExists(t, filepath.Join(state, "cache", "hooks", "s1"))
 	assert.NoDirExists(t, filepath.Join(dir, "claude-statusline", "cache"))
+}
+
+func TestBuildTracksOverage(t *testing.T) {
+	t.Parallel()
+
+	const now = "1794600000" // 2026-11-14T20:00:00Z
+	render := func(state, cfgDir, session string, fiveHour, cost float64) string {
+		input := fmt.Sprintf(`{"session_id":%q,"cost":{"total_cost_usd":%g},"rate_limits":{"five_hour":{"used_percentage":%g,"resets_at":1794610000}}}`,
+			session, cost, fiveHour)
+		return statusline.Build([]byte(input), env(map[string]string{
+			"CLAUDE_CONFIG_DIR": cfgDir, config.StateDirEnv: state, "NO_COLOR": "1", "STATUSLINE_NOW": now,
+		}))
+	}
+	segmentOnly := "segments: [overage]\nsegments_excluded: []\n"
+	setup := func(t *testing.T) (state, cfgDir string) {
+		t.Helper()
+		state, cfgDir = t.TempDir(), t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(cfgDir, "claude-statusline"), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(cfgDir, "claude-statusline", "config.yaml"), []byte(segmentOnly), 0o600))
+		return state, cfgDir
+	}
+
+	t.Run("counts the cost a session adds while a window is at 100%, whether or not the segment is shown", func(t *testing.T) {
+		t.Parallel()
+		state, cfgDir := setup(t)
+		require.NoError(t, os.WriteFile(filepath.Join(cfgDir, "claude-statusline", "config.yaml"), []byte("segments: [model]\n"), 0o600))
+
+		render(state, cfgDir, "s1", 99, 10)
+		render(state, cfgDir, "s1", 100, 12)
+		render(state, cfgDir, "s1", 100, 15.5)
+
+		require.NoError(t, os.WriteFile(filepath.Join(cfgDir, "claude-statusline", "config.yaml"), []byte(segmentOnly), 0o600))
+		assert.Equal(t, "» ~$3.50", render(state, cfgDir, "s1", 100, 15.5))
+		assert.FileExists(t, filepath.Join(state, "cache", "overage"))
+	})
+
+	t.Run("under the limit it writes no file", func(t *testing.T) {
+		t.Parallel()
+		state, cfgDir := setup(t)
+
+		assert.Equal(t, "» ~$0.00", render(state, cfgDir, "s1", 50, 10))
+		render(state, cfgDir, "s1", 60, 20)
+
+		assert.NoFileExists(t, filepath.Join(state, "cache", "overage"))
+	})
+
+	t.Run("without a session id or a cost nothing is recorded", func(t *testing.T) {
+		t.Parallel()
+		state, cfgDir := setup(t)
+		for _, input := range []string{
+			`{"cost":{"total_cost_usd":5},"rate_limits":{"five_hour":{"used_percentage":100,"resets_at":1794610000}}}`,
+			`{"session_id":"s1","rate_limits":{"five_hour":{"used_percentage":100,"resets_at":1794610000}}}`,
+		} {
+			for range 2 {
+				statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": cfgDir, config.StateDirEnv: state, "STATUSLINE_NOW": now}))
+			}
+		}
+
+		assert.NoFileExists(t, filepath.Join(state, "cache", "overage"))
+	})
+
+	t.Run("a spend limit from the payload is shown instead of the estimate", func(t *testing.T) {
+		t.Parallel()
+		state, cfgDir := setup(t)
+		input := `{"session_id":"s1","rate_limits":{"spend_limit":{"used_percentage":25,"used_usd":12.5,"limit_usd":50}}}`
+
+		got := statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": cfgDir, config.StateDirEnv: state, "NO_COLOR": "1"}))
+
+		assert.Equal(t, "» $12.50/$50", got)
+	})
 }

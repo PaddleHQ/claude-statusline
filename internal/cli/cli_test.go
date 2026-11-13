@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -385,5 +386,85 @@ func TestExecuteRateBars(t *testing.T) {
 		assert.Equal(t, 2, status)
 		assert.Empty(t, out.String())
 		assert.Contains(t, errOut.String(), "usage: claude-statusline rate-bars")
+	})
+}
+
+func TestExecuteOverage(t *testing.T) {
+	t.Parallel()
+
+	const nowNovember = "1794600000" // 2026-11-14T20:00:00Z
+
+	run := func(t *testing.T, dir string, stateFiles map[string]string, extra map[string]string) (string, int) {
+		t.Helper()
+		for name, content := range stateFiles {
+			path := filepath.Join(dir, "claude-statusline", "cache", name)
+			require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+			require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+		}
+		env := map[string]string{"CLAUDE_CONFIG_DIR": dir, "HOME": dir, "STATUSLINE_NOW": nowNovember}
+		maps.Copy(env, extra)
+		app := cli.New(cli.Build{Version: "dev"})
+		app.SetExecutable(func() (string, error) {
+			return filepath.Join(dir, "claude-statusline", "bin", "claude-statusline"), nil
+		})
+		var out bytes.Buffer
+		status := app.Execute([]string{"overage"}, &failingReader{t}, &out, func(k string) string { return env[k] })
+		return out.String(), status
+	}
+
+	t.Run("prints the month's total, the reset and whether a limit is at 100%", func(t *testing.T) {
+		t.Parallel()
+
+		out, status := run(t, t.TempDir(), map[string]string{
+			"overage":    `{"months":{"2026-11":{"usd":12.3449},"2026-10":{"usd":99}}}`,
+			"ratelimits": `{"five_hour":{"used":100,"resets_at":1794610000},"seven_day":{"used":40,"resets_at":1795000000}}`,
+		}, nil)
+
+		assert.Equal(t, 0, status)
+		assert.JSONEq(t, `{"month":"2026-11","usd":12.34,"resets_at":1796083200,"over":true}`, out)
+		assert.True(t, strings.HasSuffix(out, "}\n"), "one line with a newline")
+	})
+
+	t.Run("a window that has already reset is not over", func(t *testing.T) {
+		t.Parallel()
+
+		out, _ := run(t, t.TempDir(), map[string]string{
+			"ratelimits": `{"five_hour":{"used":100,"resets_at":1794500000},"seven_day":{"used":99,"resets_at":1795000000}}`,
+		}, nil)
+
+		assert.JSONEq(t, `{"month":"2026-11","usd":0,"resets_at":1796083200,"over":false}`, out)
+	})
+
+	t.Run("with no files it prints zero and exits 0", func(t *testing.T) {
+		t.Parallel()
+
+		out, status := run(t, t.TempDir(), nil, nil)
+
+		assert.Equal(t, 0, status)
+		assert.JSONEq(t, `{"month":"2026-11","usd":0,"resets_at":1796083200,"over":false}`, out)
+		assert.Equal(t, 1, strings.Count(out, "\n"))
+	})
+
+	t.Run("the month follows UTC at the rollover", func(t *testing.T) {
+		t.Parallel()
+
+		out, _ := run(t, t.TempDir(), map[string]string{
+			"overage": `{"months":{"2026-11":{"usd":5},"2026-12":{"usd":1.5}}}`,
+		}, map[string]string{"STATUSLINE_NOW": "1796083200"})
+
+		assert.JSONEq(t, `{"month":"2026-12","usd":1.5,"resets_at":1798761600,"over":false}`, out)
+	})
+
+	t.Run("without a state directory it prints zero", func(t *testing.T) {
+		t.Parallel()
+
+		app := cli.New(cli.Build{Version: "dev"})
+		app.SetExecutable(func() (string, error) { return "", errors.New("no executable") })
+		var out bytes.Buffer
+		env := map[string]string{"STATUSLINE_NOW": nowNovember}
+		status := app.Execute([]string{"overage"}, &failingReader{t}, &out, func(k string) string { return env[k] })
+
+		assert.Equal(t, 0, status)
+		assert.JSONEq(t, `{"month":"2026-11","usd":0,"resets_at":1796083200,"over":false}`, out.String())
 	})
 }

@@ -10,21 +10,16 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"syscall"
-	"time"
 
+	"github.com/PaddleHQ/claude-statusline/internal/filelock"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 )
 
 // maxValue keeps readings within 12 digits, like every other number the status line accepts.
 const maxValue = 1e12
 
-// lockWait bounds how long a render waits for another session's lock before syncing
-// without it, so a stalled holder can never freeze every status line.
-const (
-	lockWait = time.Second
-	lockPoll = 5 * time.Millisecond
-)
+// fullUsage is the percentage at which a window is exhausted.
+const fullUsage = 100
 
 // Reading is one window's usage percentage and the Unix time it resets.
 type Reading struct {
@@ -110,6 +105,11 @@ func (l *Limits) Visible(now int64) Limits {
 		v.SevenDay = nil
 	}
 	return v
+}
+
+// AtLimit reports whether any window has reached 100%.
+func (l *Limits) AtLimit() bool {
+	return (l.FiveHour != nil && l.FiveHour.Used >= fullUsage) || (l.SevenDay != nil && l.SevenDay.Used >= fullUsage)
 }
 
 // PathIn is where the cache file lives inside a state directory.
@@ -228,7 +228,7 @@ func (c *Cache) Sync(session string, incoming Limits) Limits {
 	if incoming.FiveHour == nil && incoming.SevenDay == nil {
 		return c.Load()
 	}
-	defer c.lock()()
+	defer filelock.Acquire(c.path + ".lock")()
 
 	cached := c.read()
 	merged, _ := cached.Merge(incoming, cached.Sessions[session])
@@ -262,27 +262,4 @@ func prune(sessions map[string]Limits, merged Limits) map[string]Limits {
 		return nil
 	}
 	return sessions
-}
-
-func (c *Cache) lock() func() {
-	unlocked := func() {}
-	if os.MkdirAll(filepath.Dir(c.path), 0o700) != nil {
-		return unlocked
-	}
-	f, err := os.OpenFile(c.path+".lock", os.O_CREATE|os.O_RDWR, 0o600) //nolint:gosec // G304: the user's own config directory
-	if err != nil {
-		return unlocked
-	}
-	deadline := time.Now().Add(lockWait)
-	for syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB) != nil { //nolint:gosec // G115: a file descriptor fits in an int
-		if time.Now().After(deadline) {
-			_ = f.Close()
-			return unlocked
-		}
-		time.Sleep(lockPoll)
-	}
-	return func() {
-		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:gosec // G115: a file descriptor fits in an int
-		_ = f.Close()
-	}
 }

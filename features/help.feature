@@ -24,6 +24,7 @@ Feature: Help
 
       Left out by segments_excluded:
         cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
+        overage: Extra-usage spend this calendar month (UTC), inferred from session cost at API prices while a 5h or 7d limit is at 100%: an estimate, not a bill. Amber while a limit is at 100% and the figure is above zero, dim at zero. Logins that report a spend limit show that instead.
 
       Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font v3 or later set as your terminal font.
       Config file: @TMP@/claude-statusline/config.yaml (not created yet, so the defaults apply)
@@ -67,6 +68,7 @@ Feature: Help
 
       Left out by segments_excluded:
         cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
+        overage: Extra-usage spend this calendar month (UTC), inferred from session cost at API prices while a 5h or 7d limit is at 100%: an estimate, not a bill. Amber while a limit is at 100% and the figure is above zero, dim at zero. Logins that report a spend limit show that instead.
 
       Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font v3 or later set as your terminal font.
       Config file: @TMP@/claude-statusline/config.yaml

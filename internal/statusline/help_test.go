@@ -40,6 +40,7 @@ Also available, not in your segments list:
   tokens: Session token totals: input after the down arrow, output after the up arrow.
   cache: How much of the latest request's input was read from the prompt cache. Red below 5%, and a red ⧉ cold once the cache has expired, as in a resumed session.
   cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
+  overage: Extra-usage spend this calendar month (UTC), inferred from session cost at API prices while a 5h or 7d limit is at 100%: an estimate, not a bill. Amber while a limit is at 100% and the figure is above zero, dim at zero. Logins that report a spend limit show that instead.
   rate5h: Your 5 hour usage, with a marker at an even pace. Amber when more than 20 points off it, red beyond 40 points or from 95% used.
   rate7d: Your 7 day usage, with a marker at an even pace. Amber when more than 10 points off it, red beyond 20 points or from 95% used.
   boot: The prompt size on the first turn, before you said anything.
@@ -85,6 +86,7 @@ Custom segments:
 
 Left out by segments_excluded:
   cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
+  overage: Extra-usage spend this calendar month (UTC), inferred from session cost at API prices while a 5h or 7d limit is at 100%: an estimate, not a bill. Amber while a limit is at 100% and the figure is above zero, dim at zero. Logins that report a spend limit show that instead.
 
 Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font v3 or later set as your terminal font.
 Config file: @TMP@/claude-statusline/config.yaml
@@ -104,6 +106,7 @@ Also available, not in your segments list:
   ctx: How full the context window is. Amber from 50%, red from 90%.
   tokens: Session token totals: input after the down arrow, output after the up arrow.
   cache: How much of the latest request's input was read from the prompt cache. Red below 5%, and a red ⧉ cold once the cache has expired, as in a resumed session.
+  overage: Extra-usage spend this calendar month (UTC), inferred from session cost at API prices while a 5h or 7d limit is at 100%: an estimate, not a bill. Amber while a limit is at 100% and the figure is above zero, dim at zero. Logins that report a spend limit show that instead.
   rate5h: Your 5 hour usage, with a marker at an even pace. Amber when more than 20 points off it, red beyond 40 points or from 95% used.
   rate7d: Your 7 day usage, with a marker at an even pace. Amber when more than 10 points off it, red beyond 20 points or from 95% used.
   boot: The prompt size on the first turn, before you said anything.
@@ -142,6 +145,7 @@ Also available, not in your segments list:
   tokens: Session token totals: input after the down arrow, output after the up arrow.
   cache: How much of the latest request's input was read from the prompt cache. Red below 5%, and a red ⧉ cold once the cache has expired, as in a resumed session.
   cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
+  overage: Extra-usage spend this calendar month (UTC), inferred from session cost at API prices while a 5h or 7d limit is at 100%: an estimate, not a bill. Amber while a limit is at 100% and the figure is above zero, dim at zero. Logins that report a spend limit show that instead.
   rate5h: Your 5 hour usage, with a marker at an even pace. Amber when more than 20 points off it, red beyond 40 points or from 95% used.
   rate7d: Your 7 day usage, with a marker at an even pace. Amber when more than 10 points off it, red beyond 20 points or from 95% used.
   boot: The prompt size on the first turn, before you said anything.
@@ -206,6 +210,7 @@ Also available, not in your segments list:
 
 Left out by segments_excluded:
   cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
+  overage: Extra-usage spend this calendar month (UTC), inferred from session cost at API prices while a 5h or 7d limit is at 100%: an estimate, not a bill. Amber while a limit is at 100% and the figure is above zero, dim at zero. Logins that report a spend limit show that instead.
 
 Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font v3 or later set as your terminal font.
 Config file: @TMP@/claude-statusline/config.yaml
@@ -246,6 +251,7 @@ Also available, not in your segments list:
 
 Left out by segments_excluded:
   cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
+  overage: Extra-usage spend this calendar month (UTC), inferred from session cost at API prices while a 5h or 7d limit is at 100%: an estimate, not a bill. Amber while a limit is at 100% and the figure is above zero, dim at zero. Logins that report a spend limit show that instead.
 
 Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font v3 or later set as your terminal font.
 Config file: @TMP@/claude-statusline/config.yaml
@@ -274,6 +280,7 @@ Also available, not in your segments list:
 
 Left out by segments_excluded:
   cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
+  overage: Extra-usage spend this calendar month (UTC), inferred from session cost at API prices while a 5h or 7d limit is at 100%: an estimate, not a bill. Amber while a limit is at 100% and the figure is above zero, dim at zero. Logins that report a spend limit show that instead.
 
 Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font v3 or later set as your terminal font.
 Config file: @TMP@/claude-statusline/config.yaml
@@ -307,6 +314,7 @@ Also available, not in your segments list:
 
 Left out by segments_excluded:
   cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
+  overage: Extra-usage spend this calendar month (UTC), inferred from session cost at API prices while a 5h or 7d limit is at 100%: an estimate, not a bill. Amber while a limit is at 100% and the figure is above zero, dim at zero. Logins that report a spend limit show that instead.
 
 Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font v3 or later set as your terminal font.
 Config file: @TMP@/claude-statusline/config.yaml

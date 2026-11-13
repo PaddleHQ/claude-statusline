@@ -44,7 +44,7 @@ Feature: Configuration
       """
     And the config:
       """
-      segments_excluded: [model]
+      segments_excluded: [model, cost, overage]
       """
     And the environment variable "NO_COLOR" is "1"
     When the status line renders
@@ -67,7 +67,7 @@ Feature: Configuration
       """
     And the config:
       """
-      segments_excluded: []
+      segments_excluded: [overage]
       """
     And the environment variable "NO_COLOR" is "1"
     When the status line renders

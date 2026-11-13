@@ -202,6 +202,81 @@ func TestParseContextWindow(t *testing.T) {
 	})
 }
 
+func TestParseSpendLimit(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  payload.SpendLimit
+	}{
+		{
+			"every field", `{"rate_limits":{"spend_limit":{"used_percentage":25,"resets_at":1796083200,"used_usd":12.5,"limit_usd":50,"period":"monthly"}}}`,
+			payload.SpendLimit{UsedPercentage: new(25.0), ResetsAt: new(1796083200.0), UsedUSD: new(12.5), LimitUSD: new(50.0)},
+		},
+		{
+			"a percentage without dollar amounts", `{"rate_limits":{"spend_limit":{"used_percentage":40}}}`,
+			payload.SpendLimit{UsedPercentage: new(40.0)},
+		},
+		{
+			"negative zero is zero", `{"rate_limits":{"spend_limit":{"used_usd":-0,"limit_usd":50}}}`,
+			payload.SpendLimit{UsedUSD: new(0.0), LimitUSD: new(50.0)},
+		},
+		{"at the bound", `{"rate_limits":{"spend_limit":{"used_usd":1e9}}}`, payload.SpendLimit{UsedUSD: new(1e9)}},
+		{"dollar amounts above the bound", `{"rate_limits":{"spend_limit":{"used_usd":1.1e9,"limit_usd":1.1e9}}}`, payload.SpendLimit{}},
+		{"negative numbers", `{"rate_limits":{"spend_limit":{"used_percentage":-1,"used_usd":-1,"limit_usd":-1,"resets_at":-1}}}`, payload.SpendLimit{}},
+		{"strings", `{"rate_limits":{"spend_limit":{"used_percentage":"4","used_usd":"1","limit_usd":"2","resets_at":"3"}}}`, payload.SpendLimit{}},
+		{"null", `{"rate_limits":{"spend_limit":null}}`, payload.SpendLimit{}},
+		{"missing", `{"rate_limits":{}}`, payload.SpendLimit{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := payload.Parse([]byte(tt.input)).RateLimits.SpendLimit
+			assert.Equal(t, tt.want, got)
+			for _, v := range []*float64{got.UsedUSD, got.LimitUSD} {
+				if v != nil {
+					assert.False(t, math.Signbit(*v), "an amount never prints with a minus sign")
+				}
+			}
+		})
+	}
+}
+
+func TestSpendAccessors(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a reported spend limit", func(t *testing.T) {
+		t.Parallel()
+		p := payload.Parse([]byte(`{"rate_limits":{"spend_limit":{"used_percentage":25,"used_usd":12.5,"limit_usd":50}}}`))
+		pct, ok := p.SpendPercentage()
+		assert.True(t, ok)
+		assert.InDelta(t, 25.0, pct, 0)
+		used, limit, ok := p.SpendUSD()
+		assert.True(t, ok)
+		assert.InDelta(t, 12.5, used, 0)
+		assert.InDelta(t, 50.0, limit, 0)
+	})
+
+	t.Run("dollar amounts need both the used and the limit figure", func(t *testing.T) {
+		t.Parallel()
+		p := payload.Parse([]byte(`{"rate_limits":{"spend_limit":{"used_percentage":25,"used_usd":12.5}}}`))
+		_, ok := p.SpendPercentage()
+		assert.True(t, ok)
+		_, _, ok = p.SpendUSD()
+		assert.False(t, ok)
+	})
+
+	t.Run("nothing is reported without a spend limit", func(t *testing.T) {
+		t.Parallel()
+		p := payload.Parse([]byte(`{}`))
+		_, ok := p.SpendPercentage()
+		assert.False(t, ok)
+		_, _, ok = p.SpendUSD()
+		assert.False(t, ok)
+	})
+}
+
 func TestSanitize(t *testing.T) {
 	t.Parallel()
 

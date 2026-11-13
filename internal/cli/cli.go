@@ -2,15 +2,19 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
+	"github.com/PaddleHQ/claude-statusline/internal/overage"
 	"github.com/PaddleHQ/claude-statusline/internal/ratebars"
+	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/setup"
 	"github.com/PaddleHQ/claude-statusline/internal/statusline"
 	"github.com/PaddleHQ/claude-statusline/internal/subagent"
@@ -18,6 +22,8 @@ import (
 
 // usageStatus is the exit status for a command given arguments it cannot use.
 const usageStatus = 2
+
+const centsPerDollar = 100
 
 // Build identifies the binary: the values the release stamps in at build time.
 type Build struct {
@@ -70,7 +76,7 @@ func (a *App) Execute(args []string, stdin io.Reader, stdout io.Writer, getenv f
 		runSubagent(stdin, stdout, getenv)
 	case "rate-bars":
 		return a.runRateBars(args[1:], stdout, getenv)
-	case "help", "config":
+	case "help", "config", "overage":
 		_, _ = io.WriteString(stdout, infoText(command, getenv))
 	case "config-check":
 		return runConfigCheck(stdout, getenv)
@@ -149,8 +155,11 @@ func runSubagent(stdin io.Reader, stdout io.Writer, getenv func(string) string) 
 }
 
 func infoText(command string, getenv func(string) string) string {
-	if command == "help" {
+	switch command {
+	case "help":
 		return statusline.Help(getenv)
+	case "overage":
+		return overageLine(getenv)
 	}
 	return statusline.DefaultConfig()
 }
@@ -172,4 +181,33 @@ func runConfigCheck(stdout io.Writer, getenv func(string) string) int {
 		return 1
 	}
 	return 0
+}
+
+// overageReport is the JSON line of the overage command.
+type overageReport struct {
+	Month    string  `json:"month"`
+	USD      float64 `json:"usd"`
+	ResetsAt int64   `json:"resets_at"`
+	Over     bool    `json:"over"`
+}
+
+// overageLine is this month's estimated extra-usage spend as one JSON line, for tools that show it in their own
+// layout. It reads the shared files and never writes them.
+func overageLine(getenv func(string) string) string {
+	at := config.Now(getenv)
+	var overagePath, ratesPath string
+	if dir := config.StateDir(getenv); dir != "" {
+		overagePath, ratesPath = overage.PathIn(dir), ratecache.PathIn(dir)
+	}
+	limits := ratecache.NewCache(ratesPath).Load()
+	visible := limits.Visible(at.Unix())
+	key, usd := overage.New(overagePath).Month(at)
+	var out strings.Builder
+	_ = json.NewEncoder(&out).Encode(overageReport{
+		Month:    key,
+		USD:      math.Round(usd*centsPerDollar) / centsPerDollar,
+		ResetsAt: overage.NextReset(at).Unix(),
+		Over:     visible.AtLimit(),
+	})
+	return out.String()
 }
