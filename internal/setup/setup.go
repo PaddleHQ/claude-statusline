@@ -680,7 +680,7 @@ func insertMember(data []byte, key string, entry []byte) ([]byte, bool) {
 }
 
 func prettyValue(raw []byte, indent, newline string) string {
-	out := pretty.PrettyOptions(raw, &pretty.Options{Indent: indent, Prefix: indent, Width: 1 << 20})
+	out := pretty.PrettyOptions(raw, &pretty.Options{Indent: indent, Prefix: indent})
 	s := strings.TrimSpace(string(out))
 	s = strings.ReplaceAll(s, "\n", newline)
 	return s
