@@ -1,6 +1,6 @@
 # cost
 
-Shows what the session would cost at API prices, in US dollars, for example `$1.23`. It turns amber and then red as the figure grows, and is hidden when Claude Code does not report a cost. It is off by default, through the default `segments_excluded: [cost]`; set `segments_excluded: []` to show it.
+Shows what the session would cost at API prices, in US dollars, for example `$1.23`. It turns amber and then red as the figure grows, and is hidden when Claude Code does not report a cost. It is off by default, through the default `segments_excluded: [cost]`; name it in your own `segments`, or set `segments_excluded: []`, to show it.
 
 Claude Code reports this figure: its own estimate of the session's tokens priced at the public API rates. What it means depends on how you pay:
 

@@ -43,6 +43,10 @@ The binary prints the line with no trailing newline, and the status line always 
 
 Rate limits belong to your account, not to a session, and an idle session's payload goes stale. Readings are therefore shared between sessions through the `cache/ratelimits` file in its state directory (see [Where the files live](#where-the-files-live)). A newer window always replaces the cached reading. Within the same window, a session moves the cached reading up or down only when its own reading has changed since it last reported, so a mid-window quota reset gets through. An idle session repeats the same stale reading on every render, so it never changes the cache in either direction. A session seen for the first time can raise the cache but not lower it. The file remembers each session's last reading for that, and forgets sessions from an earlier window. The line is always drawn from the merged value. The merge runs on every render, whether or not a rate segment is shown, so a tool that reads the file stays current even when you drop the bars from your line. The file is private state and may change between versions.
 
+## Extra-usage estimate
+
+Claude Code does not say which requests were paid as extra usage, so the `overage` segment infers it. On every render, shown or not, the status line compares the session's cost with the reading it saw last. When both readings were taken with a 5 hour or 7 day window at 100%, the rise is added to the month's total in the `cache/overage` file in the state directory. Sessions are tracked separately, a lower cost (a session that started again) adds nothing, and each month is kept apart, counted by UTC calendar month, with the twelve newest kept. A render under the limits with no earlier reading over them reads the file and writes nothing. Sessions not seen for seven days are forgotten. Writes take the same kind of lock as the rate-limit cache, and the file is replaced atomically. `claude-statusline overage` prints the total for other tools.
+
 ## Transcript diagnostics
 
 These segments are read from the session transcript (`transcript_path` in the payload). Only its first 40 lines and last 200 lines are read, each within a few megabytes, so a huge transcript costs nothing extra, and it is not read at all unless a listed segment needs it; a missing or unreadable transcript simply hides them. The `model` segment also uses it, as does `cache` to tell whether the prompt cache has expired, and the rest are in the usage group (see [Wrapping](customising.md#wrapping)).
@@ -111,7 +115,7 @@ Any other command is somebody else's, so it is left as it is, and only the first
 
 | File | Location | Removed on uninstall |
 |---|---|---|
-| The binary, `last-check`, the attestation notice marker, the setup markers, the rate-limit cache and the hook cache | the plugin data directory, `~/.claude/plugins/data/statusline-claude-statusline` | yes, by `/plugin uninstall` (kept by `/statusline:uninstall`, so the entries stay off) |
+| The binary, `last-check`, the attestation notice marker, the setup markers, the rate-limit cache (`cache/ratelimits`), the extra-usage estimate (`cache/overage`) and the hook cache | the plugin data directory, `~/.claude/plugins/data/statusline-claude-statusline` | yes, by `/plugin uninstall` (kept by `/statusline:uninstall`, so the entries stay off) |
 | Your settings, `config.yaml` | `~/.claude/claude-statusline/config.yaml` | no |
 | Custom segment hooks | `~/.claude/statusline.d/` | no |
 | The usage snapshot | `~/.claude/usage-latest.json` | no |

@@ -10,6 +10,7 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/hook"
 	"github.com/PaddleHQ/claude-statusline/internal/icons"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
+	"github.com/PaddleHQ/claude-statusline/internal/overage"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/render"
@@ -59,6 +60,13 @@ func Build(input []byte, getenv func(string) string) string {
 	// Synced on every run, not only when a rate segment renders: other tools read the shared cache.
 	limits := ratecache.NewCache(cachePath(getenv)).Sync(p.SessionID, ratecache.FromPayload(p.RateLimits))
 
+	tracker := overage.New(overagePath(getenv))
+	// Recorded on every main-line run, not only when the overage segment renders: other tools read the shared file.
+	if cost, ok := p.TotalCost(); ok {
+		visible := limits.Visible(at.Unix())
+		tracker.Record(p.SessionID, cost, visible.AtLimit(), at)
+	}
+
 	iconSet := icons.FromConfig(cfg)
 
 	env := segments.NewEnv(segments.Env{
@@ -69,6 +77,7 @@ func Build(input []byte, getenv func(string) string) string {
 		Now:     at,
 		Columns: columns(getenv),
 		Home:    getenv("HOME"),
+		Overage: tracker,
 		Transcript: func() transcript.Info {
 			return transcript.Read(p.TranscriptPath)
 		},
@@ -77,7 +86,7 @@ func Build(input []byte, getenv func(string) string) string {
 		},
 	})
 	line := &render.Line{
-		Names:     segmentNames(cfg, cfg.StringsOrNone(keyExcluded)),
+		Names:     segmentNames(cfg, excludedSegments(cfg)),
 		Lookup:    lookup(env),
 		Columns:   env.Columns,
 		Separator: env.Separator(),
@@ -157,6 +166,15 @@ func runHooks(input []byte, p payload.Payload, cfg *config.Config, at time.Time,
 
 // segmentNames is the segments list less the excluded names. A hook of the same name is not hidden: with its name
 // gone from the list, the renderer places it in its slot.
+// excludedSegments applies the default exclusions only to the default list: a segment named in the user's own list
+// is shown unless the user's own segments_excluded leaves it out.
+func excludedSegments(cfg *config.Config) []string {
+	if cfg.HasStrings(keySegments) && cfg.Source(keyExcluded) == config.SourceDefaults {
+		return nil
+	}
+	return cfg.StringsOrNone(keyExcluded)
+}
+
 func segmentNames(cfg *config.Config, excluded []string) []string {
 	return slices.DeleteFunc(cfg.Strings(keySegments), func(name string) bool { return slices.Contains(excluded, name) })
 }
@@ -185,6 +203,14 @@ func cachePath(getenv func(string) string) string {
 		return ""
 	}
 	return ratecache.PathIn(dir)
+}
+
+func overagePath(getenv func(string) string) string {
+	dir := config.StateDir(getenv)
+	if dir == "" {
+		return ""
+	}
+	return overage.PathIn(dir)
 }
 
 func columns(getenv func(string) string) int {

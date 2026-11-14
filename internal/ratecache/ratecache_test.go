@@ -35,6 +35,28 @@ func TestVisible(t *testing.T) {
 	assert.NotNil(t, got.SevenDay, "a window resetting later should stay")
 }
 
+func TestAtLimit(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		limits ratecache.Limits
+		want   bool
+	}{
+		{"no readings", ratecache.Limits{}, false},
+		{"both under", ratecache.Limits{FiveHour: r(99, 100), SevenDay: r(50, 100)}, false},
+		{"five hour at 100", ratecache.Limits{FiveHour: r(100, 100)}, true},
+		{"seven day at 100", ratecache.Limits{FiveHour: r(10, 100), SevenDay: r(100, 100)}, true},
+		{"over 100", ratecache.Limits{SevenDay: r(104, 100)}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, tt.limits.AtLimit())
+		})
+	}
+}
+
 func TestFromPayload(t *testing.T) {
 	t.Parallel()
 
