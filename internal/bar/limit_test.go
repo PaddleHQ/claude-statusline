@@ -57,16 +57,16 @@ func TestRenderLimitOnEveryStyle(t *testing.T) {
 		wantFill   string
 	}{
 		{"solid", markers, "<m>M</>", "<b>"},
-		{"gradient", gradient, "<m>X</>", ""},
+		{"gradient", gradient, "<m>X</>", "<b>"},
 		{"saber", plainBlade, "<m>M</>", plainBlade.BladeColor(theme.StateBad, 0, 3)},
 		{"capsule", capsule, "<m>\uee04</>", "<b>"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := p.Render(tt.th)
-			assert.Contains(t, got, tt.wantMarker)
-			assert.Contains(t, got, tt.wantFill)
+			assert.Contains(t, p.Render(tt.th), tt.wantMarker)
+			// A gradient bar colors its cells by position, so reached shows on the percentage instead.
+			assert.Contains(t, p.Render(tt.th)+p.PercentColor(tt.th), tt.wantFill)
 		})
 	}
 }

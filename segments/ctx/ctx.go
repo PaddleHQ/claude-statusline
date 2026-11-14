@@ -82,10 +82,20 @@ func (c *Context) Name() string { return name }
 
 // Help says what the segment shows, for the help command.
 func (c *Context) Help() string {
-	return fmt.Sprintf(
-		"How full the context window is. Amber from %d%%, red from %d%%. "+
-			"A marker shows where to /compact, at %d tokens or %d%% of the window, whichever is lower, and a red warning once you reach it.",
-		c.d.Config.Int("warn"), c.d.Config.Int("bad"), c.d.Config.Int("compact_at"), c.d.Config.Int("compact_pct"))
+	base := fmt.Sprintf("How full the context window is. Amber from %d%%, red from %d%%.", c.d.Config.Int("warn"), c.d.Config.Int("bad"))
+	at, pct := c.d.Config.Int("compact_at"), c.d.Config.Int("compact_pct")
+	var where string
+	switch {
+	case at > 0 && pct > 0:
+		where = fmt.Sprintf("at %d tokens or %d%% of the window, whichever is lower", at, pct)
+	case at > 0:
+		where = fmt.Sprintf("at %d tokens", at)
+	case pct > 0:
+		where = fmt.Sprintf("at %d%% of the window", pct)
+	default:
+		return base
+	}
+	return fmt.Sprintf("%s A marker shows where to /compact, %s, and a red warning once you reach it.", base, where)
 }
 
 // Keys lists the config keys the segment reads, relative to its section; the widths are read by the Meter.

@@ -221,6 +221,29 @@ func TestNameKeysAndHelp(t *testing.T) {
 	assert.Contains(t, seg.Help(), "70%")
 }
 
+func TestHelpDescribesOnlyTheLimitsThatAreOn(t *testing.T) {
+	t.Parallel()
+
+	base := "How full the context window is. Amber from 50%, red from 90%."
+	tests := []struct {
+		name string
+		at   int
+		pct  int
+		want string
+	}{
+		{"tokens only", 200000, 0, base + " A marker shows where to /compact, at 200000 tokens, and a red warning once you reach it."},
+		{"percentage only", 0, 80, base + " A marker shows where to /compact, at 80% of the window, and a red warning once you reach it."},
+		{"both off", 0, 0, base},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			seg, _ := build(t, session{}, settings{warn: 50, bad: 90, compactAt: tt.at, compactPct: tt.pct})
+			assert.Equal(t, tt.want, seg.Help())
+		})
+	}
+}
+
 func TestContextNerdIcons(t *testing.T) {
 	t.Parallel()
 
