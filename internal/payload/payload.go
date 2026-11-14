@@ -31,6 +31,7 @@ type Payload struct {
 // ContextWindow is the session's context and token usage; a nil field means the payload did not report it.
 type ContextWindow struct {
 	UsedPercentage *float64
+	Size           *int64
 	TotalInput     *int64
 	TotalOutput    *int64
 	Current        CurrentUsage
@@ -87,6 +88,7 @@ func Parse(data []byte) Payload {
 		TranscriptPath: text(root.Get("transcript_path")),
 		ContextWindow: ContextWindow{
 			UsedPercentage: number(root.Get("context_window.used_percentage")),
+			Size:           count(root.Get("context_window.context_window_size")),
 			TotalInput:     count(root.Get("context_window.total_input_tokens")),
 			TotalOutput:    count(root.Get("context_window.total_output_tokens")),
 			Current: CurrentUsage{
@@ -128,6 +130,9 @@ func (p *Payload) TotalOutput() (int64, bool) { return reported(p.ContextWindow.
 
 // UsedPercentage is how full the context window is; false means the payload did not report it.
 func (p *Payload) UsedPercentage() (float64, bool) { return reported(p.ContextWindow.UsedPercentage) }
+
+// WindowSize is the context window's size in tokens; false means the payload did not report it.
+func (p *Payload) WindowSize() (int64, bool) { return reported(p.ContextWindow.Size) }
 
 // TotalCost is the session's total cost in US dollars; false means the payload did not report it.
 func (p *Payload) TotalCost() (float64, bool) { return reported(p.CostUSD) }

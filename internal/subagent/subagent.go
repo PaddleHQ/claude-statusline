@@ -29,7 +29,7 @@ const (
 	fallbackName   = "agent"
 )
 
-var ctxKeys = []string{"ctx.width", "ctx.width_medium", "ctx.width_narrow", "ctx.warn", "ctx.bad"}
+var ctxKeys = []string{"ctx.width", "ctx.width_medium", "ctx.width_narrow", "ctx.warn", "ctx.bad", "ctx.compact_at", "ctx.compact_pct"}
 
 // Keys lists every config key the subagent rows read, for checking against defaults.yaml.
 func Keys() []string {
@@ -90,6 +90,10 @@ type renderer struct {
 type reported struct{ pct float64 }
 
 func (r *reported) UsedPercentage() (float64, bool) { return r.pct, true }
+
+func (r *reported) WindowSize() (int64, bool) { return 0, false }
+
+func (r *reported) LatestRequest() (input, cacheCreation, cacheRead int64) { return 0, 0, 0 }
 
 func (r *renderer) content(task gjson.Result) string {
 	th := r.th
