@@ -156,6 +156,24 @@ func TestRenderPlacesHooks(t *testing.T) {
 			"/srv/app · custom · ↓ 1.5k · ↑ 2.0k",
 		},
 		{
+			"ctx slot goes after a hook that replaces the context segment",
+			"segments: [path, model, ctx, tokens]",
+			[]hook.Result{hookResult("ctx", hook.SlotCtx, "my ctx"), hookResult("a", hook.SlotCtx, "A")},
+			"/srv/app · Opus · my ctx · A · ↓ 1.5k · ↑ 2.0k",
+		},
+		{
+			"ctx slot goes after a hook that replaces the model without a context segment",
+			"segments: [model, path, tokens]",
+			[]hook.Result{hookResult("model", hook.SlotCtx, "custom"), hookResult("a", hook.SlotCtx, "A")},
+			"custom · A · /srv/app · ↓ 1.5k · ↑ 2.0k",
+		},
+		{
+			"ctx slot falls back to the model when the replacing hook shows nothing",
+			"segments: [path, model, ctx, tokens]",
+			[]hook.Result{hookResult("ctx", hook.SlotCtx, ""), hookResult("a", hook.SlotCtx, "A")},
+			"/srv/app · Opus · A · ↓ 1.5k · ↑ 2.0k",
+		},
+		{
 			"a hook with nothing to show replaces the built-in with nothing",
 			"segments: [path, model]",
 			[]hook.Result{hookResult("model", hook.SlotCtx, "")},

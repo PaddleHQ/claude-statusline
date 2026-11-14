@@ -17,19 +17,13 @@ func (l *Line) items() []layout.Item {
 	var out []layout.Item
 	ctxAt, modelAt := -1, -1
 	for _, name := range l.Names {
-		builtin, group, isBuiltin := l.Lookup(name)
-		if hooks := byName[name]; len(hooks) > 0 {
-			out = appendNamedHooks(out, hooks, group, isBuiltin)
+		before := len(out)
+		var isBuiltin bool
+		out, isBuiltin = l.appendSegment(out, name, byName[name])
+		if !isBuiltin || len(out) == before {
 			continue
 		}
-		if !isBuiltin {
-			continue
-		}
-		text := builtin.Render()
-		if text == "" {
-			continue
-		}
-		out = append(out, layout.Item{Group: group, Text: text})
+		// A hook that replaces ctx or model still anchors the ctx slot.
 		switch name {
 		case nameCtx:
 			ctxAt = len(out) - 1
@@ -38,6 +32,21 @@ func (l *Line) items() []layout.Item {
 		}
 	}
 	return place(out, unplaced, ctxAt, modelAt, l.Separator)
+}
+
+// appendSegment appends the named segment, or the hooks that replace it, and reports whether the name is a built-in.
+func (l *Line) appendSegment(out []layout.Item, name string, hooks []hook.Result) ([]layout.Item, bool) {
+	builtin, group, isBuiltin := l.Lookup(name)
+	if len(hooks) > 0 {
+		return appendNamedHooks(out, hooks, group, isBuiltin), isBuiltin
+	}
+	if !isBuiltin {
+		return out, false
+	}
+	if text := builtin.Render(); text != "" {
+		out = append(out, layout.Item{Group: group, Text: text})
+	}
+	return out, true
 }
 
 // partitionHooks splits the hooks into those named in the segments list, keyed by name, and the rest.
