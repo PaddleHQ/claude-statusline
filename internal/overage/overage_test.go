@@ -159,6 +159,12 @@ func TestRecordCountsOnlyRisesWhileOver(t *testing.T) {
 			{"a", 2, true, 0},
 			{"a", 3, true, 1},
 		}},
+		{"a render arriving out of order keeps the higher baseline", []step{
+			{"a", 10, true, 0},
+			{"a", 12, true, 2},
+			{"a", 11, true, 2},
+			{"a", 13, true, 3},
+		}},
 		{"sessions are tracked separately and summed", []step{
 			{"a", 5, true, 0},
 			{"b", 100, true, 0},

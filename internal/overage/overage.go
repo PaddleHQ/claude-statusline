@@ -21,6 +21,7 @@ const (
 	monthLayout = "2006-01"
 	sessionTTL  = 7 * 24 * time.Hour
 	maxMonths   = 12
+	resetRatio  = 0.5
 )
 
 // PathIn is where the overage file lives inside a state directory.
@@ -95,10 +96,16 @@ func (s *state) with(id string, reading session, monthKey string) state {
 	if next.Sessions == nil {
 		next.Sessions = map[string]session{}
 	}
-	if prev, ok := next.Sessions[id]; ok && prev.Over && reading.Cost > prev.Cost {
-		m := next.Months[monthKey]
-		m.USD = math.Min(m.USD+reading.Cost-prev.Cost, maxValue)
-		next.Months[monthKey] = m
+	if prev, ok := next.Sessions[id]; ok && prev.Over {
+		switch {
+		case reading.Cost > prev.Cost:
+			m := next.Months[monthKey]
+			m.USD = math.Min(m.USD+reading.Cost-prev.Cost, maxValue)
+			next.Months[monthKey] = m
+		case reading.Over && reading.Cost >= prev.Cost*resetRatio:
+			// A render that lost the lock race reports a slightly older cost; only a large drop is a session reset.
+			reading.Cost = prev.Cost
+		}
 	}
 	next.Sessions[id] = reading
 	return next
