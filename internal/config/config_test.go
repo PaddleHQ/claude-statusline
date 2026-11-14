@@ -163,6 +163,29 @@ func TestStringsOrNone(t *testing.T) {
 	}
 }
 
+func TestHasStrings(t *testing.T) {
+	t.Parallel()
+
+	const def = "segments: [a, b]\n"
+	tests := []struct {
+		name string
+		user string
+		want bool
+	}{
+		{"a user list counts", "segments: [x]", true},
+		{"an empty list does not", "segments: []", false},
+		{"only empty entries do not", "segments: ['']", false},
+		{"a scalar does not", "segments: x", false},
+		{"missing does not, even with a default", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, config.New(tt.user, def).HasStrings("segments"))
+		})
+	}
+}
+
 func TestParseNumber(t *testing.T) {
 	t.Parallel()
 

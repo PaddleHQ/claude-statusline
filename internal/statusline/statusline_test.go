@@ -106,7 +106,9 @@ func TestBuildExcludesSegments(t *testing.T) {
 		{"a name that is not listed changes nothing", "segments: [model]\nsegments_excluded: [path]", "", "Opus"},
 		{"the user's list replaces the default, so cost comes back", "segments_excluded: [path]", "", "Opus · $1.00 · » ~$0.00"},
 		{"excluding every listed built-in leaves an empty line", "segments: [model]\nsegments_excluded: [model]", "", ""},
-		{"a custom segment of an excluded name still runs, in its slot", "segments: [cost, model]", "cost", "Opus · mine"},
+		{"a custom segment of an excluded name still runs, in its slot", "segments: [cost, model]\nsegments_excluded: [cost]", "cost", "Opus · mine"},
+		{"the default exclusions leave the user's own list alone", "segments: [model, cost]", "", "Opus · $1.00"},
+		{"the user's own exclusions still apply to their own list", "segments: [model, cost]\nsegments_excluded: [cost]", "", "Opus"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -25,7 +25,7 @@ A setting you leave out keeps its default (unless a [plugin option](#plugin-opti
 | Key | Default | Meaning |
 |---|---|---|
 | `segments` | `[path, model, ctx, tokens, cache, cost, overage, boot, skills, skills_stripped, agent_skills, mem, rate5h, rate7d]` | Segments to show, in order, as a list. Unknown names are skipped. |
-| `segments_excluded` | `[cost, overage]` | Built-in segments to leave out of `segments`, as a list; `[]` leaves out nothing. See [Segments and order](#segments-and-order). |
+| `segments_excluded` | `[cost, overage]` | Built-in segments to leave out of `segments`, as a list; `[]` leaves out nothing. The default only applies to the default `segments`. See [Segments and order](#segments-and-order). |
 | `separator` | `·` | Glyph drawn between segments. |
 | `theme` | `classic` | Colour theme: a built-in name (`classic`, `gradient`, `saber` or `capsule`) or the path to a theme file. Anything that cannot be used falls back to `classic`. See [Themes](#themes). |
 | `icons` | `none` | Icon set for segment labels: `none` keeps the plain text and symbols, `nerd` uses Nerd Font icons. Needs a Nerd Font v3 or later set as your terminal font. Anything else is ignored and `config-check` lists it. |
@@ -131,7 +131,7 @@ Set `NO_COLOR` to any non-empty value to turn colour and styling off; see [NO_CO
 
 Reorder or drop segments by editing the list, for example `segments: [path, model, rate5h]`.
 
-To drop a few segments without copying the whole list, name them in `segments_excluded` instead, for example `segments_excluded: [cost, boot]`. It applies to whatever `segments` holds, the default or your own, and it only turns off built-in segments. A [custom segment](#custom-segments) with an excluded name still runs, and goes to its slot as if its name were not in `segments`, so a script of your own called `cost.sh` keeps showing. Custom segments cannot be excluded: to stop one, remove its script from the hook directory, or make it not executable (`chmod -x`). Its default is `[cost]`, which is why the cost is not shown even though `cost` is in the default `segments`. Your `segments_excluded` replaces that default rather than adding to it, so to exclude `boot` and keep the cost hidden, write `segments_excluded: [cost, boot]`. `segments_excluded: []` leaves out nothing. `/statusline:help` lists what is left out under "Left out by segments_excluded".
+To drop a few segments without copying the whole list, name them in `segments_excluded` instead, for example `segments_excluded: [cost, boot]`. Your own `segments_excluded` applies to whatever `segments` holds, the default or your own, and it only turns off built-in segments. A [custom segment](#custom-segments) with an excluded name still runs, and goes to its slot as if its name were not in `segments`, so a script of your own called `cost.sh` keeps showing. Custom segments cannot be excluded: to stop one, remove its script from the hook directory, or make it not executable (`chmod -x`). Its default is `[cost, overage]`, which is why neither is shown even though both are in the default `segments`. That default only trims the default `segments`: once you set your own `segments`, every built-in you name in it is shown unless your own `segments_excluded` leaves it out. Your `segments_excluded` replaces the default rather than adding to it, so to exclude `boot` from the default list and keep the cost hidden, write `segments_excluded: [cost, boot]`. `segments_excluded: []` leaves out nothing. `/statusline:help` lists what is left out under "Left out by segments_excluded".
 
 A segment is hidden, not wrong, when its data is missing. A name that is not a built-in segment is skipped unless a [custom segment](#custom-segments) has that name.
 
@@ -158,7 +158,7 @@ The `ctx` segment draws context-window usage as a bar with no pace marker. The f
 
 The `cost` segment shows the session's cost in US dollars as `$1.23`: amber from `cost.warn` dollars and red from `cost.bad`. It is hidden when the payload reports no cost.
 
-It is off by default: `cost` is in the default `segments`, after `cache`, but also in the default `segments_excluded`. To show it, set `segments_excluded: []`, or list only what you do want left out.
+It is off by default: `cost` is in the default `segments`, after `cache`, but also in the default `segments_excluded`. To show it, name it in your own `segments`, or set `segments_excluded: []`, or list only what you do want left out.
 
 Claude Code reports this figure: its own estimate of the session's tokens priced at the public API rates. What it means depends on how you pay:
 
@@ -169,7 +169,7 @@ Claude Code reports this figure: its own estimate of the session's tokens priced
 
 The `overage` segment shows the extra-usage spend this calendar month (UTC) as `» ~$5.00`. It is never hidden: with nothing spent it is dimmed, as `» ~$0.00`. It is amber while a 5 hour or 7 day limit is at 100% and the figure is above zero, and plain otherwise. It has no settings.
 
-It is off by default: `overage` is in the default `segments`, after `cost`, but also in the default `segments_excluded`. To show it, set `segments_excluded: []`, or list only what you do want left out.
+It is off by default: `overage` is in the default `segments`, after `cost`, but also in the default `segments_excluded`. To show it, name it in your own `segments` (the `segments` plugin option works too), or set `segments_excluded: []`, or list only what you do want left out.
 
 Claude Code reports no flag for a request that was paid as extra usage, so the figure is inferred, and it is an estimate, not a bill. When a session's cost rises while a 5 hour or 7 day limit is at 100% and requests still go through, the rise is added to the month's total. The cost is Claude Code's own estimate at API prices. The total belongs to your account, so every session adds to the same figure, and it starts again from zero at 00:00 UTC on the 1st of each month, when extra-usage spend resets. It is kept up to date on every render, whether or not the segment is shown, and the first reading after a limit is reached counts nothing, so the figure tends to run a little low.
 

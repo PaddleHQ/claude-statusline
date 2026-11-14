@@ -86,7 +86,7 @@ func Build(input []byte, getenv func(string) string) string {
 		},
 	})
 	line := &render.Line{
-		Names:     segmentNames(cfg, cfg.StringsOrNone(keyExcluded)),
+		Names:     segmentNames(cfg, excludedSegments(cfg)),
 		Lookup:    lookup(env),
 		Columns:   env.Columns,
 		Separator: env.Separator(),
@@ -166,6 +166,15 @@ func runHooks(input []byte, p payload.Payload, cfg *config.Config, at time.Time,
 
 // segmentNames is the segments list less the excluded names. A hook of the same name is not hidden: with its name
 // gone from the list, the renderer places it in its slot.
+// excludedSegments applies the default exclusions only to the default list: a segment named in the user's own list
+// is shown unless the user's own segments_excluded leaves it out.
+func excludedSegments(cfg *config.Config) []string {
+	if cfg.HasStrings(keySegments) && cfg.Source(keyExcluded) == config.SourceDefaults {
+		return nil
+	}
+	return cfg.StringsOrNone(keyExcluded)
+}
+
 func segmentNames(cfg *config.Config, excluded []string) []string {
 	return slices.DeleteFunc(cfg.Strings(keySegments), func(name string) bool { return slices.Contains(excluded, name) })
 }

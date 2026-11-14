@@ -1,6 +1,6 @@
 # overage
 
-Shows the extra-usage spend this calendar month, for example `» ~$5.00`. It is off by default, through the default `segments_excluded: [cost, overage]`; set `segments_excluded: []` to show it. It is never hidden: with nothing spent it is dimmed, as `» ~$0.00`.
+Shows the extra-usage spend this calendar month, for example `» ~$5.00`. It is off by default, through the default `segments_excluded: [cost, overage]`; name it in your own `segments`, or set `segments_excluded: []`, to show it. It is never hidden: with nothing spent it is dimmed, as `» ~$0.00`.
 
 Claude Code reports no flag for a request that was paid as extra usage, so the figure is inferred. While your 5 hour or 7 day window is at 100% and requests still go through, the cost each session adds (Claude Code's own estimate at API prices) is added to the month's total, which is shared between sessions and resets at 00:00 UTC on the 1st. It is an estimate, not a bill. It is amber while a window is at 100% and the figure is above zero.
 
