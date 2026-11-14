@@ -61,8 +61,8 @@ Feature: Custom segment hooks
     When the status line renders at 100 columns
     Then the output is:
       """
-      /srv/app · Opus 4.7 [high] · ctx: ██▌░░░ 42% · ctx-hook
-      11111111 d                 d      gggddd     d
+      /srv/app · Opus 4.7 [high] · ctx: ██▌░┃░ 42% · ctx-hook
+      11111111 d                 d      gggdBd     d
       ↓ 1.5k · ↑ 23.4k · ⧉ 85% 5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%
              d         d           gggggBdddd     d     ggggdBdddd
       usage-hook · end-hook
@@ -125,8 +125,8 @@ Feature: Custom segment hooks
     When the status line renders at 200 columns
     Then the output is:
       """
-      /srv/app · Opus 4.7 [high] · ctx: ████▎░░░░░ 42% · ctx-hook · ↓ 1.5k · ↑ 23.4k · ⧉ 85% · usage-hook · 5h: █████████░┃░░░░░░░░░ 45% · 7d: ████████░░┃░░░░░░░░░ 40% · end-hook
-      11111111 d                 d      gggggddddd     d          d        d         d       d gggggggggg d     gggggggggdBddddddddd     d     ggggggggddBddddddddd     d
+      /srv/app · Opus 4.7 [high] · ctx: ████▎░░░┃░ 42% · ctx-hook · ↓ 1.5k · ↑ 23.4k · ⧉ 85% · usage-hook · 5h: █████████░┃░░░░░░░░░ 45% · 7d: ████████░░┃░░░░░░░░░ 40% · end-hook
+      11111111 d                 d      gggggdddBd     d          d        d         d       d gggggggggg d     gggggggggdBddddddddd     d     ggggggggddBddddddddd     d
 
       1 = bold 256:33
       """

@@ -11,7 +11,7 @@ Feature: Help
       Shown now, in order:
         path: The working directory, with your home directory shown as ~, followed by the git branch in brackets.
         model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
-        ctx: How full the context window is. Amber from 50%, red from 90%.
+        ctx: How full the context window is. Amber from 50%, red from 90%. A marker shows where to /compact, at 200000 tokens or 80% of the window, whichever is lower, and a red warning once you reach it.
         tokens: Session token totals: input after the down arrow, output after the up arrow.
         cache: How much of the latest request's input was read from the prompt cache. Red below 5%, and a red ⧉ cold once the cache has expired, as in a resumed session.
         boot: The prompt size on the first turn, before you said anything.
@@ -49,7 +49,7 @@ Feature: Help
       Shown now, in order:
         path: The working directory, with your home directory shown as ~, followed by the git branch in brackets.
         model: My own model label
-        ctx: How full the context window is. Amber from 50%, red from 90%.
+        ctx: How full the context window is. Amber from 50%, red from 90%. A marker shows where to /compact, at 200000 tokens or 80% of the window, whichever is lower, and a red warning once you reach it.
 
       Custom segments:
         model (model.sh, slot ctx): My own model label

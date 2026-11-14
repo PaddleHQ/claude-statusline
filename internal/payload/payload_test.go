@@ -170,6 +170,21 @@ func TestParseContextWindow(t *testing.T) {
 		assert.Equal(t, payload.CurrentUsage{Input: 1, CacheCreation: 2, CacheRead: 3}, cw.Current)
 	})
 
+	t.Run("reads the window size", func(t *testing.T) {
+		t.Parallel()
+		p := payload.Parse([]byte(`{"context_window":{"context_window_size":1000000}}`))
+		size, ok := p.WindowSize()
+		assert.True(t, ok)
+		assert.Equal(t, int64(1000000), size)
+	})
+
+	t.Run("a missing window size is not reported", func(t *testing.T) {
+		t.Parallel()
+		p := payload.Parse([]byte(`{"context_window":{}}`))
+		_, ok := p.WindowSize()
+		assert.False(t, ok)
+	})
+
 	t.Run("absent fields stay nil or zero", func(t *testing.T) {
 		t.Parallel()
 		assert.Equal(t, payload.ContextWindow{}, payload.Parse([]byte(`{"context_window":{}}`)).ContextWindow)
