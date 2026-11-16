@@ -37,7 +37,7 @@ func Help(getenv func(string) string) string {
 	th = th.WithoutColor()
 	env := segments.NewEnv(segments.Env{Config: cfg, Theme: th, Home: getenv("HOME"), Columns: defaultColumns})
 
-	excluded := cfg.StringsOrNone(keyExcluded)
+	excluded := excludedSegments(cfg)
 	h := &helper{
 		env:        env,
 		hooks:      hook.Discover(hookDir(getenv)),

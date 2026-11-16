@@ -217,6 +217,12 @@ func (c *Config) Strings(key string) []string {
 	return l
 }
 
+// HasStrings reports whether the user's config or plugin options give key a usable list, rather than the default.
+func (c *Config) HasStrings(key string) bool {
+	_, ok := stringsOf(c.lookupUser(key))
+	return ok
+}
+
 // StringsOrNone is Strings, except that an empty list in the user's config is kept as no strings rather than falling back,
 // so a user can clear a list whose default is not empty.
 func (c *Config) StringsOrNone(key string) []string {

@@ -342,6 +342,7 @@ func TestRolePaintersWrapInTheRoleColor(t *testing.T) {
 	assert.Equal(t, d.Paint(d.TextColor, "x"), d.Text("x"))
 	assert.Equal(t, d.Paint(d.WarnColor, "x"), d.Warn("x"))
 	assert.Equal(t, d.Paint(d.BadColor, "x"), d.Bad("x"))
+	assert.Equal(t, d.Paint(d.Muted, "x"), d.Dim("x"))
 	assert.Equal(t, d.Paint(d.PathColor, "x"), d.Path("x"))
 	plain := d.WithoutColor()
 	assert.Equal(t, "x", plain.Bad("x"))

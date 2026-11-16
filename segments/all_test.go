@@ -8,9 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
+	"github.com/PaddleHQ/claude-statusline/internal/overage"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/render"
@@ -45,7 +47,7 @@ func TestEveryRegisteredNameIsUniqueAndFindable(t *testing.T) {
 		require.True(t, ok, seg.Name())
 		assert.Equal(t, seg.Name(), found.Name())
 	}
-	assert.Len(t, seen, 13)
+	assert.Len(t, seen, 14)
 	_, _, ok := env.Lookup("bogus")
 	assert.False(t, ok)
 }
@@ -63,7 +65,7 @@ func TestLayoutGroups(t *testing.T) {
 
 	want := map[string]layout.Group{
 		"path": layout.Identity, "model": layout.Identity, "ctx": layout.Identity,
-		"tokens": layout.Usage, "cache": layout.Usage,
+		"tokens": layout.Usage, "cache": layout.Usage, "cost": layout.Usage, "overage": layout.Usage,
 		"boot": layout.Usage, "skills": layout.Usage, "skills_stripped": layout.Usage, "agent_skills": layout.Usage, "mem": layout.Usage,
 		"rate5h": layout.Rates, "rate7d": layout.Rates,
 	}
@@ -73,6 +75,47 @@ func TestLayoutGroups(t *testing.T) {
 		require.True(t, ok, name)
 		assert.Equal(t, group, got, name)
 	}
+}
+
+func plain() theme.Theme {
+	th := theme.Load("classic", "", "")
+	return th.WithoutColor()
+}
+
+func TestOverageSegmentIsWired(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 11, 14, 20, 0, 0, 0, time.UTC)
+	path := overage.PathIn(t.TempDir())
+	tracker := overage.New(path)
+	tracker.Record("s", 1, true, now)
+	tracker.Record("s", 3.5, true, now)
+
+	renderWith := func(limits ratecache.Limits, payloadJSON string) string {
+		env := segments.NewEnv(segments.Env{
+			Payload:    payload.Parse([]byte(payloadJSON)),
+			Config:     config.New("", segments.Defaults()...),
+			Theme:      plain(),
+			Now:        now,
+			Overage:    tracker,
+			RateLimits: func() ratecache.Limits { return limits },
+		})
+		seg, _, ok := env.Lookup("overage")
+		require.True(t, ok)
+		return seg.Render()
+	}
+
+	assert.Equal(t, "» ~$2.50", renderWith(ratecache.Limits{}, `{}`))
+	assert.Equal(t, "» ~$2.50", renderWith(ratecache.Limits{FiveHour: &ratecache.Reading{Used: 100, ResetsAt: 1}}, `{}`))
+	assert.Equal(t, "» 40%", renderWith(ratecache.Limits{}, `{"rate_limits":{"spend_limit":{"used_percentage":40}}}`))
+
+	t.Run("without a tracker it reads as no spend", func(t *testing.T) {
+		t.Parallel()
+		env := segments.NewEnv(segments.Env{Config: config.New("", segments.Defaults()...), Theme: plain()})
+		seg, _, ok := env.Lookup("overage")
+		require.True(t, ok)
+		assert.Equal(t, "» ~$0.00", seg.Render())
+	})
 }
 
 func TestPathBranchIsSanitized(t *testing.T) {
