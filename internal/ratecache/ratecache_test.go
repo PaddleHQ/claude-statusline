@@ -35,6 +35,28 @@ func TestVisible(t *testing.T) {
 	assert.NotNil(t, got.SevenDay, "a window resetting later should stay")
 }
 
+func TestAtLimit(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		limits ratecache.Limits
+		want   bool
+	}{
+		{"no readings", ratecache.Limits{}, false},
+		{"both under", ratecache.Limits{FiveHour: r(99, 100), SevenDay: r(50, 100)}, false},
+		{"five hour at 100", ratecache.Limits{FiveHour: r(100, 100)}, true},
+		{"seven day at 100", ratecache.Limits{FiveHour: r(10, 100), SevenDay: r(100, 100)}, true},
+		{"over 100", ratecache.Limits{SevenDay: r(104, 100)}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, tt.limits.AtLimit())
+		})
+	}
+}
+
 func TestFromPayload(t *testing.T) {
 	t.Parallel()
 
@@ -44,6 +66,9 @@ func TestFromPayload(t *testing.T) {
 		want *ratecache.Reading
 	}{
 		{"rounds usage to nearest", payload.Window{UsedPercentage: new(45.5), ResetsAt: new(100.0)}, r(46, 100)},
+		{"never rounds up to a full window", payload.Window{UsedPercentage: new(99.5), ResetsAt: new(100.0)}, r(99, 100)},
+		{"a full window reads as 100", payload.Window{UsedPercentage: new(100.0), ResetsAt: new(100.0)}, r(100, 100)},
+		{"over a full window keeps its rounding", payload.Window{UsedPercentage: new(100.4), ResetsAt: new(100.0)}, r(100, 100)},
 		{"rounds down below half", payload.Window{UsedPercentage: new(45.4), ResetsAt: new(100.0)}, r(45, 100)},
 		{"floors the reset time", payload.Window{UsedPercentage: new(1.0), ResetsAt: new(100.9)}, r(1, 100)},
 		{"missing usage", payload.Window{ResetsAt: new(100.0)}, nil},

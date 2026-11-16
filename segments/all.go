@@ -12,6 +12,7 @@ import (
 	"github.com/PaddleHQ/claude-statusline/internal/gitbranch"
 	"github.com/PaddleHQ/claude-statusline/internal/icons"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
+	"github.com/PaddleHQ/claude-statusline/internal/overage"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
@@ -21,6 +22,7 @@ import (
 	"github.com/PaddleHQ/claude-statusline/segments/ctx"
 	"github.com/PaddleHQ/claude-statusline/segments/diagnostics"
 	"github.com/PaddleHQ/claude-statusline/segments/model"
+	segoverage "github.com/PaddleHQ/claude-statusline/segments/overage"
 	"github.com/PaddleHQ/claude-statusline/segments/path"
 	"github.com/PaddleHQ/claude-statusline/segments/rate"
 	"github.com/PaddleHQ/claude-statusline/segments/tokens"
@@ -44,7 +46,7 @@ func Defaults() []string {
 }
 
 // Env is one render's world, from which the segments are built. Transcript and RateLimits are called at most once per render,
-// and only if a segment asks; either may be nil.
+// and only if a segment asks; either may be nil. Overage may be nil too, which reads as no spend.
 type Env struct {
 	Payload    payload.Payload
 	Config     *config.Config
@@ -55,6 +57,7 @@ type Env struct {
 	Home       string
 	Transcript func() transcript.Info
 	RateLimits func() ratecache.Limits
+	Overage    *overage.Tracker
 
 	info   func() *transcript.Info
 	limits func() *ratecache.Limits
@@ -64,6 +67,9 @@ type Env struct {
 func NewEnv(e Env) *Env {
 	e.info = once(e.Transcript)
 	e.limits = once(e.RateLimits)
+	if e.Overage == nil {
+		e.Overage = overage.New("")
+	}
 	return &e
 }
 
@@ -154,6 +160,16 @@ func (e *Env) registrations() []registration {
 		}},
 		{"cost", layout.Usage, func(cfg *config.Section) Segment {
 			return cost.New(cost.Deps{Session: &e.Payload, Config: cfg, Paint: &e.Theme})
+		}},
+		{"overage", layout.Usage, func(*config.Section) Segment {
+			return segoverage.New(segoverage.Deps{
+				Spend:  &e.Payload,
+				Ledger: e.Overage,
+				Limits: func() segoverage.Limits { return e.limits() },
+				Paint:  &e.Theme,
+				Icons:  &e.Icons,
+				Now:    e.Now,
+			})
 		}},
 		{"rate5h", layout.Rates, func(cfg *config.Section) Segment { return rate.NewFiveHour(rates(cfg)) }},
 		{"rate7d", layout.Rates, func(cfg *config.Section) Segment { return rate.NewSevenDay(rates(cfg)) }},

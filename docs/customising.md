@@ -24,8 +24,8 @@ A setting you leave out keeps its default (unless a [plugin option](#plugin-opti
 
 | Key | Default | Meaning |
 |---|---|---|
-| `segments` | `[path, model, ctx, tokens, cache, cost, boot, skills, skills_stripped, agent_skills, mem, rate5h, rate7d]` | Segments to show, in order, as a list. Unknown names are skipped. |
-| `segments_excluded` | `[cost]` | Built-in segments to leave out of `segments`, as a list; `[]` leaves out nothing. See [Segments and order](#segments-and-order). |
+| `segments` | `[path, model, ctx, tokens, cache, cost, overage, boot, skills, skills_stripped, agent_skills, mem, rate5h, rate7d]` | Segments to show, in order, as a list. Unknown names are skipped. |
+| `segments_excluded` | `[cost, overage]` | Built-in segments to leave out of `segments`, as a list; `[]` leaves out nothing. The default only applies to the default `segments`. See [Segments and order](#segments-and-order). |
 | `separator` | `·` | Glyph drawn between segments. |
 | `theme` | `classic` | Colour theme: a built-in name (`classic`, `gradient`, `saber` or `capsule`) or the path to a theme file. Anything that cannot be used falls back to `classic`. See [Themes](#themes). |
 | `icons` | `none` | Icon set for segment labels: `none` keeps the plain text and symbols, `nerd` uses Nerd Font icons. Needs a Nerd Font v3 or later set as your terminal font. Anything else is ignored and `config-check` lists it. |
@@ -125,12 +125,13 @@ Set `NO_COLOR` to any non-empty value to turn colour and styling off; see [NO_CO
 | `tokens` | Session input and output token totals. |
 | `cache` | The prompt cache hit rate, or `cold` once the cache has expired. |
 | `cost` | What the session would cost at API prices; see [Cost](#cost). |
+| `overage` | Extra-usage spend this calendar month; see [Overage](#overage). |
 | `boot`, `skills`, `skills_stripped`, `agent_skills`, `mem` | Facts read from the transcript; see [Transcript diagnostics](how_it_works.md#transcript-diagnostics). |
 | `rate5h`, `rate7d` | Your 5 hour and 7 day usage as bars. |
 
 Reorder or drop segments by editing the list, for example `segments: [path, model, rate5h]`.
 
-To drop a few segments without copying the whole list, name them in `segments_excluded` instead, for example `segments_excluded: [cost, boot]`. It applies to whatever `segments` holds, the default or your own, and it only turns off built-in segments. A [custom segment](#custom-segments) with an excluded name still runs, and goes to its slot as if its name were not in `segments`, so a script of your own called `cost.sh` keeps showing. Custom segments cannot be excluded: to stop one, remove its script from the hook directory, or make it not executable (`chmod -x`). Its default is `[cost]`, which is why the cost is not shown even though `cost` is in the default `segments`. Your `segments_excluded` replaces that default rather than adding to it, so to exclude `boot` and keep the cost hidden, write `segments_excluded: [cost, boot]`. `segments_excluded: []` leaves out nothing. `/statusline:help` lists what is left out under "Left out by segments_excluded".
+To drop a few segments without copying the whole list, name them in `segments_excluded` instead, for example `segments_excluded: [cost, boot]`. Your own `segments_excluded` applies to whatever `segments` holds, the default or your own, and it only turns off built-in segments. A [custom segment](#custom-segments) with an excluded name still runs, and goes to its slot as if its name were not in `segments`, so a script of your own called `cost.sh` keeps showing. Custom segments cannot be excluded: to stop one, remove its script from the hook directory, or make it not executable (`chmod -x`). Its default is `[cost, overage]`, which is why neither is shown even though both are in the default `segments`. That default only trims the default `segments`: once you set your own `segments`, every built-in you name in it is shown unless your own `segments_excluded` leaves it out. Your `segments_excluded` replaces the default rather than adding to it, so to exclude `boot` from the default list and keep the cost hidden, write `segments_excluded: [cost, boot]`. `segments_excluded: []` leaves out nothing. `/statusline:help` lists what is left out under "Left out by segments_excluded".
 
 A segment is hidden, not wrong, when its data is missing. A name that is not a built-in segment is skipped unless a [custom segment](#custom-segments) has that name.
 
@@ -157,12 +158,24 @@ The `ctx` segment draws context-window usage as a bar with no pace marker. The f
 
 The `cost` segment shows the session's cost in US dollars as `$1.23`: amber from `cost.warn` dollars and red from `cost.bad`. It is hidden when the payload reports no cost.
 
-It is off by default: `cost` is in the default `segments`, after `cache`, but also in the default `segments_excluded`. To show it, set `segments_excluded: []`, or list only what you do want left out.
+It is off by default: `cost` is in the default `segments`, after `cache`, but also in the default `segments_excluded`. To show it, name it in your own `segments`, or set `segments_excluded: []`, or list only what you do want left out.
 
 Claude Code reports this figure: its own estimate of the session's tokens priced at the public API rates. What it means depends on how you pay:
 
 - **API key (pay as you go):** it is roughly what the session has cost you. Your bill is the authority, so treat the figure as an estimate.
 - **Pro or Max subscription:** you pay a flat fee, so the figure is notional. It is what the same work would have cost on the API, not money you are charged, and it does not count against anything. It is still useful for comparing sessions and for spotting an expensive one. What limits a subscription is your 5 hour and 7 day usage, which `rate5h` and `rate7d` show.
+
+### Overage
+
+The `overage` segment shows the extra-usage spend this calendar month (UTC) as `» ~$5.00`. It is never hidden: with nothing spent it is dimmed, as `» ~$0.00`. It is amber while a 5 hour or 7 day limit is at 100% and the figure is above zero, and plain otherwise. It has no settings.
+
+It is off by default: `overage` is in the default `segments`, after `cost`, but also in the default `segments_excluded`. To show it, name it in your own `segments` (the `segments` plugin option works too), or set `segments_excluded: []`, or list only what you do want left out.
+
+Claude Code reports no flag for a request that was paid as extra usage, so the figure is inferred, and it is an estimate, not a bill. When a session's cost rises while a 5 hour or 7 day limit is at 100% and requests still go through, the rise is added to the month's total. The cost is Claude Code's own estimate at API prices. The total belongs to your account, so every session adds to the same figure, and it starts again from zero at 00:00 UTC on the 1st of each month, when extra-usage spend resets. It is kept up to date on every render, whether or not the segment is shown, and the first reading after a limit is reached counts nothing, so the figure tends to run a little low.
+
+Logins that report a spend limit show that instead: `» $12.50/$50` for dollars used of the limit, or `» 40%` when only the percentage is known. It is amber once anything is spent and dim at zero.
+
+With `icons: nerd` the » becomes the Nerd Font warning icon.
 
 ### Bars and widths
 
@@ -209,7 +222,7 @@ A hook's name is its filename without a leading `NN-` and without its extension,
 - A name in `segments_excluded` does not stop the hook: it still runs, in its slot. To stop it, remove the script or make it not executable; see [Segments and order](#segments-and-order).
 - If the name is in `segments`, the hook is drawn there: `segments: [backup, path, model, ctx, tokens, cache, rate5h, rate7d]` puts it first.
 - If the name is a built-in segment that is in `segments` (`model`, say), the hook replaces the built-in.
-- Any other hook goes to its slot, chosen by a comment in the first 20 lines of the script: `# statusline-slot: ctx` (the default) draws it straight after `ctx`, or after `model` when there is no `ctx`; `usage` draws it after `tokens`, `cache` and `cost`; `end` draws it last. Any other slot name means `ctx`, so a typo shows up on the line.
+- Any other hook goes to its slot, chosen by a comment in the first 20 lines of the script: `# statusline-slot: ctx` (the default) draws it straight after `ctx`, or after `model` when there is no `ctx`; `usage` draws it after `tokens`, `cache`, `cost` and `overage`; `end` draws it last. Any other slot name means `ctx`, so a typo shows up on the line.
 - A comment `# statusline-help: <text>` in the first 20 lines is the description that `/statusline:help` and `claude-statusline help` show for the hook. The text is cut at 200 characters. Without one, the help says "custom segment from" and the file name. Help only reads the script's header; it never runs it.
 
 ### Timeouts and caching
@@ -223,7 +236,7 @@ Results are cached in `cache/hooks/<session id>/` in the status line's state dir
 The line is one row whenever it fits in `$COLUMNS` (visible width, ignoring colour; an unset or zero width never wraps). Otherwise it is laid out in groups:
 
 - **Identity** (`path`, `model`, `ctx` and any hook in the `ctx` slot) packs into as few rows as it can.
-- **Usage** (`tokens`, `cache`, `cost`) starts the next row at the left margin. The **rates** (`rate5h` and `rate7d`, which are never split) follow on the same row, padded so that they line up under the second identity segment, or on a row of their own with the same indent if they do not fit.
+- **Usage** (`tokens`, `cache`, `cost`, `overage`) starts the next row at the left margin. The **rates** (`rate5h` and `rate7d`, which are never split) follow on the same row, padded so that they line up under the second identity segment, or on a row of their own with the same indent if they do not fit.
 - Hooks in the `usage` and `end` slots share one last row.
 
 Rows after the first of a group are indented to line up under the segment after the path. The indent starts with a dim `↳`, because Claude Code trims leading spaces but not a glyph. If the indent would leave fewer than 24 columns, rows are not indented.
@@ -260,6 +273,16 @@ With `theme: capsule`, the bars are Nerd Font capsule glyphs (U+EE00 to U+EE05),
 
 `N` must be at least 1, `M` at most 200 and `N` no more than `M`; both are required. Otherwise the command prints a message to stderr, nothing to stdout, and exits 2. That is the only way it fails: a missing cache is `ok: false`.
 
+## Overage for other tools
+
+`claude-statusline overage` prints the month's estimated extra-usage spend as one JSON line, for tools that show it in their own layout. It ignores stdin and always exits 0:
+
+```json
+{"month":"2026-11","usd":12.34,"resets_at":1796083200,"over":false}
+```
+
+`month` is the UTC calendar month the total belongs to, `usd` is the [estimate](#overage) in US dollars rounded to cents (`0` when nothing is recorded), and `resets_at` is the Unix time of 00:00 UTC on the 1st of the next month, when it starts again. `over` is true while a 5 hour or 7 day window is at 100%. The command only reads the shared files.
+
 ## Icons
 
 With `icons: nerd`, each segment's label is drawn as a [Nerd Font](https://www.nerdfonts.com/) icon. The default, `icons: none`, keeps the plain text and symbols.
@@ -287,6 +310,7 @@ The status line cannot tell which font your terminal uses, so `nerd` is somethin
 | `boot` | `⌂` | rocket (U+F135) |
 | `skills` | `⚙` | gear (U+F013) |
 | `skills_stripped`, `agent_skills`, `mem` | `✗` | warning triangle (U+F071) |
+| `overage` | `»` | warning triangle (U+F071) |
 | `rate5h` | `5h:` | clock (U+F017), then `5h` |
 | `rate7d` | `7d:` | calendar (U+F073), then `7d` |
 

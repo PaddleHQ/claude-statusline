@@ -16,7 +16,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | Path | What it is |
 |---|---|
 | `main.go` | A few lines of wiring: it holds the build stamps and hands them, the arguments and the standard streams to `internal/cli`. It has no test, so that its wiring does not count against coverage. |
-| `internal/cli` | Picks the command from the arguments (`--version`, `setup`, `subagent`, `rate-bars`, `help`, `config`, `config-check`, or the status line itself) and reads stdin. A bad config never blanks the status line. `Execute` returns an exit status, which `main` uses only when it is not zero; `config-check` sets one when the config cannot be used, and `rate-bars` sets 2 for bad flags. |
+| `internal/cli` | Picks the command from the arguments (`--version`, `setup`, `subagent`, `rate-bars`, `overage`, `help`, `config`, `config-check`, or the status line itself) and reads stdin. A bad config never blanks the status line. `Execute` returns an exit status, which `main` uses only when it is not zero; `config-check` sets one when the config cannot be used, and `rate-bars` sets 2 for bad flags. `overage` prints the month's estimated extra-usage spend as one JSON line and always exits 0. |
 | `internal/statusline` | Builds the line (and the text of `help`): loads config, saves the snapshot, merges rate limits, reads the transcript, runs hooks and renders. Also lists every config key the code reads. |
 | `segments/` | One folder per plugin, each providing the segments it names and owning their `defaults.yaml`, README, tests and generated mocks. A plugin declares the interfaces it needs and imports nothing from `internal/`. `segments/all.go` is the composition root: the single list of plugins, and the environment that hands them the internal types, which satisfy the plugins' interfaces directly. See [Building plugins](docs/building_plugins.md). |
 | `internal/render` | Renders the configured segments in order, and places custom segments among them. |
@@ -25,6 +25,8 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `internal/payload` | Decodes the session JSON from Claude Code and strips control characters from its strings. |
 | `internal/transcript` | Reads the few facts the line takes from the session transcript. |
 | `internal/ratecache` | Shares rate-limit readings between sessions through a small cache file. |
+| `internal/overage` | Keeps the shared estimate of the month's extra-usage spend: the cost a session adds while a window is at 100%, per UTC month, in a small file. |
+| `internal/filelock` | The bounded advisory lock that the rate-limit cache and the overage file take. |
 | `internal/hook` | Runs custom segment scripts with a timeout and a per-session cache, and sanitises their output. |
 | `internal/gitbranch` | Finds the branch, and a linked worktree's main repository, by reading `.git` files, without running `git`. |
 | `internal/bar` | Draws a usage bar with an optional pace marker. |

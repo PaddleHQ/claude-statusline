@@ -54,10 +54,20 @@ type Effort struct {
 	Level string
 }
 
-// RateLimits holds the account's usage windows.
+// RateLimits holds the account's usage windows, and the spend limit that only some logins report.
 type RateLimits struct {
-	FiveHour Window
-	SevenDay Window
+	FiveHour   Window
+	SevenDay   Window
+	SpendLimit SpendLimit
+}
+
+// SpendLimit is a spend cap that Claude Code reports for some logins; a nil field means the payload did not report it.
+// The dollar amounts are present only when the cap is in US dollars.
+type SpendLimit struct {
+	UsedPercentage *float64
+	UsedUSD        *float64
+	LimitUSD       *float64
+	ResetsAt       *float64
 }
 
 // Window is one rate-limit window; a nil field means the payload did not report it.
@@ -81,6 +91,12 @@ func Parse(data []byte) Payload {
 		RateLimits: RateLimits{
 			FiveHour: window(root.Get("rate_limits.five_hour")),
 			SevenDay: window(root.Get("rate_limits.seven_day")),
+			SpendLimit: SpendLimit{
+				UsedPercentage: number(root.Get("rate_limits.spend_limit.used_percentage")),
+				UsedUSD:        usd(root.Get("rate_limits.spend_limit.used_usd")),
+				LimitUSD:       usd(root.Get("rate_limits.spend_limit.limit_usd")),
+				ResetsAt:       number(root.Get("rate_limits.spend_limit.resets_at")),
+			},
 		},
 		Cwd:            cwd(root),
 		SessionID:      sessionID(root),
@@ -95,7 +111,7 @@ func Parse(data []byte) Payload {
 				CacheRead:     deref(count(root.Get("context_window.current_usage.cache_read_input_tokens"))),
 			},
 		},
-		CostUSD: cost(root.Get("cost.total_cost_usd")),
+		CostUSD: usd(root.Get("cost.total_cost_usd")),
 	}
 }
 
@@ -131,6 +147,20 @@ func (p *Payload) UsedPercentage() (float64, bool) { return reported(p.ContextWi
 
 // TotalCost is the session's total cost in US dollars; false means the payload did not report it.
 func (p *Payload) TotalCost() (float64, bool) { return reported(p.CostUSD) }
+
+// SpendPercentage is how much of the spend limit is used; false means the payload did not report a spend limit.
+func (p *Payload) SpendPercentage() (float64, bool) {
+	return reported(p.RateLimits.SpendLimit.UsedPercentage)
+}
+
+// SpendUSD is the spend limit's used and total amounts in US dollars; false means the payload reported neither.
+func (p *Payload) SpendUSD() (used, limit float64, ok bool) {
+	s := p.RateLimits.SpendLimit
+	if s.UsedUSD == nil || s.LimitUSD == nil {
+		return 0, 0, false
+	}
+	return *s.UsedUSD, *s.LimitUSD, true
+}
 
 func reported[T any](v *T) (T, bool) {
 	if v == nil {
@@ -173,14 +203,15 @@ func count(r gjson.Result) *int64 {
 	return &c
 }
 
-func cost(r gjson.Result) *float64 {
+// usd reads an amount of US dollars, rejecting anything too large to print.
+func usd(r gjson.Result) *float64 {
 	n := number(r)
 	if n == nil || *n > maxCost {
 		return nil
 	}
 	// number lets -0 through, which would print as $-0.00.
-	usd := math.Abs(*n)
-	return &usd
+	v := math.Abs(*n)
+	return &v
 }
 
 func deref(n *int64) int64 {

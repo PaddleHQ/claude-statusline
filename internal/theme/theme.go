@@ -94,6 +94,9 @@ func (t *Theme) Text(s string) string { return t.Paint(t.TextColor, s) }
 // Warn paints s in the warning color.
 func (t *Theme) Warn(s string) string { return t.Paint(t.WarnColor, s) }
 
+// Dim paints s in the muted color. It is not named Muted, which is the color's own field.
+func (t *Theme) Dim(s string) string { return t.Paint(t.Muted, s) }
+
 // Bad paints s in the bad color.
 func (t *Theme) Bad(s string) string { return t.Paint(t.BadColor, s) }
 
