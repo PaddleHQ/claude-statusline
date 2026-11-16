@@ -36,7 +36,7 @@ Custom segments:
   model (model.sh, slot ctx): my model
 
 Also available, not in your segments list:
-  ctx: How full the context window is. Amber from 50%, red from 90%.
+  ctx: How full the context window is. Amber from 50%, red from 90%. A marker shows where to /compact, at 200000 tokens or 80% of the window, whichever is lower, and a red warning once you reach it.
   tokens: Session token totals: input after the down arrow, output after the up arrow.
   cache: How much of the latest request's input was read from the prompt cache. Red below 5%, and a red ⧉ cold once the cache has expired, as in a resumed session.
   cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
@@ -70,7 +70,7 @@ printf mine`,
 Shown now, in order:
   path: The working directory, with your home directory shown as ~, followed by the git branch in brackets.
   model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
-  ctx: How full the context window is. Amber from 50%, red from 90%.
+  ctx: How full the context window is. Amber from 50%, red from 90%. A marker shows where to /compact, at 200000 tokens or 80% of the window, whichever is lower, and a red warning once you reach it.
   tokens: Session token totals: input after the down arrow, output after the up arrow.
   cache: How much of the latest request's input was read from the prompt cache. Red below 5%, and a red ⧉ cold once the cache has expired, as in a resumed session.
   boot: The prompt size on the first turn, before you said anything.
@@ -103,7 +103,7 @@ Shown now, in order:
 
 Also available, not in your segments list:
   model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
-  ctx: How full the context window is. Amber from 50%, red from 90%.
+  ctx: How full the context window is. Amber from 50%, red from 90%. A marker shows where to /compact, at 200000 tokens or 80% of the window, whichever is lower, and a red warning once you reach it.
   tokens: Session token totals: input after the down arrow, output after the up arrow.
   cache: How much of the latest request's input was read from the prompt cache. Red below 5%, and a red ⧉ cold once the cache has expired, as in a resumed session.
   overage: Extra-usage spend this calendar month (UTC), inferred from session cost at API prices while a 5h or 7d limit is at 100%: an estimate, not a bill. Amber while a limit is at 100% and the figure is above zero, dim at zero. Logins that report a spend limit show that instead.
@@ -141,7 +141,7 @@ Custom segments:
 
 Also available, not in your segments list:
   model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
-  ctx: How full the context window is. Amber from 50%, red from 90%.
+  ctx: How full the context window is. Amber from 50%, red from 90%. A marker shows where to /compact, at 200000 tokens or 80% of the window, whichever is lower, and a red warning once you reach it.
   tokens: Session token totals: input after the down arrow, output after the up arrow.
   cache: How much of the latest request's input was read from the prompt cache. Red below 5%, and a red ⧉ cold once the cache has expired, as in a resumed session.
   cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
@@ -197,7 +197,7 @@ Custom segments:
 
 Also available, not in your segments list:
   model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
-  ctx: How full the context window is. Amber from 50%, red from 90%.
+  ctx: How full the context window is. Amber from 50%, red from 90%. A marker shows where to /compact, at 200000 tokens or 80% of the window, whichever is lower, and a red warning once you reach it.
   tokens: Session token totals: input after the down arrow, output after the up arrow.
   cache: How much of the latest request's input was read from the prompt cache. Red below 5%, and a red ⧉ cold once the cache has expired, as in a resumed session.
   cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
@@ -236,7 +236,7 @@ Custom segments:
 
 Also available, not in your segments list:
   model: The model in use and its effort level, as in Opus 4.7 [high]. It reads Haiku 4.5 (skill), for example, while a skill or subagent runs a different model than the session's.
-  ctx: How full the context window is. Amber from 50%, red from 90%.
+  ctx: How full the context window is. Amber from 50%, red from 90%. A marker shows where to /compact, at 200000 tokens or 80% of the window, whichever is lower, and a red warning once you reach it.
   tokens: Session token totals: input after the down arrow, output after the up arrow.
   cache: How much of the latest request's input was read from the prompt cache. Red below 5%, and a red ⧉ cold once the cache has expired, as in a resumed session.
   cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
@@ -264,7 +264,7 @@ Shown now, in order:
   rate5h: Your 5 hour usage, with a marker at an even pace. Amber when more than 20 points off it, red beyond 40 points or from 95% used.
 
 Also available, not in your segments list:
-  ctx: How full the context window is. Amber from 50%, red from 90%.
+  ctx: How full the context window is. Amber from 50%, red from 90%. A marker shows where to /compact, at 200000 tokens or 80% of the window, whichever is lower, and a red warning once you reach it.
   tokens: Session token totals: input after the down arrow, output after the up arrow.
   cache: How much of the latest request's input was read from the prompt cache. Red below 5%, and a red ⧉ cold once the cache has expired, as in a resumed session.
   cost: What the session would cost at API prices, in US dollars. On a Pro or Max plan you are not charged this. Amber from $5, red from $20.
@@ -291,7 +291,7 @@ cache:
 			want: `Your status line, as currently configured.
 
 Shown now, in order:
-  ctx: How full the context window is. Amber from 55%, red from 80%.
+  ctx: How full the context window is. Amber from 55%, red from 80%. A marker shows where to /compact, at 200000 tokens or 80% of the window, whichever is lower, and a red warning once you reach it.
   cache: How much of the latest request's input was read from the prompt cache. Red below 20%, and a red ⧉ cold once the cache has expired, as in a resumed session.
 
 Also available, not in your segments list:

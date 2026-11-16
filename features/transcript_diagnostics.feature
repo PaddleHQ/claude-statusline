@@ -57,8 +57,8 @@ Feature: Transcript diagnostics
     When the status line renders at 210 columns
     Then the output is:
       """
-      /srv/app · Sonnet 5.5 (skill) · ctx: ████▎░░░░░ 42% · ↓ 1.5k · ↑ 23.4k · ⧉ 85% · ⌂ 64.5k · ⚙ 15 · ✗ skills 3/5 · ✗ agent skills 3/6 · ✗ mem · 5h: █████████░┃░░░░░░░░░ 45% · 7d: ████████░░┃░░░░░░░░░ 40%
-      11111111 d                    d      gggggddddd     d        d         d       d         d      d rrrrrrrrrrrr d yyyyyyyyyyyyyyyyyy d rrrrr d     gggggggggdBddddddddd     d     ggggggggddBddddddddd
+      /srv/app · Sonnet 5.5 (skill) · ctx: ████▎░░░┃░ 42% · ↓ 1.5k · ↑ 23.4k · ⧉ 85% · ⌂ 64.5k · ⚙ 15 · ✗ skills 3/5 · ✗ agent skills 3/6 · ✗ mem · 5h: █████████░┃░░░░░░░░░ 45% · 7d: ████████░░┃░░░░░░░░░ 40%
+      11111111 d                    d      gggggdddBd     d        d         d       d         d      d rrrrrrrrrrrr d yyyyyyyyyyyyyyyyyy d rrrrr d     gggggggggdBddddddddd     d     ggggggggddBddddddddd
 
       1 = bold 256:33
       """

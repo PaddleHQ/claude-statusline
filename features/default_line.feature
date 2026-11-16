@@ -78,8 +78,8 @@ Feature: The default status line
     When the status line renders
     Then the output is:
       """
-      ~/code/app/internal (feature/core-segments) · Opus 4.7 [high] · ctx: ████▎░░░░░ 42% · ↓ 1.5k · ↑ 23.4k · ⧉ 85% · 5h: █████████░┃░░░░░░░░░ 45% · 7d: ████████░░┃░░░░░░░░░ 40%
-      1111111111111111111111111111111111111111111 d                 d      gggggddddd     d        d         d       d     gggggggggdBddddddddd     d     ggggggggddBddddddddd
+      ~/code/app/internal (feature/core-segments) · Opus 4.7 [high] · ctx: ████▎░░░┃░ 42% · ↓ 1.5k · ↑ 23.4k · ⧉ 85% · 5h: █████████░┃░░░░░░░░░ 45% · 7d: ████████░░┃░░░░░░░░░ 40%
+      1111111111111111111111111111111111111111111 d                 d      gggggdddBd     d        d         d       d     gggggggggdBddddddddd     d     ggggggggddBddddddddd
 
       1 = bold 256:33
       """

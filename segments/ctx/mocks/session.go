@@ -17,6 +17,68 @@ func (_m *Session) EXPECT() *Session_Expecter {
 	return &Session_Expecter{mock: &_m.Mock}
 }
 
+// LatestRequest provides a mock function with no fields
+func (_m *Session) LatestRequest() (int64, int64, int64) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for LatestRequest")
+	}
+
+	var r0 int64
+	var r1 int64
+	var r2 int64
+	if rf, ok := ret.Get(0).(func() (int64, int64, int64)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() int64); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func() int64); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Get(1).(int64)
+	}
+
+	if rf, ok := ret.Get(2).(func() int64); ok {
+		r2 = rf()
+	} else {
+		r2 = ret.Get(2).(int64)
+	}
+
+	return r0, r1, r2
+}
+
+// Session_LatestRequest_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LatestRequest'
+type Session_LatestRequest_Call struct {
+	*mock.Call
+}
+
+// LatestRequest is a helper method to define mock.On call
+func (_e *Session_Expecter) LatestRequest() *Session_LatestRequest_Call {
+	return &Session_LatestRequest_Call{Call: _e.mock.On("LatestRequest")}
+}
+
+func (_c *Session_LatestRequest_Call) Run(run func()) *Session_LatestRequest_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Session_LatestRequest_Call) Return(input int64, cacheCreation int64, cacheRead int64) *Session_LatestRequest_Call {
+	_c.Call.Return(input, cacheCreation, cacheRead)
+	return _c
+}
+
+func (_c *Session_LatestRequest_Call) RunAndReturn(run func() (int64, int64, int64)) *Session_LatestRequest_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UsedPercentage provides a mock function with no fields
 func (_m *Session) UsedPercentage() (float64, bool) {
 	ret := _m.Called()
@@ -68,6 +130,61 @@ func (_c *Session_UsedPercentage_Call) Return(_a0 float64, _a1 bool) *Session_Us
 }
 
 func (_c *Session_UsedPercentage_Call) RunAndReturn(run func() (float64, bool)) *Session_UsedPercentage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// WindowSize provides a mock function with no fields
+func (_m *Session) WindowSize() (int64, bool) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for WindowSize")
+	}
+
+	var r0 int64
+	var r1 bool
+	if rf, ok := ret.Get(0).(func() (int64, bool)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() int64); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func() bool); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Get(1).(bool)
+	}
+
+	return r0, r1
+}
+
+// Session_WindowSize_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'WindowSize'
+type Session_WindowSize_Call struct {
+	*mock.Call
+}
+
+// WindowSize is a helper method to define mock.On call
+func (_e *Session_Expecter) WindowSize() *Session_WindowSize_Call {
+	return &Session_WindowSize_Call{Call: _e.mock.On("WindowSize")}
+}
+
+func (_c *Session_WindowSize_Call) Run(run func()) *Session_WindowSize_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Session_WindowSize_Call) Return(_a0 int64, _a1 bool) *Session_WindowSize_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Session_WindowSize_Call) RunAndReturn(run func() (int64, bool)) *Session_WindowSize_Call {
 	_c.Call.Return(run)
 	return _c
 }

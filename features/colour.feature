@@ -54,5 +54,5 @@ Feature: Colour and NO_COLOR
     When the status line renders
     Then the text is:
       """
-      app (main) · Opus 4.7 [high] · ctx: █████████▌ 95% · ↓ 1.5k · ↑ 23.4k · ⧉ 0% · 5h: █████████░┃░░░░░░░░░ 45% · 7d: ████████░░┃░░░░░░░░░ 40%
+      app (main) · Opus 4.7 [high] · ctx: ████████┃▌ 95% ⚠ /compact · ↓ 1.5k · ↑ 23.4k · ⧉ 0% · 5h: █████████░┃░░░░░░░░░ 45% · 7d: ████████░░┃░░░░░░░░░ 40%
       """
