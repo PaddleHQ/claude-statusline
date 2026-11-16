@@ -57,6 +57,10 @@ func fromWindow(w payload.Window) *Reading {
 		return nil
 	}
 	used, resets := math.Round(*w.UsedPercentage), math.Floor(*w.ResetsAt)
+	if used >= fullUsage && *w.UsedPercentage < fullUsage {
+		// Only a window that is really full may read as 100: AtLimit treats it as paid extra usage.
+		used = fullUsage - 1
+	}
 	if used >= maxValue || resets >= maxValue {
 		return nil
 	}

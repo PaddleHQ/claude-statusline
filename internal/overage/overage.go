@@ -87,7 +87,7 @@ func (t *Tracker) Record(sessionID string, cost float64, over bool, now time.Tim
 }
 
 // with returns a copy of s holding the new reading of a session, the month's total raised by what the session's cost
-// has risen by since the previous reading, when that was over the limit too.
+// has risen by when both readings were over the limit.
 func (s *state) with(id string, reading session, monthKey string) state {
 	next := state{Months: maps.Clone(s.Months), Sessions: maps.Clone(s.Sessions)}
 	if next.Months == nil {
@@ -96,13 +96,13 @@ func (s *state) with(id string, reading session, monthKey string) state {
 	if next.Sessions == nil {
 		next.Sessions = map[string]session{}
 	}
-	if prev, ok := next.Sessions[id]; ok && prev.Over {
-		switch {
-		case reading.Cost > prev.Cost:
+	if prev, ok := next.Sessions[id]; ok {
+		if prev.Over && reading.Over && reading.Cost > prev.Cost {
 			m := next.Months[monthKey]
 			m.USD = math.Min(m.USD+reading.Cost-prev.Cost, maxValue)
 			next.Months[monthKey] = m
-		case reading.Over && reading.Cost >= prev.Cost*resetRatio:
+		}
+		if reading.Cost < prev.Cost && reading.Cost >= prev.Cost*resetRatio {
 			// A render that lost the lock race reports a slightly older cost; only a large drop is a session reset.
 			reading.Cost = prev.Cost
 		}

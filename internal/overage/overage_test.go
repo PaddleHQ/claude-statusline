@@ -142,11 +142,24 @@ func TestRecordCountsOnlyRisesWhileOver(t *testing.T) {
 			{"a", 15.5, true, 3.5},
 			{"a", 15.5, true, 3.5},
 		}},
-		{"the reading that leaves the limit still counts its rise, and later rises count nothing", []step{
+		{"the reading that leaves the limit counts nothing, nor do later rises", []step{
 			{"a", 12, true, 0},
 			{"a", 14, true, 2},
-			{"a", 20, false, 8},
-			{"a", 25, false, 8},
+			{"a", 20, false, 2},
+			{"a", 25, false, 2},
+		}},
+		{"spend under a fresh window after a reset is not overage", []step{
+			{"a", 10, true, 0},
+			{"a", 11, true, 1},
+			{"a", 61, false, 1},
+		}},
+		{"a late over reading after a newer one under the limit keeps the higher baseline", []step{
+			{"a", 8, true, 0},
+			{"a", 12, false, 0},
+			{"a", 10, true, 0},
+			{"a", 13, false, 0},
+			{"a", 14, true, 0},
+			{"a", 15, true, 1},
 		}},
 		{"the first reading over the limit after one under it counts nothing", []step{
 			{"a", 14, true, 0},
