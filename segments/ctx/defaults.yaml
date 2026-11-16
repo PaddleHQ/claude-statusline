@@ -9,3 +9,7 @@ ctx:
   warn: 50
   # Context usage percentage at or above which the fill turns red.
   bad: 90
+  # Context tokens at which the bar shows a compact marker and warning; 0 turns this limit off.
+  compact_at: 200000
+  # Percentage of the context window at which the bar shows a compact marker and warning; 0 turns this limit off.
+  compact_pct: 80

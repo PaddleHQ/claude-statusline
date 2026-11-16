@@ -17,6 +17,56 @@ func (_m *Meter) EXPECT() *Meter_Expecter {
 	return &Meter_Expecter{mock: &_m.Mock}
 }
 
+// Limit provides a mock function with given fields: usage, limit, reached, warn, bad
+func (_m *Meter) Limit(usage int, limit int, reached bool, warn int, bad int) string {
+	ret := _m.Called(usage, limit, reached, warn, bad)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Limit")
+	}
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(int, int, bool, int, int) string); ok {
+		r0 = rf(usage, limit, reached, warn, bad)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
+// Meter_Limit_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Limit'
+type Meter_Limit_Call struct {
+	*mock.Call
+}
+
+// Limit is a helper method to define mock.On call
+//   - usage int
+//   - limit int
+//   - reached bool
+//   - warn int
+//   - bad int
+func (_e *Meter_Expecter) Limit(usage interface{}, limit interface{}, reached interface{}, warn interface{}, bad interface{}) *Meter_Limit_Call {
+	return &Meter_Limit_Call{Call: _e.mock.On("Limit", usage, limit, reached, warn, bad)}
+}
+
+func (_c *Meter_Limit_Call) Run(run func(usage int, limit int, reached bool, warn int, bad int)) *Meter_Limit_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(int), args[1].(int), args[2].(bool), args[3].(int), args[4].(int))
+	})
+	return _c
+}
+
+func (_c *Meter_Limit_Call) Return(_a0 string) *Meter_Limit_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Meter_Limit_Call) RunAndReturn(run func(int, int, bool, int, int) string) *Meter_Limit_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Usage provides a mock function with given fields: usage, warn, bad
 func (_m *Meter) Usage(usage int, warn int, bad int) string {
 	ret := _m.Called(usage, warn, bad)

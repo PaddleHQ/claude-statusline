@@ -64,8 +64,8 @@ Feature: Nerd Font icons
     When the status line renders at 200 columns
     Then the output is:
       """
-       ~/code/app ( feature/retry-backoff) · 󰚩 Opus 4.7 [high] · 󰍛 ████▎░░░░░ 42% ·  1.5k ·  23.4k ·  85% ·  64.5k ·  102 ·  5h █████████░┃░░░░░░░░░ 45% ·  7d ██████████┃█▍░░░░░░░ 62%
-      11111111111111111111111111111111111111 d                   d   gggggddddd     d        d         d       d         d       d      gggggggggdBddddddddd     d      yyyyyyyyyyByyddddddd
+       ~/code/app ( feature/retry-backoff) · 󰚩 Opus 4.7 [high] · 󰍛 ████▎░░░┃░ 42% ·  1.5k ·  23.4k ·  85% ·  64.5k ·  102 ·  5h █████████░┃░░░░░░░░░ 45% ·  7d ██████████┃█▍░░░░░░░ 62%
+      11111111111111111111111111111111111111 d                   d   gggggdddBd     d        d         d       d         d       d      gggggggggdBddddddddd     d      yyyyyyyyyyByyddddddd
 
       1 = bold 256:33
       """
@@ -153,7 +153,7 @@ Feature: Nerd Font icons
     When the status line renders at 80 columns
     Then the text is:
       """
-       ~/code/app ( feature/retry-backoff) · 󰚩 Opus 4.7 [high] · 󰍛 ██▌░░░ 42%
+       ~/code/app ( feature/retry-backoff) · 󰚩 Opus 4.7 [high] · 󰍛 ██▌░┃░ 42%
        1.5k ·  23.4k ·  85% ·  64.5k ·  102
       ↳                                         5h ████▌┃░░░░ 45% ·  7d █████┃▎░░░ 62%
       """

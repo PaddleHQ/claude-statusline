@@ -43,8 +43,8 @@ Feature: Wrapping to the terminal width
     When the status line renders at 200 columns
     Then the output is:
       """
-      /srv/app · Opus 4.7 [high] · ctx: ████▎░░░░░ 42% · ↓ 1.5k · ↑ 23.4k · ⧉ 85% · 5h: █████████░┃░░░░░░░░░ 45% · 7d: ████████░░┃░░░░░░░░░ 40%
-      11111111 d                 d      gggggddddd     d        d         d       d     gggggggggdBddddddddd     d     ggggggggddBddddddddd
+      /srv/app · Opus 4.7 [high] · ctx: ████▎░░░┃░ 42% · ↓ 1.5k · ↑ 23.4k · ⧉ 85% · 5h: █████████░┃░░░░░░░░░ 45% · 7d: ████████░░┃░░░░░░░░░ 40%
+      11111111 d                 d      gggggdddBd     d        d         d       d     gggggggggdBddddddddd     d     ggggggggddBddddddddd
 
       1 = bold 256:33
       """
@@ -85,8 +85,8 @@ Feature: Wrapping to the terminal width
     When the status line renders at 80 columns
     Then the output is:
       """
-      /srv/app · Opus 4.7 [high] · ctx: ██▌░░░ 42%
-      11111111 d                 d      gggddd
+      /srv/app · Opus 4.7 [high] · ctx: ██▌░┃░ 42%
+      11111111 d                 d      gggdBd
       ↓ 1.5k · ↑ 23.4k · ⧉ 85% 5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%
              d         d           gggggBdddd     d     ggggdBdddd
 
@@ -131,8 +131,8 @@ Feature: Wrapping to the terminal width
       """
       /srv/app · Opus 4.7 [high]
       11111111 d
-      ↳          ctx: ██▌░░░ 42%
-      d               gggddd
+      ↳          ctx: ██▌░┃░ 42%
+      d               gggdBd
       ↓ 1.5k · ↑ 23.4k · ⧉ 85%
              d         d
       ↳          5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%
@@ -181,8 +181,8 @@ Feature: Wrapping to the terminal width
       11111111
       Opus 4.7 [high]
 
-      ctx: ██▌░░░ 42%
-           gggddd
+      ctx: ██▌░┃░ 42%
+           gggdBd
       ↓ 1.5k · ↑ 23.4k · ⧉ 85%
              d         d
       5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%

@@ -30,6 +30,8 @@ const (
 // Params describes one bar. Usage and Target are percentages; Warn and Bad are
 // deviations from the target in percentage points. With NoTarget set there is no
 // marker, Target and HardCap are ignored, and Warn and Bad are usage percentages.
+// With Limited set the bar is colored by absolute usage as with NoTarget, but a Limit between 0 and 99
+// puts the marker on that percentage, and Reached makes the fill bad.
 type Params struct {
 	Usage    int
 	Target   int
@@ -38,6 +40,9 @@ type Params struct {
 	Bad      int
 	HardCap  int
 	NoTarget bool
+	Limited  bool
+	Limit    int
+	Reached  bool
 }
 
 // WidthFor picks the bar width for a terminal: narrow below 120 columns, medium below 160, otherwise wide.
@@ -64,8 +69,10 @@ func WidthOf(columns int, s Sizes) int {
 
 // state classifies the bar: distance from the pace target, or absolute usage without a target.
 func (p *Params) state() int {
-	if p.NoTarget {
+	if p.NoTarget || p.Limited {
 		switch {
+		case p.Reached:
+			return theme.StateBad
 		case p.Usage >= p.Bad:
 			return theme.StateBad
 		case p.Usage >= p.Warn:
@@ -118,7 +125,12 @@ func (p *Params) Render(th theme.Theme) string {
 	filled := min((p.Usage*maxEighths+percentScale/2)/percentScale, maxEighths)
 
 	targetCell := -1
-	if !p.NoTarget {
+	switch {
+	case p.Limited:
+		if p.Limit >= 0 && p.Limit < percentScale {
+			targetCell = min(p.Limit*p.Width/percentScale, p.Width-1)
+		}
+	case !p.NoTarget:
 		targetCell = min(p.Target*p.Width/percentScale, p.Width-1)
 	}
 	switch {
@@ -280,6 +292,12 @@ func (m *Meter) Usage(usage, warn, bad int) string {
 // Pace draws a bar with a marker at the target; warn and bad are deviations from it, and the fill is bad from hardCap.
 func (m *Meter) Pace(usage, target, warn, bad, hardCap int) string {
 	return m.draw(&Params{Usage: usage, Target: target, Width: m.Width, Warn: warn, Bad: bad, HardCap: hardCap})
+}
+
+// Limit draws a bar with a marker at the limit percentage, none when it is outside 0 to 99. Warn and bad are
+// usage percentages at which the fill changes color, and reached makes the fill bad whatever the usage.
+func (m *Meter) Limit(usage, limit int, reached bool, warn, bad int) string {
+	return m.draw(&Params{Usage: usage, Width: m.Width, Warn: warn, Bad: bad, Limited: true, Limit: limit, Reached: reached})
 }
 
 func (m *Meter) draw(params *Params) string {
