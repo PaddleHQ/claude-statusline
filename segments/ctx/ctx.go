@@ -115,6 +115,9 @@ func (c *Context) Render() string {
 
 	tokens := c.tokens()
 	window := c.window(tokens, used)
+	if tokens == 0 && window > 0 {
+		tokens = int64(math.Round(used * float64(window) / percentScale))
+	}
 	threshold := c.threshold(window)
 	if threshold <= 0 {
 		return label + c.d.Meter.Usage(pct, warn, bad)

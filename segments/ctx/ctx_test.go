@@ -110,6 +110,19 @@ func TestRenderCompactMarker(t *testing.T) {
 			wantLimit: 80,
 		},
 		{
+			name:      "without the latest request the tokens come from the percentage of a known window",
+			s:         session{used: 95, reported: true, window: 200000, hasSize: true},
+			c:         both,
+			wantLimit: 80,
+			wantReach: true,
+		},
+		{
+			name:      "without the latest request a known window below the limit does not warn",
+			s:         session{used: 50, reported: true, window: 200000, hasSize: true},
+			c:         both,
+			wantLimit: 80,
+		},
+		{
 			name:      "a 200k window warns from 160k",
 			s:         session{used: 82.5, reported: true, window: 200000, hasSize: true, tokens: 165000},
 			c:         both,
