@@ -25,6 +25,7 @@ colors:
 bar:
   # solid: eighth-block fill colored by pace. gradient: whole cells colored
   # by position, with the pace color on the percentage (see gradient.yaml).
+  # saber: a blade colored by pace that brightens towards the tip (see saber.yaml).
   style: solid
   full: "█"
   # Seven partial-cell glyphs, from one eighth to seven eighths.

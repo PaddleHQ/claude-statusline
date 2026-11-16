@@ -44,12 +44,20 @@ type Meter interface {
 	Usage(usage, warn, bad int) string
 }
 
+//go:generate go run github.com/vektra/mockery/v2 --name=Icons
+
+// Icons picks a label for the user's icon set.
+type Icons interface {
+	Pick(plain, nerd string) string
+}
+
 // Deps is everything the segment is built from.
 type Deps struct {
 	Session Session
 	Config  Config
 	Paint   Painter
 	Meter   Meter
+	Icons   Icons
 }
 
 // Context draws context-window usage as "ctx: <bar> <NN>%", colored by absolute usage.
@@ -78,5 +86,5 @@ func (c *Context) Render() string {
 		return ""
 	}
 	pct := int(math.RoundToEven(used))
-	return c.d.Paint.Text("ctx: ") + c.d.Meter.Usage(pct, c.d.Config.Int("warn"), c.d.Config.Int("bad"))
+	return c.d.Paint.Text(c.d.Icons.Pick("ctx: ", "\U000F035B ")) + c.d.Meter.Usage(pct, c.d.Config.Int("warn"), c.d.Config.Int("bad"))
 }

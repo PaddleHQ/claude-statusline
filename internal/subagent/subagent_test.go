@@ -207,3 +207,25 @@ separator: "|"`,
 		})
 	}
 }
+
+func TestBuildIconsSetting(t *testing.T) {
+	t.Parallel()
+
+	session := `{"tasks":[{"id":"t1","name":"r","contextWindowSize":200000,"tokenCount":50000}]}`
+	plain := (&scenario{session: session}).rows(t)
+	nerd := (&scenario{session: session, config: "icons: nerd"}).rows(t)
+	assert.Contains(t, plain, "ctx: ")
+	assert.NotContains(t, plain, "\U000F035B ")
+	assert.Contains(t, nerd, "\U000F035B ")
+	assert.NotContains(t, nerd, "ctx: ")
+}
+
+func TestBuildCapsuleThemeWithEitherIcons(t *testing.T) {
+	t.Parallel()
+
+	session := `{"tasks":[{"id":"t1","name":"r","contextWindowSize":200000,"tokenCount":50000}]}`
+	for _, set := range []string{"nerd", "none"} {
+		rows := (&scenario{session: session, config: "theme: capsule\nicons: " + set}).rows(t)
+		assert.Regexp(t, "[\uee03\uee00]", rows, "icons: %s", set)
+	}
+}

@@ -2,6 +2,8 @@
 
 Shows the working directory, shortened, with the git branch when there is one, for example `~/code/app (main)`. A git worktree under a directory listed in `path.worktrees` is shown as the name of its main repository.
 
+With `icons: nerd` a Nerd Font folder icon (U+F07B) is drawn before the path, and the branch and worktree emoji (shown with `path.emoji`) become the Nerd Font git branch (U+E0A0) and tree (U+F1BB) icons.
+
 ## Settings
 
 | Key | Default | Meaning |

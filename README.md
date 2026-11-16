@@ -5,11 +5,17 @@
   <img alt="The status line on one row: working directory and git branch, model and effort, a context usage bar, token counts, prompt cache hit rate, boot and skill sizes, and 5 hour and 7 day rate-limit bars with pace markers" src="docs/images/hero-light.svg">
 </picture>
 
-An open-source status line for Claude Code, written in Go. It is at an early stage: for now it shows the working directory and git branch, model, context usage, token counts, prompt-cache hit rate and rate-limit usage bars. It wraps onto further rows when the terminal is narrow, and anything unexpected gives a blank line rather than an error.
+An open-source status line for Claude Code, written in Go. It is at an early stage: for now it shows the working directory and git branch, model, context usage, token counts, prompt-cache hit rate and rate-limit usage bars, and the session cost if you turn it on. On a Pro or Max plan the cost is what the session would have cost at API prices, not what you pay; see [Cost](docs/customising.md#cost). It wraps onto further rows when the terminal is narrow, and anything unexpected gives a blank line rather than an error.
 
 ## Install
 
-As a Claude Code plugin:
+As a Claude Code plugin (it needs Claude Code 2.1.271 or later: its options use `options`, which older versions cannot load, so the hook would never install or update the binary):
+
+```text
+/plugin install statusline --marketplace PaddleHQ/claude-statusline
+```
+
+On Claude Code before 2.1.275, add the marketplace first:
 
 ```text
 /plugin marketplace add PaddleHQ/claude-statusline
@@ -36,7 +42,9 @@ Three things stay, because they are yours: `~/.claude/claude-statusline/config.y
 
 ## Configure
 
-Configuration is optional. Your settings live in `~/.claude/claude-statusline/config.yaml` (under `$CLAUDE_CONFIG_DIR` if you set it), as YAML:
+Configuration is optional. The easiest way to change the common settings (theme, segments, separator, path and branch display, effort, snapshot) is the plugin's options. Single-value options (theme, separator, the on/off ones) are in `/config`; the lists (segments, path_strip, path_worktrees) are set with `/plugin configure` or `claude plugin configure statusline@claude-statusline --values-stdin`. A value set there wins over `config.yaml`; pick a built-in theme or point `theme_file` at your own; leave an option empty (or `default`) to keep what `config.yaml` or the built-in default says. See [Plugin options](docs/customising.md#plugin-options) for the full list.
+
+`config.yaml` keeps working for every key, and is the only place for the rest (widths, thresholds, hooks, custom segments). Your file lives in `~/.claude/claude-statusline/config.yaml` (under `$CLAUDE_CONFIG_DIR` if you set it), as YAML:
 
 ```yaml
 theme: gradient
@@ -50,12 +58,26 @@ With `theme: gradient`, the bars are shaded from green to red along their length
   <img alt="The status line with the gradient theme: the context and rate-limit bars are drawn as segmented cells shaded from green towards red, with a slash marking the pace point" src="docs/images/gradient-light.svg">
 </picture>
 
-`theme` picks the colours and bar glyphs, and `segments` chooses what to show and in what order. Every key, custom segments, wrapping and themes are in [Customising](docs/customising.md). To see what your own line shows, run `/statusline:help` in Claude Code, or `claude-statusline help` if you installed by hand. If the status line shows a red row about your config file, run `/statusline:config-check`, or `claude-statusline config-check` if you installed by hand.
+Or try `theme: saber`, which draws each bar as a lightsaber blade coloured by pace:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/saber-dark.svg">
+  <img alt="The status line with the saber theme: each bar is a lightsaber blade coloured blue, purple or red by pace, brightening towards its tip, with a vertical bar marking the pace point" src="docs/images/saber-light.svg">
+</picture>
+
+Or `theme: capsule`, which draws rounded capsule bars coloured by pace, with or without `icons: nerd`. It needs a Nerd Font v3 or later in your terminal:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/capsule-dark.svg">
+  <img alt="The status line with the capsule theme: each bar is a row of rounded capsules filled in the pace colour, with the target cell marked" src="docs/images/capsule-light.svg">
+</picture>
+
+`theme` picks the colours and bar glyphs, `segments` chooses what to show and in what order, and `icons: nerd` swaps the labels for [Nerd Font](https://www.nerdfonts.com/) icons if your terminal uses a Nerd Font (a "Mono" variant). Every key, custom segments, wrapping and themes are in [Customising](docs/customising.md). To see what your own line shows, run `/statusline:help` in Claude Code, or `claude-statusline help` if you installed by hand. If the status line shows a red row about your config file, run `/statusline:config-check`, or `claude-statusline config-check` if you installed by hand.
 
 ## More
 
 - [How it works](docs/how_it_works.md): what runs when, the shared rate-limit cache, how the plugin updates itself, and manual install.
-- [Customising](docs/customising.md): every setting, custom segments, subagent rows and themes.
+- [Customising](docs/customising.md): every setting, custom segments, subagent rows, rate bars for other tools and themes.
 - [CONTRIBUTING.md](CONTRIBUTING.md): how to change the code.
 
 ## Licence

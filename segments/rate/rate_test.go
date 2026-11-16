@@ -31,10 +31,13 @@ func newFixture(t *testing.T, cfg map[string]string) *fixture {
 	}
 	paint := mocks.NewPainter(t)
 	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + "</>" }).Maybe()
+	icons := mocks.NewIcons(t)
+	icons.EXPECT().Pick(mock.Anything, mock.Anything).RunAndReturn(func(plain, _ string) string { return plain }).Maybe()
 	f.deps = rate.Deps{
 		Config: config,
 		Paint:  paint,
 		Meter:  f.meter,
+		Icons:  icons,
 		Now:    time.Unix(now, 0),
 		Limits: func() rate.Limits { f.reads++; return f.limits },
 	}
@@ -136,4 +139,43 @@ func TestLabelIsDrawnAsText(t *testing.T) {
 	f.meter.EXPECT().Pace(40, 50, 20, 40, 95).Return("BAR 40%")
 
 	assert.Equal(t, "<t>`touch x`; $(y): </>BAR 40%", rate.NewSevenDay(f.deps).Render())
+}
+
+func TestWindowNerdLabel(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		build func(rate.Deps) *rate.Window
+		label string
+		want  string
+	}{
+		{"five hour", rate.NewFiveHour, "5h", "\uf017 5h "},
+		{"seven day", rate.NewSevenDay, "7d", "\uf073 7d "},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			f := newFixture(t, map[string]string{"label": tt.label})
+			f.limits.EXPECT().FiveHourReading().Return(45, now+9000, true).Maybe()
+			f.limits.EXPECT().SevenDayReading().Return(45, now+302400, true).Maybe()
+			f.meter.EXPECT().Pace(45, 50, 20, 40, 95).Return("BAR")
+			icons := mocks.NewIcons(t)
+			icons.EXPECT().Pick(mock.Anything, mock.Anything).RunAndReturn(func(_, nerd string) string { return nerd })
+			f.deps.Icons = icons
+
+			assert.Equal(t, "<t>"+tt.want+"</>BAR", tt.build(f.deps).Render())
+		})
+	}
+}
+
+func TestWindowPlainLabel(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t, map[string]string{"label": "5h"})
+	f.limits.EXPECT().FiveHourReading().Return(45, now+9000, true)
+	f.meter.EXPECT().Pace(45, 50, 20, 40, 95).Return("BAR")
+
+	assert.Equal(t, "<t>5h: </>BAR", rate.NewFiveHour(f.deps).Render())
 }

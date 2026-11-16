@@ -27,3 +27,14 @@ Feature: Rate-limit bars
       Opus 4.7 · 5h: ██████████┃████░░░░░ 75%
                d     yyyyyyyyyyByyyyddddd
       """
+
+  Scenario: The rate-bars command prints both windows as JSON for other tools to draw
+    Given the rate-limit cache:
+      """
+      {"five_hour":{"used":75,"resets_at":1760009000},"seven_day":{"used":40,"resets_at":1760302400}}
+      """
+    When the rate bars render for 4 to 5 cells
+    Then the raw output is:
+      """
+      {"rate5h":{"ok":true,"percent":"75%","bars":{"4":"\u001b[33m██\u001b[0m\u001b[1m┃\u001b[0m\u001b[2m░\u001b[0m","5":"\u001b[33m██\u001b[0m\u001b[1m┃\u001b[0m\u001b[33m▊\u001b[0m\u001b[2m░\u001b[0m"}},"rate7d":{"ok":true,"percent":"40%","bars":{"4":"\u001b[32m█▋\u001b[0m\u001b[1m┃\u001b[0m\u001b[2m░\u001b[0m","5":"\u001b[32m██\u001b[0m\u001b[1m┃\u001b[0m\u001b[2m░░\u001b[0m"}}}
+      """

@@ -3,10 +3,12 @@ package statusline
 
 import (
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/hook"
+	"github.com/PaddleHQ/claude-statusline/internal/icons"
 	"github.com/PaddleHQ/claude-statusline/internal/layout"
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
 	"github.com/PaddleHQ/claude-statusline/internal/ratecache"
@@ -19,6 +21,8 @@ import (
 )
 
 const (
+	keySegments    = "segments"
+	keyExcluded    = "segments_excluded"
 	keyTheme       = "theme"
 	keyHookTTL     = "hooks.ttl"
 	keyHookTimeout = "hooks.timeout"
@@ -29,7 +33,7 @@ const (
 
 // Keys lists every config key the status line reads, for checking against defaults.yaml.
 func Keys() []string {
-	keys := append(render.Keys(), keyTheme, keyHookTTL, keyHookTimeout, keySnapEnabled, keySnapPath)
+	keys := append(render.Keys(), keySegments, keyExcluded, keyTheme, icons.Key, keyHookTTL, keyHookTimeout, keySnapEnabled, keySnapPath)
 	for _, seg := range segments.NewEnv(segments.Env{Config: config.New("")}).All() {
 		for _, k := range seg.Keys() {
 			keys = append(keys, seg.Name()+"."+k)
@@ -41,10 +45,7 @@ func Keys() []string {
 // Build renders the line. It reads the user's config and the clock and width overrides via getenv.
 func Build(input []byte, getenv func(string) string) string {
 	defaults := segments.Defaults()
-	cfg := config.New("", defaults...)
-	if path := config.Path(getenv); path != "" {
-		cfg = config.Load(path, defaults...)
-	}
+	cfg := config.Resolve(getenv, defaults...)
 
 	saveSnapshot(input, cfg, getenv)
 
@@ -54,10 +55,15 @@ func Build(input []byte, getenv func(string) string) string {
 	}
 
 	p := payload.Parse(input)
-	at := now(getenv)
+	at := config.Now(getenv)
+	// Synced on every run, not only when a rate segment renders: other tools read the shared cache.
+	limits := ratecache.NewCache(cachePath(getenv)).Sync(p.SessionID, ratecache.FromPayload(p.RateLimits))
+
+	iconSet := icons.FromConfig(cfg)
 
 	env := segments.NewEnv(segments.Env{
 		Payload: p,
+		Icons:   iconSet,
 		Config:  cfg,
 		Theme:   th,
 		Now:     at,
@@ -67,12 +73,11 @@ func Build(input []byte, getenv func(string) string) string {
 			return transcript.Read(p.TranscriptPath)
 		},
 		RateLimits: func() ratecache.Limits {
-			synced := ratecache.NewCache(cachePath(getenv)).Sync(ratecache.FromPayload(p.RateLimits))
-			return synced.Visible(at.Unix())
+			return limits.Visible(at.Unix())
 		},
 	})
 	line := &render.Line{
-		Names:     cfg.Strings("segments"),
+		Names:     segmentNames(cfg, cfg.StringsOrNone(keyExcluded)),
 		Lookup:    lookup(env),
 		Columns:   env.Columns,
 		Separator: env.Separator(),
@@ -150,6 +155,12 @@ func runHooks(input []byte, p payload.Payload, cfg *config.Config, at time.Time,
 	return opts.Run(hooks)
 }
 
+// segmentNames is the segments list less the excluded names. A hook of the same name is not hidden: with its name
+// gone from the list, the renderer places it in its slot.
+func segmentNames(cfg *config.Config, excluded []string) []string {
+	return slices.DeleteFunc(cfg.Strings(keySegments), func(name string) bool { return slices.Contains(excluded, name) })
+}
+
 func hookDir(getenv func(string) string) string {
 	// A relative path would resolve against the repository Claude Code is running in, which the user does not control.
 	if dir := getenv("STATUSLINE_HOOK_DIR"); filepath.IsAbs(dir) {
@@ -173,14 +184,7 @@ func cachePath(getenv func(string) string) string {
 	if dir == "" {
 		return ""
 	}
-	return filepath.Join(dir, "cache", "ratelimits")
-}
-
-func now(getenv func(string) string) time.Time {
-	if n, ok := config.ParseNumber(getenv("STATUSLINE_NOW")); ok {
-		return time.Unix(int64(n), 0)
-	}
-	return time.Now()
+	return ratecache.PathIn(dir)
 }
 
 func columns(getenv func(string) string) int {

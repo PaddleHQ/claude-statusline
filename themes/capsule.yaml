@@ -1,0 +1,43 @@
+# capsule: classic with rounded, pace-colored Nerd Font capsule bars. It needs
+# a Nerd Font v3 or later in the terminal, whatever the icons setting. A
+# one-cell bar, which cannot hold a capsule, uses the plain glyphs below.
+#
+# A theme file uses this same format. Every field below is required except
+# colors.branch, colors.worktree and glyphs, so copy a built-in theme and edit
+# it. Unknown keys make the theme invalid.
+
+# Color roles. Each value is space-separated tokens: bold, dim, italic,
+# underline, a color name (black, red, green, yellow, blue, magenta, cyan,
+# white, or bright-<name>), a number 0-255, or #rrggbb. An empty value leaves
+# the terminal's own color.
+colors:
+  text: ""
+  muted: dim
+  good: green
+  warn: yellow
+  bad: red
+  marker: bold
+  path: bold 33
+  # Optional. The branch in the path segment; defaults to the path color.
+  branch: bold 33
+  # Optional. The branch of a linked worktree; defaults to bold 208.
+  worktree: bold 208
+
+bar:
+  # capsule: rounded Nerd Font bar colored by pace. A one-cell bar is drawn
+  # with the glyphs below.
+  style: capsule
+  full: "▮"
+  # Seven partial-cell glyphs, from one eighth to seven eighths. A cell at least
+  # half full draws full, so the cell rounds like the Nerd capsules.
+  partials: ["▯", "▯", "▯", "▮", "▮", "▮", "▮"]
+  empty: "▯"
+  marker: "┃"
+  # Dark enough to recede, light enough to show on a dark terminal.
+  empty_color: "#5a5a5a"
+  marker_color: bold
+
+# Optional. Emoji shown before a branch and a worktree in the path segment.
+glyphs:
+  branch: "🌿"
+  worktree: "🌳"

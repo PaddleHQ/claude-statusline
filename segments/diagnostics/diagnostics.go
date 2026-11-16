@@ -30,19 +30,27 @@ type Painter interface {
 	Bad(s string) string
 }
 
+//go:generate go run github.com/vektra/mockery/v2 --name=Icons
+
+// Icons picks a label for the user's icon set.
+type Icons interface {
+	Pick(plain, nerd string) string
+}
+
 // Deps is everything a segment is built from. Transcript is a function so that the transcript is only read when a segment is drawn.
 // Tokens abbreviates a token count.
 type Deps struct {
 	Transcript func() Transcript
 	Paint      Painter
 	Tokens     tokenFn
+	Icons      Icons
 }
 
 // spec describes one diagnostic: show returns "" when there is nothing to report, and paint picks the text color.
 type spec struct {
 	name  string
 	help  string
-	show  func(t Transcript, tokens tokenFn) string
+	show  func(t Transcript, tokens tokenFn, icons Icons) string
 	paint func(p Painter, s string) string
 }
 
@@ -54,39 +62,42 @@ func counts(bare, total int) string {
 }
 
 var specs = []spec{
-	{"boot", "The prompt size on the first turn, before you said anything.", func(t Transcript, tokens tokenFn) string {
+	{"boot", "The prompt size on the first turn, before you said anything.", func(t Transcript, tokens tokenFn, icons Icons) string {
 		boot := t.BootTokens()
 		if boot <= 0 {
 			return ""
 		}
-		return "⌂ " + tokens(boot)
+		return icons.Pick("\u2302 ", "\uF135 ") + tokens(boot)
 	}, text},
-	{"skills", "The size of the always-loaded skill listing, in tokens.", func(t Transcript, tokens tokenFn) string {
+	{"skills", "The size of the always-loaded skill listing, in tokens.", func(t Transcript, tokens tokenFn, icons Icons) string {
 		chars := t.SkillListChars()
 		if chars <= 0 {
 			return ""
 		}
-		return "⚙ " + tokens(int64(chars/charsPerToken))
+		return icons.Pick("\u2699 ", "\uF013 ") + tokens(int64(chars/charsPerToken))
 	}, text},
-	{"skills_stripped", "Red when skills lost their descriptions to fit the budget; shows how many.", func(t Transcript, _ tokenFn) string {
-		bare, total := t.SkillCounts()
-		if bare <= 0 {
-			return ""
-		}
-		return "✗ skills " + counts(bare, total)
-	}, bad},
-	{"agent_skills", "Amber when a subagent lost skill descriptions; shows how many.", func(t Transcript, _ tokenFn) string {
+	{
+		"skills_stripped", "Red when skills lost their descriptions to fit the budget; shows how many.",
+		func(t Transcript, _ tokenFn, icons Icons) string {
+			bare, total := t.SkillCounts()
+			if bare <= 0 {
+				return ""
+			}
+			return failed(icons) + "skills " + counts(bare, total)
+		}, bad,
+	},
+	{"agent_skills", "Amber when a subagent lost skill descriptions; shows how many.", func(t Transcript, _ tokenFn, icons Icons) string {
 		bare, total := t.SubagentSkillCounts()
 		if bare <= 0 {
 			return ""
 		}
-		return "✗ agent skills " + counts(bare, total)
+		return failed(icons) + "agent skills " + counts(bare, total)
 	}, warn},
-	{"mem", "Red when a SessionStart hook output was too large to inject.", func(t Transcript, _ tokenFn) string {
+	{"mem", "Red when a SessionStart hook output was too large to inject.", func(t Transcript, _ tokenFn, icons Icons) string {
 		if !t.MemoryDropped() {
 			return ""
 		}
-		return "✗ mem"
+		return failed(icons) + "mem"
 	}, bad},
 }
 
@@ -126,9 +137,14 @@ func (g *Diagnostic) Keys() []string { return nil }
 
 // Render returns the segment's text, or "" to hide it.
 func (g *Diagnostic) Render() string {
-	out := g.spec.show(g.d.Transcript(), g.d.Tokens)
+	out := g.spec.show(g.d.Transcript(), g.d.Tokens, g.d.Icons)
 	if out == "" {
 		return ""
 	}
 	return g.spec.paint(g.d.Paint, out)
+}
+
+// failed is the mark before a diagnostic that reports something missing.
+func failed(icons Icons) string {
+	return icons.Pick("\u2717 ", "\uF071 ")
 }

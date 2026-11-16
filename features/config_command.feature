@@ -16,5 +16,5 @@ Feature: Config command
       # # because only the lines you pick lose their "# ".
       #
       # # Segments to render, in order.
-      # segments: [path, model, ctx, tokens, cache, boot, skills, skills_stripped, agent_skills, mem, rate5h, rate7d]
+      # segments: [path, model, ctx, tokens, cache, cost, boot, skills, skills_stripped, agent_skills, mem, rate5h, rate7d]
       """

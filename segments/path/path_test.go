@@ -58,6 +58,7 @@ type setup struct {
 	branch    bool
 	worktrees []string
 	emoji     bool
+	nerd      bool
 	checkout  checkout
 }
 
@@ -102,7 +103,14 @@ func newPath(t *testing.T, s setup, git *mocks.Git) *path.Path {
 	if s.emoji {
 		paint.EXPECT().Glyphs().Return("B", "W").Maybe()
 	}
-	return path.New(path.Deps{Session: sess, Config: cfg, Paint: paint, Git: git, Home: "/home/me"})
+	icons := mocks.NewIcons(t)
+	icons.EXPECT().Pick(mock.Anything, mock.Anything).RunAndReturn(func(plain, nerd string) string {
+		if s.nerd {
+			return nerd
+		}
+		return plain
+	}).Maybe()
+	return path.New(path.Deps{Session: sess, Config: cfg, Paint: paint, Git: git, Icons: icons, Home: "/home/me"})
 }
 
 func TestRender(t *testing.T) {
@@ -149,6 +157,32 @@ func TestRender(t *testing.T) {
 		{"sibling named with the entry as a prefix is regular", setup{cwd: repo + "/.worktrees-old/wt", branch: true, worktrees: []string{".worktrees"}, checkout: checkout{branch: "feat", root: repo + "/.worktrees-old/wt", mainRoot: repo, project: "repo"}}, "<p>~/repo/.worktrees-old/wt (</><b>feat</><p>)</>"},
 		{"directory outside the reported root is regular", setup{cwd: wt + "x", branch: true, worktrees: []string{".worktrees"}, checkout: wtCheckout}, "<p>~/repo/.worktrees/wtx (</><b>feat</><p>)</>"},
 		{"worktree without a project is regular", setup{cwd: wt, branch: true, worktrees: []string{".worktrees"}, checkout: checkout{branch: "feat", root: wt, mainRoot: repo, project: ""}}, "<p>~/repo/.worktrees/wt (</><b>feat</><p>)</>"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, build(t, tt.s).Render())
+		})
+	}
+}
+
+func TestNerdIcons(t *testing.T) {
+	t.Parallel()
+
+	const (
+		repo = "/home/me/repo"
+		wt   = "/home/me/repo/.worktrees/wt"
+	)
+	wtCheckout := checkout{branch: "feat", root: wt, mainRoot: repo, project: "repo"}
+	tests := []struct {
+		name string
+		s    setup
+		want string
+	}{
+		{"plain directory", setup{cwd: repo, nerd: true}, "<p>\uf07b ~/repo</>"},
+		{"branch with emoji", setup{cwd: repo, branch: true, emoji: true, nerd: true, checkout: checkout{branch: "main"}}, "<p>\uf07b ~/repo (</><b>\ue0a0 main</><p>)</>"},
+		{"worktree with emoji", setup{cwd: wt, branch: true, emoji: true, nerd: true, worktrees: []string{".worktrees"}, checkout: wtCheckout}, "<p>\uf07b repo (</><w>\uf1bb feat</><p>)</>"},
+		{"branch without emoji", setup{cwd: repo, branch: true, nerd: true, checkout: checkout{branch: "main"}}, "<p>\uf07b ~/repo (</><b>main</><p>)</>"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

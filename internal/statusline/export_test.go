@@ -1,8 +1,5 @@
 package statusline
 
-var (
-	Now     = now
-	Columns = columns
-)
+var Columns = columns
 
 var ErrorRow = errorRow

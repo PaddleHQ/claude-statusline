@@ -27,7 +27,7 @@ flowchart TD
 
 In order, a render:
 
-1. Layers your `config.yaml` over the defaults built into the binary, key by key. If the file cannot be used, the defaults apply and the line gains a [red row](customising.md#mistakes-in-the-config-file).
+1. Layers your `config.yaml` over the defaults built into the binary, key by key, then the [plugin options](customising.md#plugin-options) saved in your user `settings.json` over both. If `config.yaml` cannot be used, the defaults apply and the line gains a [red row](customising.md#mistakes-in-the-config-file).
 2. Saves the payload as the [usage snapshot](#usage-snapshot).
 3. Loads the theme, with colour removed when [`NO_COLOR`](#no_color) is set.
 4. Parses the payload, then merges its rate limits with the [shared cache](#shared-rate-limit-cache).
@@ -37,15 +37,15 @@ In order, a render:
 
 The `subagent` command is the same idea for Claude Code's agent panel; see [Subagent rows](customising.md#subagent-rows).
 
-The binary prints the line with no trailing newline, and the status line always exits 0. A config file that cannot be used never blanks the line: the defaults apply, and a red row above the line says why. `claude-statusline config-check` is the one command that exits 1 when the config cannot be used. Control characters are stripped from every string taken from the session, and any other unexpected input results in blank output rather than an error, because a blank status line is better than a broken one.
+The binary prints the line with no trailing newline, and the status line always exits 0. A config file that cannot be used never blanks the line: the defaults apply, and a red row above the line says why. `claude-statusline config-check` exits 1 when the config cannot be used, and `claude-statusline rate-bars` exits 2 on bad flags; nothing else exits non-zero. Control characters are stripped from every string taken from the session, and any other unexpected input results in blank output rather than an error, because a blank status line is better than a broken one.
 
 ## Shared rate-limit cache
 
-Rate limits belong to your account, not to a session, and an idle session's payload goes stale. Readings are therefore shared between sessions through the `cache/ratelimits` file in its state directory (see [Where the files live](#where-the-files-live)). A session replaces the cached reading only with a newer window, higher usage, or a drop of more than 10 points (a mid-window quota reset), and the line is always drawn from the merged value. The file is private state and may change between versions.
+Rate limits belong to your account, not to a session, and an idle session's payload goes stale. Readings are therefore shared between sessions through the `cache/ratelimits` file in its state directory (see [Where the files live](#where-the-files-live)). A newer window always replaces the cached reading. Within the same window, a session moves the cached reading up or down only when its own reading has changed since it last reported, so a mid-window quota reset gets through. An idle session repeats the same stale reading on every render, so it never changes the cache in either direction. A session seen for the first time can raise the cache but not lower it. The file remembers each session's last reading for that, and forgets sessions from an earlier window. The line is always drawn from the merged value. The merge runs on every render, whether or not a rate segment is shown, so a tool that reads the file stays current even when you drop the bars from your line. The file is private state and may change between versions.
 
 ## Transcript diagnostics
 
-These segments are read from the session transcript (`transcript_path` in the payload). Only its first 40 lines and last 200 lines are read, each within a few megabytes, so a huge transcript costs nothing extra, and it is not read at all unless a listed segment needs it; a missing or unreadable transcript simply hides them. The `model` segment also uses it, and the rest are in the usage group (see [Wrapping](customising.md#wrapping)).
+These segments are read from the session transcript (`transcript_path` in the payload). Only its first 40 lines and last 200 lines are read, each within a few megabytes, so a huge transcript costs nothing extra, and it is not read at all unless a listed segment needs it; a missing or unreadable transcript simply hides them. The `model` segment also uses it, as does `cache` to tell whether the prompt cache has expired, and the rest are in the usage group (see [Wrapping](customising.md#wrapping)).
 
 | Segment | Shows | When |
 |---|---|---|
@@ -69,6 +69,15 @@ Set `NO_COLOR` to any non-empty value to turn colour and styling off. A [gradien
   <img alt="A gradient 5 hour rate-limit bar with no colour, drawn in filled and empty glyphs with a slash for the pace marker, at 75%" src="images/gradient-no-color-light.svg">
 </picture>
 
+A `saber` bar does the same, keeping its blade, tip and marker glyphs:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/saber-no-color-dark.svg">
+  <img alt="A saber 5 hour rate-limit bar with no colour, drawn as a line of heavy and light strokes with a vertical bar for the pace marker, at 75%" src="images/saber-no-color-light.svg">
+</picture>
+
+A `capsule` bar still shows usage, because its filled and empty glyphs differ, but the pace marker blends in, because it is drawn with the filled glyph. If the marker matters, pick another theme.
+
 ## How the plugin installs and updates
 
 The plugin route adds a step before any of this, so that the binary is installed and wired in without you doing it by hand:
@@ -87,7 +96,7 @@ flowchart TD
     INST --> SETUP["claude-statusline setup<br/>adds or takes over statusLine and subagentStatusLine"]
 ```
 
-On your next session start, the hook installs the latest release for your platform into the plugin's data directory, `~/.claude/plugins/data/statusline-claude-statusline/bin` (under `$CLAUDE_CONFIG_DIR` if set). Claude Code keeps that directory across plugin updates and deletes it when you uninstall the plugin. Run by hand, without `CLAUDE_PLUGIN_DATA` set, the hook falls back to `~/.claude/claude-statusline/bin`. It checks for a newer release at most once a day, verifies its checksum and, when the GitHub CLI is available and logged in, its build provenance; it never downgrades and keeps the previous binary if anything fails. Without `gh`, the checksum comes from the same release as the archive, so it detects corruption but not a tampered release; the hook says so once. It then runs `claude-statusline setup`, which backs `settings.json` up before it changes anything. Setup adds `statusLine` and `subagentStatusLine` once if you have neither, and if you remove them later it does not add them back. Running `"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/statusline-claude-statusline/bin/claude-statusline" setup` by hand, without `--event`, is the exception: it adds absent entries again. On every session it also points an entry at the current binary when its command is one of the first three of these, and writes nothing when it already does. A leading `~`, `$HOME`, `${HOME}`, `$CLAUDE_CONFIG_DIR` or `${CLAUDE_CONFIG_DIR}` in the path is expanded before it is compared:
+On your next session start, the hook installs the latest release for your platform into the plugin's data directory, `~/.claude/plugins/data/statusline-claude-statusline/bin` (under `$CLAUDE_CONFIG_DIR` if set). Claude Code keeps that directory across plugin updates and deletes it when you uninstall the plugin. Run by hand, without `CLAUDE_PLUGIN_DATA` set, the hook falls back to `~/.claude/claude-statusline/bin`. It checks for a newer release at most once a day, verifies its checksum and, when the GitHub CLI is installed, its build provenance against the release's `provenance.jsonl` bundle, which needs no GitHub login; it never downgrades and keeps the previous binary if anything fails. Without `gh`, the checksum comes from the same release as the archive, so it detects corruption but not a tampered release; the hook says so once. It then runs `claude-statusline setup`, which backs `settings.json` up before it changes anything. Setup adds `statusLine` and `subagentStatusLine` once if you have neither, and if you remove them later it does not add them back. Running `"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/statusline-claude-statusline/bin/claude-statusline" setup` by hand, without `--event`, is the exception: it adds absent entries again. On every session it also points an entry at the current binary when its command is one of the first three of these, and writes nothing when it already does. A leading `~`, `$HOME`, `${HOME}`, `$CLAUDE_CONFIG_DIR` or `${CLAUDE_CONFIG_DIR}` in the path is expanded before it is compared:
 
 - the binary itself;
 - the binary of the earlier layout, `~/.claude/claude-statusline/bin/claude-statusline`, with or without the `subagent` argument;
@@ -109,13 +118,13 @@ Any other command is somebody else's, so it is left as it is, and only the first
 
 All of these are under `$CLAUDE_CONFIG_DIR` if you set it. The status line command does not receive the plugin's environment, so the binary finds its own state from where it is installed: when it runs from `<config dir>/plugins/data/<plugin>/bin/`, that plugin data directory is its state directory. Anywhere else, including a [manual install](#manual-install), its caches stay in `~/.claude/claude-statusline` next to `config.yaml`.
 
-Every release is published from this repository's `release-binaries.yml` workflow, so you can check what you download. The commands under [From a release](#from-a-release) verify the archive against the published checksums and against its build provenance attestation. The plugin does the checksum check for you and, when `gh` is installed and logged in, the provenance check too.
+Every release is published from this repository's `release-binaries.yml` workflow, so you can check what you download. The commands under [From a release](#from-a-release) verify the archive against the published checksums and against its build provenance attestation. The plugin does the checksum check for you and, when `gh` is installed, the provenance check too, logged in or not.
 
 ## Manual install
 
 ### From a release
 
-Each [release](https://github.com/PaddleHQ/claude-statusline/releases) has a binary for macOS and Linux on arm64 and amd64, plus `checksums.txt`, an SBOM per archive and a GitHub build provenance attestation. Set the version and your platform, then download, verify and install:
+Each [release](https://github.com/PaddleHQ/claude-statusline/releases) has a binary for macOS and Linux on arm64 and amd64, plus `checksums.txt`, an SBOM per archive and a GitHub build provenance attestation, whose bundle is also published as `provenance.jsonl`. Set the version and your platform, then download, verify and install:
 
 ```sh
 VERSION=0.1.0   # without the leading v
@@ -126,7 +135,8 @@ ARCHIVE="claude-statusline_${VERSION}_${OS}_${ARCH}.tar.gz"
 gh release download "v${VERSION}" --repo PaddleHQ/claude-statusline \
   --pattern "$ARCHIVE" --pattern checksums.txt
 shasum -a 256 -c checksums.txt --ignore-missing
-gh attestation verify "$ARCHIVE" --repo PaddleHQ/claude-statusline
+gh attestation verify "$ARCHIVE" --repo PaddleHQ/claude-statusline \
+  --signer-workflow PaddleHQ/claude-statusline/.github/workflows/release-binaries.yml
 
 mkdir -p ~/.local/bin
 tar -xzf "$ARCHIVE" -C ~/.local/bin claude-statusline

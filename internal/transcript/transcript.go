@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/tidwall/gjson"
@@ -31,6 +32,9 @@ const (
 	// maxLine is the longest line that is kept; a longer one is read past without being held in memory.
 	maxLine      = 256 << 10
 	maxSubagents = 64
+
+	longCacheTTL  = time.Hour
+	shortCacheTTL = 5 * time.Minute
 )
 
 var (
@@ -52,6 +56,10 @@ type Info struct {
 	MemDropped bool
 	// SubBare and SubTotal are the same counts for the subagent with the most stripped skills.
 	SubBare, SubTotal int
+	// RequestAt is when the latest assistant turn in the last 200 lines was written.
+	RequestAt time.Time
+	// CacheTTL is how long that turn's prompt cache lives without another request.
+	CacheTTL time.Duration
 }
 
 // LatestModel is the model of the latest assistant turn in the last 200 lines.
@@ -68,6 +76,9 @@ func (i *Info) SkillCounts() (bare, total int) { return i.SkillsBare, i.SkillsTo
 
 // SubagentSkillCounts is the same for the subagent with the most stripped skills.
 func (i *Info) SubagentSkillCounts() (bare, total int) { return i.SubBare, i.SubTotal }
+
+// LastRequest is when the latest assistant turn was written and how long its prompt cache lives; at is zero when unknown.
+func (i *Info) LastRequest() (at time.Time, ttl time.Duration) { return i.RequestAt, i.CacheTTL }
 
 // MemoryDropped reports a SessionStart hook whose output was too large to inject.
 func (i *Info) MemoryDropped() bool { return i.MemDropped }
@@ -128,7 +139,10 @@ func (r *reader) read(path string) Info {
 	out.SkillsChars = skillsChars(opening)
 	out.MemDropped = memDropped(opening)
 	out.SkillsBare, out.SkillsTotal, _ = skillCounts(opening)
-	out.ActualModel = lastModel(f, stat.Size())
+	if line, model := lastAssistant(f, stat.Size()); line != nil {
+		out.ActualModel = string(model)
+		out.RequestAt, out.CacheTTL = requestOf(line)
+	}
 	out.SubBare, out.SubTotal = r.subagents(path)
 	return out
 }
@@ -173,10 +187,10 @@ func nextLine(br *bufio.Reader) (line string, ok bool) {
 				buf = append(buf, chunk...)
 			}
 		}
-		switch err {
-		case nil:
+		switch {
+		case err == nil:
 			return strings.TrimSuffix(string(buf), "\n"), true
-		case bufio.ErrBufferFull:
+		case errors.Is(err, bufio.ErrBufferFull):
 		default:
 			// A final line with no newline may be cut by the byte bound, so it is not trusted.
 			return "", false
@@ -184,58 +198,83 @@ func nextLine(br *bufio.Reader) (line string, ok bool) {
 	}
 }
 
-// lastModel finds the model of the last assistant turn within the last 200 lines, reading backwards from the end.
-func lastModel(f io.ReaderAt, size int64) string {
+// lastAssistant finds the last assistant turn within the last 200 lines, reading backwards from the end, and its model.
+func lastAssistant(f io.ReaderAt, size int64) (line, model []byte) {
 	var pending []byte
 	off, seen := size, 0
-	trailing := true
 	for off > 0 && size-off < tailBytes {
 		n := min(chunkBytes, off)
 		off -= n
-		buf := make([]byte, n+int64(len(pending)))
-		if _, err := f.ReadAt(buf[:n], off); err != nil && err != io.EOF {
-			return ""
+		complete, rest, found, ok := readChunk(f, off, n, pending, off+n == size)
+		if !ok {
+			return nil, nil
 		}
-		copy(buf[n:], pending)
-		pending = nil
-
-		complete := buf
-		if off > 0 {
-			before, after, ok := bytes.Cut(buf, []byte{'\n'})
-			if !ok {
-				pending = buf
-				continue
-			}
-			pending, complete = before, after
+		pending = rest
+		if !found {
+			continue
 		}
-		if trailing {
-			complete, trailing = bytes.TrimSuffix(complete, []byte("\n")), false
-		}
-		if m, done := scanBackwards(complete, &seen); done {
-			return m
-		}
-		if seen >= tailLines {
-			return ""
+		if line, model, done := scanBackwards(complete, &seen); done {
+			return line, model
 		}
 	}
-	return ""
+	return nil, nil
 }
 
-// scanBackwards looks through complete lines from the last to the first. It reports done once a model is found
-// or the 200-line window is used up.
-func scanBackwards(data []byte, seen *int) (string, bool) {
+// readChunk reads the n bytes at off followed by pending, dropping the file's final newline when the chunk is its end.
+// Unless off is the start of the file, the leading partial line is split off into rest; found is false when the chunk
+// holds no complete line yet, and ok is false when the read failed.
+func readChunk(f io.ReaderAt, off, n int64, pending []byte, end bool) (complete, rest []byte, found, ok bool) {
+	buf := make([]byte, n+int64(len(pending)))
+	if _, err := f.ReadAt(buf[:n], off); err != nil && !errors.Is(err, io.EOF) {
+		return nil, nil, false, false
+	}
+	copy(buf[n:], pending)
+	if end {
+		buf = bytes.TrimSuffix(buf, []byte("\n"))
+	}
+	if off == 0 {
+		return buf, nil, true, true
+	}
+	before, after, cut := bytes.Cut(buf, []byte{'\n'})
+	if !cut {
+		return nil, buf, false, true
+	}
+	return after, before, true, true
+}
+
+// scanBackwards looks through complete lines from the last to the first. It reports done once an assistant line
+// is found, with its model, or the 200-line window is used up.
+func scanBackwards(data []byte, seen *int) (line, model []byte, done bool) {
 	for end := len(data); end >= 0; {
 		start := bytes.LastIndexByte(data[:end], '\n') + 1
 		if *seen >= tailLines {
-			return "", true
+			return nil, nil, true
 		}
 		*seen++
 		if m := modelPattern.FindSubmatch(data[start:end]); m != nil {
-			return string(m[1]), true
+			return data[start:end], m[1], true
 		}
 		end = start - 1
 	}
-	return "", false
+	return nil, nil, *seen >= tailLines
+}
+
+// requestOf reads an assistant line's timestamp and cache lifetime. A cache is only taken to live an hour when the
+// request wrote solely to the 1-hour tier: calling a live cache cold costs less than an unexpected rebuild.
+// The TTL really starts when the request is served, before this timestamp, so a slow response reads warm a little long.
+func requestOf(line []byte) (time.Time, time.Duration) {
+	if !gjson.ValidBytes(line) {
+		return time.Time{}, 0
+	}
+	at, err := time.Parse(time.RFC3339Nano, gjson.GetBytes(line, "timestamp").String())
+	if err != nil {
+		return time.Time{}, 0
+	}
+	writes := gjson.GetBytes(line, "message.usage.cache_creation")
+	if writes.Get("ephemeral_1h_input_tokens").Int() > 0 && writes.Get("ephemeral_5m_input_tokens").Int() <= 0 {
+		return at, longCacheTTL
+	}
+	return at, shortCacheTTL
 }
 
 func bootOf(line string) int64 {
@@ -277,18 +316,24 @@ func skillCounts(lines []string) (bare, total int, ok bool) {
 		if a.Get("isInitial").Type != gjson.True {
 			continue
 		}
-		for entry := range strings.SplitSeq(a.Get("content").String(), "\n") {
-			if !strings.HasPrefix(entry, "- ") {
-				continue
-			}
-			total++
-			if bareSkill.MatchString(entry) {
-				bare++
-			}
-		}
+		bare, total = countEntries(a.Get("content").String())
 		return bare, total, true
 	}
 	return 0, 0, false
+}
+
+// countEntries counts the "- " entries in a skill listing, and those with no description.
+func countEntries(content string) (bare, total int) {
+	for entry := range strings.SplitSeq(content, "\n") {
+		if !strings.HasPrefix(entry, "- ") {
+			continue
+		}
+		total++
+		if bareSkill.MatchString(entry) {
+			bare++
+		}
+	}
+	return bare, total
 }
 
 func memDropped(lines []string) bool {

@@ -2,6 +2,8 @@
 
 Shows the session's token totals, for example `↓ 1.5k · ↑ 23.4k`. It has no settings.
 
+With `icons: nerd` the arrows become the Nerd Font download (U+F019) and upload (U+F093) icons.
+
 ## Settings
 
 None, so the package has no `defaults.yaml`.

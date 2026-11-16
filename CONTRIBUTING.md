@@ -16,7 +16,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | Path | What it is |
 |---|---|
 | `main.go` | A few lines of wiring: it holds the build stamps and hands them, the arguments and the standard streams to `internal/cli`. It has no test, so that its wiring does not count against coverage. |
-| `internal/cli` | Picks the command from the arguments (`--version`, `setup`, `subagent`, `help`, `config`, `config-check`, or the status line itself) and reads stdin. A bad config never blanks the status line. `Execute` returns an exit status, which `main` uses only when it is not zero; only `config-check` sets one, when the config cannot be used. |
+| `internal/cli` | Picks the command from the arguments (`--version`, `setup`, `subagent`, `rate-bars`, `help`, `config`, `config-check`, or the status line itself) and reads stdin. A bad config never blanks the status line. `Execute` returns an exit status, which `main` uses only when it is not zero; `config-check` sets one when the config cannot be used, and `rate-bars` sets 2 for bad flags. |
 | `internal/statusline` | Builds the line (and the text of `help`): loads config, saves the snapshot, merges rate limits, reads the transcript, runs hooks and renders. Also lists every config key the code reads. |
 | `segments/` | One folder per plugin, each providing the segments it names and owning their `defaults.yaml`, README, tests and generated mocks. A plugin declares the interfaces it needs and imports nothing from `internal/`. `segments/all.go` is the composition root: the single list of plugins, and the environment that hands them the internal types, which satisfy the plugins' interfaces directly. See [Building plugins](docs/building_plugins.md). |
 | `internal/render` | Renders the configured segments in order, and places custom segments among them. |
@@ -32,6 +32,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `themes` | The built-in themes: one YAML file each, embedded in the binary by a tiny package that only exports them. |
 | `internal/snapshot` | Saves the latest payload for other tools. |
 | `internal/subagent` | Renders the rows of Claude Code's agent panel. |
+| `internal/ratebars` | Prints the 5h and 7d usage bars as JSON, painted in the user's theme, for other tools. |
 | `internal/setup` | Adds `statusLine` and `subagentStatusLine` to `settings.json`, takes over the ones that run an earlier install or the old Paddle shell line, and removes them again for `uninstall`, backing the file up before every write. It also clears the old install layout. |
 | `hooks/` | The plugin's `SessionStart` hook: `hooks.json` and `bootstrap.sh`, which installs the latest release into the plugin data directory (`CLAUDE_PLUGIN_DATA`), and `bootstrap_test.sh`, its shell tests. `run.sh` finds the installed binary and runs it for the slash commands. |
 | `features/` | The Gherkin feature files: readable examples of the whole line, and the scenarios the documentation images are made from. `features_test.go` runs them. |
@@ -74,7 +75,7 @@ These workflows belong to this repository:
 | Workflow | What it covers |
 |---|---|
 | `ci.yml` | What the template does not: the tests on macOS, the generated mocks and the `toolchain` directive check, the GoReleaser config check and snapshot build, the plugin's shell scripts on Linux and macOS, and `claude plugin validate .`. |
-| `release-binaries.yml` | Publishes the archives, checksums, SBOMs and build provenance attestation to the release that `release-on-push.yml` created. It does nothing when the merge made no release. |
+| `release-binaries.yml` | Publishes the archives, checksums, SBOMs, build provenance attestation and its bundle (`provenance.jsonl`) to the release that `release-on-push.yml` created. It does nothing when the merge made no release. The hook only accepts provenance signed by this workflow (`SIGNER_WORKFLOW` in `hooks/bootstrap.sh`), so renaming it needs that line changed in the same pull request. |
 | `fuzz.yml` | The weekly fuzzing run. |
 | `common-lint.yml` | `actionlint` and `editorconfig-checker`. |
 | `check-blocking-labels.yml` | Fails while a pull request carries a blocking label. |
@@ -102,7 +103,7 @@ There are three layers. Put a test in the lowest one that can show the behaviour
 **2. Provider unit tests**, in `internal/*` (and `segments/render_test.go` for the composition root). They cover the shared machinery that the plugins sit on: config layering and validation, theme loading, fallback and colour specs, the rate-limit cache's freshness rules, the transcript's bounded reads, the hook contract (output, time to live, timeout, placement), layout and wrapping, setup, the snapshot, the bars and the help command. They use real files in a temporary directory, never your `HOME`. For example:
 
 - a theme file with an unknown colour name falls back to `classic` (`internal/theme`).
-- a reading ten points below the cached one in the same window is stale, and eleven is a reset (`internal/ratecache`).
+- an idle session repeating the same reading never moves the cache, while a session whose own reading changed can lower it after a quota reset (`internal/ratecache`).
 - a hook with a `statusline-ttl: 300` header is not run again for 299 seconds (`internal/hook`).
 - the `config` output with one `# ` removed from every line parses to the effective defaults, and is the same bytes on every run (`internal/config`).
 
@@ -198,6 +199,7 @@ A step that takes text ends in a colon and is followed by a `"""` block. The tex
 | `When help runs` | Runs the `help` command. |
 | `When the config command runs` | Runs the `config` command. |
 | `When the config check runs` | Runs the `config-check` command. |
+| `When the rate bars render for <n> to <m> cells` | Runs the `rate-bars` command with `--min-cells=<n> --max-cells=<m>`. The output is its JSON line. |
 | `Then the output is:` | The output with its colours and styles, written as rows of text with a style line under each; see [Expected output](#expected-output). |
 | `Then the text is:` | The output with every colour and style removed. Use it when the scenario has no colour at all. |
 | `Then the text starts with:` | The output with every colour and style removed begins with the block. Use it for long output where only the start is the point, such as `config`. |
@@ -289,7 +291,7 @@ Every key the code reads must appear, with a one-line comment above it, in `inte
 
 ### Adding a built-in theme
 
-Built-in themes are YAML files in the top-level `themes/` directory, embedded in the binary by `themes/themes.go`; the file name without `.yaml` is the name users put in `theme`. Write one in the format the Themes section of [`docs/customising.md`](docs/customising.md) describes, with comments, since the files double as examples. Every theme is a complete, standalone file, so start by copying `themes/classic.yaml` or `themes/gradient.yaml`. Parsing is strict (unknown keys are an error), so a typo fails the tests rather than shipping. Add a test in `internal/theme` for what is new, and one scenario that selects the theme in its config (`features/gradient_theme.feature` is the model), so each built-in theme is applied once. Mention the theme in the Themes section of `docs/customising.md`. Keep the loader's fallback to `classic` silent. A config file that cannot be used shows the error row, but a theme that cannot be loaded does not.
+Built-in themes are YAML files in the top-level `themes/` directory, embedded in the binary by `themes/themes.go`; the file name without `.yaml` is the name users put in `theme`. Write one in the format the Themes section of [`docs/customising.md`](docs/customising.md) describes, with comments, since the files double as examples. Every theme is a complete, standalone file, so start by copying `themes/classic.yaml`, `themes/gradient.yaml`, `themes/saber.yaml` or `themes/capsule.yaml`. Parsing is strict (unknown keys are an error), so a typo fails the tests rather than shipping. Add a test in `internal/theme` for what is new, and one scenario that selects the theme in its config (`features/gradient_theme.feature`, `features/saber_theme.feature` and `features/capsule_theme.feature` are the models), so each built-in theme is applied once. Mention the theme in the Themes section of `docs/customising.md`. Keep the loader's fallback to `classic` silent. A config file that cannot be used shows the error row, but a theme that cannot be loaded does not.
 
 ### Adding a segment
 
@@ -345,10 +347,10 @@ Every pull request needs exactly one of these labels, checked by the `Ensure Sem
 | `release:patch` | Tags the next patch version and publishes it. |
 | `norelease` | Merges without a release, for changes such as documentation or tests. |
 
-On a pull request, a `release:*` label makes `release-on-push.yml` do a dry run. On merge, it tags the version and creates the release, and then `release-binaries.yml` publishes archives for macOS and Linux on arm64 and amd64, with a checksum file, an SBOM per archive and a build provenance attestation.
+On a pull request, a `release:*` label makes `release-on-push.yml` do a dry run. On merge, it tags the version and creates the release, and then `release-binaries.yml` publishes archives for macOS and Linux on arm64 and amd64, with a checksum file, an SBOM per archive and a build provenance attestation, whose bundle it also uploads as `provenance.jsonl`.
 
 ### How the plugin picks up a release
 
-Merging a `release:*` pull request publishes the release, and plugin users pick it up within a day: there is no second step. The hook resolves the latest release from the redirect at `https://github.com/PaddleHQ/claude-statusline/releases/latest`, so it does not use the API or its rate limit. It verifies the archive against the release's `checksums.txt` and, when `gh` is installed and logged in, runs `gh attestation verify`.
+Merging a `release:*` pull request publishes the release, and plugin users pick it up within a day: there is no second step. The hook resolves the latest release from the redirect at `https://github.com/PaddleHQ/claude-statusline/releases/latest`, so it does not use the API or its rate limit. It verifies the archive against the release's `checksums.txt` and, when `gh` is installed, runs `gh attestation verify` against the release's `provenance.jsonl`, pinned to the `release-binaries.yml` workflow, which needs no GitHub login.
 
 For tests only, `CLAUDE_STATUSLINE_LATEST_URL` replaces the latest-release URL (a `file://` URL whose content is the tag, for example `v1.2.3`), and `CLAUDE_STATUSLINE_DOWNLOAD_BASE` replaces the download base URL.

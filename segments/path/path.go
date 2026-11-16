@@ -52,12 +52,20 @@ type Git interface {
 	Checkout(dir string) (branch, worktreeRoot, mainRoot, project string)
 }
 
+//go:generate go run github.com/vektra/mockery/v2 --name=Icons
+
+// Icons picks a label for the user's icon set.
+type Icons interface {
+	Pick(plain, nerd string) string
+}
+
 // Deps is everything the segment is built from.
 type Deps struct {
 	Session Session
 	Config  Config
 	Paint   Painter
 	Git     Git
+	Icons   Icons
 	Home    string
 }
 
@@ -98,8 +106,9 @@ func (p *Path) Render() string {
 	showBranch := p.d.Config.Bool("branch")
 	worktrees := p.d.Config.Strings("worktrees")
 	strip := p.d.Config.Strings("strip")
+	icon := p.d.Icons.Pick("", "\uF07B ")
 	if !showBranch && len(worktrees) == 0 {
-		return p.d.Paint.Path(displayPath(dir, p.d.Home, strip))
+		return p.d.Paint.Path(icon + displayPath(dir, p.d.Home, strip))
 	}
 
 	var branch, shown string
@@ -116,9 +125,9 @@ func (p *Path) Render() string {
 		shown = displayPath(dir, p.d.Home, strip)
 	}
 	if !showBranch || branch == "" {
-		return p.d.Paint.Path(shown)
+		return p.d.Paint.Path(icon + shown)
 	}
-	return p.d.Paint.Path(shown+" (") + p.paintBranch(branch, isWorktree) + p.d.Paint.Path(")")
+	return p.d.Paint.Path(icon+shown+" (") + p.paintBranch(branch, isWorktree) + p.d.Paint.Path(")")
 }
 
 // worktreePath is dir with everything up to the worktree root collapsed to the project name.
@@ -141,8 +150,9 @@ func (p *Path) paintBranch(branch string, isWorktree bool) string {
 	}
 	if p.d.Config.Bool("emoji") {
 		glyph, worktreeGlyph := p.d.Paint.Glyphs()
+		glyph = p.d.Icons.Pick(glyph, "\uE0A0")
 		if isWorktree {
-			glyph = worktreeGlyph
+			glyph = p.d.Icons.Pick(worktreeGlyph, "\uF1BB")
 		}
 		branch = glyph + " " + branch
 	}

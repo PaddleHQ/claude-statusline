@@ -17,6 +17,16 @@ const (
 	percentScale = 100
 )
 
+// Private-use glyphs from Nerd Fonts: a capsule drawn as a left cap, a middle and a right cap, empty then filled.
+const (
+	capsuleEmptyFirst  = "\uee00"
+	capsuleEmptyMiddle = "\uee01"
+	capsuleEmptyLast   = "\uee02"
+	capsuleFullFirst   = "\uee03"
+	capsuleFullMiddle  = "\uee04"
+	capsuleFullLast    = "\uee05"
+)
+
 // Params describes one bar. Usage and Target are percentages; Warn and Bad are
 // deviations from the target in percentage points. With NoTarget set there is no
 // marker, Target and HardCap are ignored, and Warn and Bad are usage percentages.
@@ -52,31 +62,47 @@ func WidthOf(columns int, s Sizes) int {
 	return WidthFor(columns, s.Int("width"), s.Int("width_medium"), s.Int("width_narrow"))
 }
 
-// Fill is the color for the bar's state: distance from the pace target, or absolute usage without a target.
-func (p *Params) Fill(th theme.Theme) string {
+// state classifies the bar: distance from the pace target, or absolute usage without a target.
+func (p *Params) state() int {
 	if p.NoTarget {
 		switch {
 		case p.Usage >= p.Bad:
-			return th.BadColor
+			return theme.StateBad
 		case p.Usage >= p.Warn:
-			return th.WarnColor
+			return theme.StateWarn
 		}
-		return th.Good
+		return theme.StateGood
 	}
 	deviation := max(p.Usage-p.Target, p.Target-p.Usage)
 	switch {
 	case p.Usage >= p.HardCap || deviation > p.Bad:
-		return th.BadColor
+		return theme.StateBad
 	case deviation > p.Warn:
+		return theme.StateWarn
+	}
+	return theme.StateGood
+}
+
+// Fill is the color for the bar's state: distance from the pace target, or
+// absolute usage without a target. A saber theme takes it from its blade.
+func (p *Params) Fill(th theme.Theme) string {
+	if th.Saber {
+		return th.BladeColor(p.state(), 0, 0)
+	}
+	switch p.state() {
+	case theme.StateBad:
+		return th.BadColor
+	case theme.StateWarn:
 		return th.WarnColor
 	}
 	return th.Good
 }
 
 // PercentColor is the color for the percentage printed after the bar. A gradient
-// bar colors its cells by position, so the state color moves to the text.
+// bar colors its cells by position, a saber bar by blade, and a capsule bar of more than one cell by
+// pace, so the state color moves to the text.
 func (p *Params) PercentColor(th theme.Theme) string {
-	if th.Gradient {
+	if th.Gradient || th.Saber || p.capsule(th) {
 		return p.Fill(th)
 	}
 	return ""
@@ -85,7 +111,8 @@ func (p *Params) PercentColor(th theme.Theme) string {
 // Render draws the bar: a fill colored by distance from the pace target, a marker
 // on the target cell and muted empty cells. Without a target the fill is colored
 // by absolute usage and there is no marker. A gradient theme draws whole cells
-// colored by position instead.
+// colored by position instead, a saber theme draws a blade in half cells, and a capsule theme
+// draws rounded Nerd Font cells.
 func (p *Params) Render(th theme.Theme) string {
 	maxEighths := p.Width * eighths
 	filled := min((p.Usage*maxEighths+percentScale/2)/percentScale, maxEighths)
@@ -94,10 +121,21 @@ func (p *Params) Render(th theme.Theme) string {
 	if !p.NoTarget {
 		targetCell = min(p.Target*p.Width/percentScale, p.Width-1)
 	}
-	if th.Gradient {
+	switch {
+	case th.Saber:
+		return p.saberCells(th, targetCell)
+	case th.Gradient:
 		return p.gradientCells(th, filled, targetCell)
+	case p.capsule(th):
+		return p.capsuleCells(th, targetCell)
 	}
 	return p.solidCells(th, filled, targetCell)
+}
+
+// capsule reports whether to draw Nerd Font capsule cells. One cell cannot hold both caps, so it
+// gets the theme's own glyphs instead of half a capsule.
+func (p *Params) capsule(th theme.Theme) bool {
+	return th.Capsule && p.Width > 1
 }
 
 func (p *Params) gradientCells(th theme.Theme, filled, targetCell int) string {
@@ -114,6 +152,70 @@ func (p *Params) gradientCells(th theme.Theme, filled, targetCell int) string {
 		}
 	}
 	return r.paint(th)
+}
+
+// saberCells lights the blade in half cells; a lit cell brightens towards the tip.
+func (p *Params) saberCells(th theme.Theme, targetCell int) string {
+	halves := min((p.Usage*p.Width*2+percentScale/2)/percentScale, p.Width*2)
+	fullCells, tip := halves/2, halves%2 == 1
+	lit := fullCells
+	if tip {
+		lit++
+	}
+	state := p.state()
+
+	var r runs
+	for cell := range p.Width {
+		switch {
+		case cell == targetCell:
+			r.add(th.MarkerColor, th.MarkerGlyph)
+		case cell < fullCells:
+			r.add(th.BladeColor(state, cell, lit), th.Full)
+		case cell == fullCells && tip:
+			r.add(th.BladeColor(state, cell, lit), th.Tip)
+		default:
+			r.add(th.EmptyColor, th.Empty)
+		}
+	}
+	return r.paint(th)
+}
+
+// capsuleCells draws whole rounded cells in the state color. A cell's glyph depends only on its
+// position and whether it is filled, so the marker keeps the filled shape and changes only color.
+func (p *Params) capsuleCells(th theme.Theme, targetCell int) string {
+	filled := min((p.Usage*p.Width+percentScale/2)/percentScale, p.Width)
+	fill := p.Fill(th)
+
+	var r runs
+	for cell := range p.Width {
+		isFilled := cell < filled || cell == targetCell
+		glyph := capsuleGlyph(cell, p.Width, isFilled)
+		switch {
+		case cell == targetCell:
+			r.add(th.MarkerColor, glyph)
+		case isFilled:
+			r.add(fill, glyph)
+		default:
+			r.add(th.EmptyColor, glyph)
+		}
+	}
+	return r.paint(th)
+}
+
+func capsuleGlyph(cell, width int, filled bool) string {
+	switch {
+	case cell == 0 && filled:
+		return capsuleFullFirst
+	case cell == 0:
+		return capsuleEmptyFirst
+	case cell == width-1 && filled:
+		return capsuleFullLast
+	case cell == width-1:
+		return capsuleEmptyLast
+	case filled:
+		return capsuleFullMiddle
+	}
+	return capsuleEmptyMiddle
 }
 
 func (p *Params) solidCells(th theme.Theme, filled, targetCell int) string {

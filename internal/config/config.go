@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"go.yaml.in/yaml/v3"
@@ -45,6 +46,9 @@ type Config struct {
 	defaults map[string]any
 	user     map[string]any
 	problem  *Problem
+	options  *PluginOptions
+	// fromPlugin holds the keys whose value in user came from the plugin options.
+	fromPlugin map[string]bool
 }
 
 // New builds a Config from the text of a user's config file. The defaults are the embedded global ones
@@ -52,7 +56,7 @@ type Config struct {
 // and Problem says why.
 func New(userText string, pluginDefaults ...string) *Config {
 	user, problem := parseProblem(userText)
-	return &Config{defaults: mergeDefaults(pluginDefaults), user: user, problem: problem}
+	return &Config{defaults: mergeDefaults(pluginDefaults), user: user, problem: problem, fromPlugin: map[string]bool{}}
 }
 
 // Load reads the user's config file; a missing or unusable file means defaults only, and Problem says why
@@ -213,6 +217,15 @@ func (c *Config) Strings(key string) []string {
 	return l
 }
 
+// StringsOrNone is Strings, except that an empty list in the user's config is kept as no strings rather than falling back,
+// so a user can clear a list whose default is not empty.
+func (c *Config) StringsOrNone(key string) []string {
+	if items, ok := c.lookupUser(key).([]any); ok && len(items) == 0 {
+		return nil
+	}
+	return c.Strings(key)
+}
+
 // Int returns a whole number from 0 to 999999999999.
 func (c *Config) Int(key string) int {
 	if n, ok := intOf(c.lookupUser(key)); ok {
@@ -231,6 +244,14 @@ func (c *Config) Bool(key string) bool {
 	return b
 }
 
+// Now is the current time, or the Unix time in STATUSLINE_NOW so tests can pin it.
+func Now(getenv func(string) string) time.Time {
+	if n, ok := ParseNumber(getenv("STATUSLINE_NOW")); ok {
+		return time.Unix(int64(n), 0)
+	}
+	return time.Now()
+}
+
 // ParseNumber accepts plain decimal digits only, so signs, exponents and absurd lengths fall back.
 func ParseNumber(s string) (int, bool) {
 	if s == "" || len(strings.TrimLeft(s, "0")) > maxDigits {
@@ -245,12 +266,21 @@ func ParseNumber(s string) (int, bool) {
 	return n, err == nil
 }
 
-func (c *Config) lookupUser(key string) any {
+// Raw returns the user's value for key as the YAML decoded it, whatever its type, and whether the user set the key.
+// Defaults are not consulted.
+func (c *Config) Raw(key string) (value any, ok bool) {
 	section, name, nested := strings.Cut(key, ".")
 	if !nested {
-		return c.user[key]
+		value, ok = c.user[key]
+		return value, ok
 	}
-	return mapOf(c.user[section])[name]
+	value, ok = mapOf(c.user[section])[name]
+	return value, ok
+}
+
+func (c *Config) lookupUser(key string) any {
+	value, _ := c.Raw(key)
+	return value
 }
 
 func stringOf(v any) (string, bool) {

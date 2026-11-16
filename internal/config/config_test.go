@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 
@@ -17,7 +18,7 @@ func TestDefaultsParse(t *testing.T) {
 	t.Parallel()
 
 	c := config.New("")
-	assert.Equal(t, []string{"path", "model", "ctx", "tokens", "cache", "boot", "skills", "skills_stripped", "agent_skills", "mem", "rate5h", "rate7d"}, c.Strings("segments"))
+	assert.Equal(t, []string{"path", "model", "ctx", "tokens", "cache", "cost", "boot", "skills", "skills_stripped", "agent_skills", "mem", "rate5h", "rate7d"}, c.Strings("segments"))
 	assert.Equal(t, "·", c.String("separator"))
 	assert.Equal(t, "classic", c.String("theme"))
 	assert.Equal(t, 60, c.Int("hooks.ttl"))
@@ -29,7 +30,7 @@ func TestDefaultKeys(t *testing.T) {
 
 	keys := config.DefaultKeys()
 	slices.Sort(keys)
-	want := []string{"hooks.timeout", "hooks.ttl", "segments", "separator", "snapshot.enabled", "snapshot.path", "theme"}
+	want := []string{"hooks.timeout", "hooks.ttl", "icons", "segments", "segments_excluded", "separator", "snapshot.enabled", "snapshot.path", "theme"}
 	assert.Equal(t, want, keys)
 }
 
@@ -136,6 +137,30 @@ func TestStrings(t *testing.T) {
 	}
 
 	assert.Nil(t, config.New("", def).Strings("absent"), "Strings() of an unknown key")
+}
+
+func TestStringsOrNone(t *testing.T) {
+	t.Parallel()
+
+	const def = "excluded: [a, b]\n"
+	tests := []struct {
+		name string
+		user string
+		want []string
+	}{
+		{"user list wins", "excluded: [x]", []string{"x"}},
+		{"an empty list is kept", "excluded: []", nil},
+		{"only empty entries falls back", "excluded: ['']", []string{"a", "b"}},
+		{"a null falls back", "excluded: ~", []string{"a", "b"}},
+		{"a scalar falls back", "excluded: x", []string{"a", "b"}},
+		{"missing falls back", "", []string{"a", "b"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, config.New(tt.user, def).StringsOrNone("excluded"))
+		})
+	}
 }
 
 func TestParseNumber(t *testing.T) {
@@ -362,4 +387,63 @@ func TestSection(t *testing.T) {
 	assert.Equal(t, []string{"a"}, foo.Strings("list"))
 	assert.Equal(t, "·", c.Section("").String("separator"), "an empty name reads keys as they are")
 	assert.Zero(t, c.Section("bar").Int("size"), "another section does not see foo's keys")
+}
+
+func TestNow(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		env  map[string]string
+		want int64
+	}{
+		{"uses STATUSLINE_NOW", map[string]string{"STATUSLINE_NOW": "1760000000"}, 1760000000},
+		{"strips leading zeros", map[string]string{"STATUSLINE_NOW": "0000000012"}, 12},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, config.Now(getenvFrom(tt.env)).Unix())
+		})
+	}
+
+	for _, bad := range []string{"", "abc", "-1", "1e9", "1760000000000000"} {
+		before := time.Now().Add(-time.Minute)
+		got := config.Now(getenvFrom(map[string]string{"STATUSLINE_NOW": bad}))
+		assert.False(t, got.Before(before) || got.After(time.Now().Add(time.Minute)), "now() with STATUSLINE_NOW=%q = %v, want the current time", bad, got)
+	}
+}
+
+func getenvFrom(m map[string]string) func(string) string {
+	return func(name string) string { return m[name] }
+}
+
+func TestRaw(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		user   string
+		key    string
+		want   any
+		wantOK bool
+	}{
+		{"a string", "icons: nerd", "icons", "nerd", true},
+		{"a bool is not turned into a string", "icons: true", "icons", true, true},
+		{"a number", "icons: 5", "icons", 5, true},
+		{"a nested key", "path:\n  emoji: 1", "path.emoji", 1, true},
+		{"a null is present and nil", "icons:", "icons", nil, true},
+		{"a missing key", "segments: [a]", "icons", nil, false},
+		{"a default is not a user value", "", "separator", nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, ok := config.New(tt.user).Raw(tt.key)
+
+			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.wantOK, ok)
+		})
+	}
 }

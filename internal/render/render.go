@@ -7,14 +7,13 @@ import (
 )
 
 const (
-	keySegments  = "segments"
 	keySeparator = "separator"
 	nameCtx      = "ctx"
 	nameModel    = "model"
 )
 
 // Keys lists the config keys the renderer itself reads.
-func Keys() []string { return []string{keySegments, keySeparator} }
+func Keys() []string { return []string{keySeparator} }
 
 // Segment is a built-in segment, ready to draw.
 type Segment interface {
@@ -24,7 +23,8 @@ type Segment interface {
 
 // Line is one render: the segments to show, and how to find, join and wrap them.
 type Line struct {
-	// Names is the segments list from the config, in order.
+	// Names is the segments list from the config, in order, less segments_excluded; a hook whose name is left out
+	// goes to its slot instead.
 	Names []string
 	// Lookup builds the built-in segment with a name, with the layout group it belongs to.
 	Lookup  func(name string) (Segment, layout.Group, bool)

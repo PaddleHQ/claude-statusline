@@ -18,6 +18,12 @@ type session struct {
 func build(t *testing.T, s session, effort bool, actual string) (seg *model.Model, reads *int) {
 	t.Helper()
 
+	return buildIcons(t, s, effort, actual, func(plain, _ string) string { return plain })
+}
+
+func buildIcons(t *testing.T, s session, effort bool, actual string, pick func(plain, nerd string) string) (seg *model.Model, reads *int) {
+	t.Helper()
+
 	sess := mocks.NewSession(t)
 	sess.EXPECT().DisplayName().Return(s.display).Maybe()
 	sess.EXPECT().ModelID().Return(s.id).Maybe()
@@ -33,12 +39,16 @@ func build(t *testing.T, s session, effort bool, actual string) (seg *model.Mode
 	paint := mocks.NewPainter(t)
 	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + "</t>" }).Maybe()
 
+	icons := mocks.NewIcons(t)
+	icons.EXPECT().Pick(mock.Anything, mock.Anything).RunAndReturn(pick).Maybe()
+
 	count := 0
 	return model.New(model.Deps{
 		Session:    sess,
 		Transcript: func() model.Transcript { count++; return tr },
 		Config:     cfg,
 		Paint:      paint,
+		Icons:      icons,
 	}), &count
 }
 
@@ -60,6 +70,27 @@ func TestRender(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			seg, _ := build(t, tt.s, tt.effort, "")
+			assert.Equal(t, tt.want, seg.Render())
+		})
+	}
+}
+
+func TestNerdIcon(t *testing.T) {
+	t.Parallel()
+
+	nerd := func(_, nerd string) string { return nerd }
+	tests := []struct {
+		name string
+		s    session
+		want string
+	}{
+		{"name", session{display: "Opus 4.7"}, "<t>\U000F06A9 Opus 4.7</t>"},
+		{"name and effort", session{display: "Opus 4.7", level: "high"}, "<t>\U000F06A9 Opus 4.7 [high]</t>"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			seg, _ := buildIcons(t, tt.s, true, "", nerd)
 			assert.Equal(t, tt.want, seg.Render())
 		})
 	}

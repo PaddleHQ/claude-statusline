@@ -149,6 +149,31 @@ bar:
 			},
 			want: `5h: \e[32m██████████\e[0m\e[1m┃\e[0m\e[32m█\e[0m\e[2m░░░░░░░░\e[0m 60%`,
 		},
+		{
+			name:    `A saber theme file with no blade is rejected and the built-in theme is used`,
+			session: `{"rate_limits":{"five_hour":{"used_percentage":60,"resets_at":1760009000}},"session_id":"abc123"}`,
+			config: `theme: "~/bad.yaml"
+segments: [rate5h]`,
+			files: map[string]string{
+				`bad.yaml`: `colors:
+  text: ""
+  muted: dim
+  good: green
+  warn: yellow
+  bad: red
+  marker: bold
+  path: bold 33
+bar:
+  style: saber
+  full: "━"
+  tip: "╸"
+  empty: "─"
+  marker: "┃"
+  glow: 50
+  glow_cells: 3`,
+			},
+			want: `5h: \e[32m██████████\e[0m\e[1m┃\e[0m\e[32m█\e[0m\e[2m░░░░░░░░\e[0m 60%`,
+		},
 	}
 	runAll(t, tests)
 }

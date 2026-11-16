@@ -18,6 +18,8 @@ func FuzzLoad(f *testing.F) {
 	f.Add([]byte(`{"five_hour":{"used":-1,"resets_at":2}}`))
 	f.Add([]byte(`{"five_hour":{"used":"1","resets_at":2}}`))
 	f.Add([]byte(`{"five_hour":{"used":9223372036854775807,"resets_at":1e30}}`))
+	f.Add([]byte(`{"five_hour":{"used":1,"resets_at":2},"sessions":{"a":{"five_hour":{"used":1,"resets_at":2}},"b":null,"c":[1]}}`))
+	f.Add([]byte(`{"five_hour":{"used":1,"resets_at":2},"sessions":"x"}`))
 	f.Add([]byte(`null`))
 	f.Add([]byte(``))
 

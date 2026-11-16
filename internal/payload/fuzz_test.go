@@ -1,6 +1,7 @@
 package payload_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/PaddleHQ/claude-statusline/internal/payload"
@@ -24,6 +25,7 @@ func FuzzParse(f *testing.F) {
 	f.Add([]byte(`{"context_window":{"used_percentage":12.5,"total_input_tokens":1500,"total_output_tokens":300,"current_usage":{"input_tokens":6,"cache_creation_input_tokens":20000,"cache_read_input_tokens":44500}}}`))
 	f.Add([]byte("{\"model\":{\"display_name\":\"Op\\u001b[2Jus\\u009b\\u0000\"},\"cwd\":\"a\\nb\\u007f\"}"))
 	f.Add([]byte(`{"model":{"display_name":{"nested":"object"}},"session_id":"../etc"}`))
+	f.Add([]byte(`{"cost":{"total_cost_usd":-0}}`))
 	f.Add([]byte(``))
 	f.Add([]byte(`not json`))
 
@@ -38,6 +40,9 @@ func FuzzParse(f *testing.F) {
 			"transcript_path":    p.TranscriptPath,
 		} {
 			assert.False(t, hasControl(s), "%s holds a control character: %q", name, s)
+		}
+		if usd, ok := p.TotalCost(); ok {
+			assert.True(t, usd >= 0 && usd <= 1e9 && !math.Signbit(usd), "cost.total_cost_usd out of range: %v", usd)
 		}
 	})
 }

@@ -353,3 +353,37 @@ func TestExecuteExitStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestExecuteRateBars(t *testing.T) {
+	t.Parallel()
+
+	home := t.TempDir()
+	env := func(k string) string {
+		return map[string]string{"CLAUDE_CONFIG_DIR": home, "HOME": home, "NO_COLOR": "1"}[k]
+	}
+
+	t.Run("prints one JSON line without reading stdin", func(t *testing.T) {
+		t.Parallel()
+
+		var out bytes.Buffer
+		status := cli.New(cli.Build{Version: "dev"}).Execute([]string{"rate-bars", "--min-cells=3", "--max-cells=4"}, &failingReader{t}, &out, env)
+
+		assert.Equal(t, 0, status)
+		assert.True(t, gjson.Valid(out.String()), out.String())
+		assert.Len(t, gjson.Get(out.String(), "rate5h.bars").Map(), 2)
+		assert.Equal(t, 1, strings.Count(out.String(), "\n"))
+	})
+
+	t.Run("a bad flag prints to stderr, prints nothing to stdout and exits 2", func(t *testing.T) {
+		t.Parallel()
+
+		var out, errOut bytes.Buffer
+		app := cli.New(cli.Build{Version: "dev"})
+		app.SetStderr(&errOut)
+		status := app.Execute([]string{"rate-bars", "--min-cells=0", "--max-cells=4"}, &failingReader{t}, &out, env)
+
+		assert.Equal(t, 2, status)
+		assert.Empty(t, out.String())
+		assert.Contains(t, errOut.String(), "usage: claude-statusline rate-bars")
+	})
+}

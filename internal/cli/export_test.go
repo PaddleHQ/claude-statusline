@@ -9,3 +9,4 @@ func Run(stdin io.Reader, stdout io.Writer, getenv func(string) string) { run(st
 func EventFlag(args []string) string { return eventFlag(args) }
 
 func (a *App) SetExecutable(exe func() (string, error)) { a.executable = exe }
+func (a *App) SetStderr(w io.Writer)                    { a.stderr = w }

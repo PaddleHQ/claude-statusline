@@ -28,10 +28,18 @@ type Painter interface {
 	Text(s string) string
 }
 
+//go:generate go run github.com/vektra/mockery/v2 --name=Icons
+
+// Icons picks a label for the user's icon set.
+type Icons interface {
+	Pick(plain, nerd string) string
+}
+
 // Deps is everything the segment is built from. Separator is the painted text drawn between the two totals.
 type Deps struct {
 	Session   Session
 	Paint     Painter
+	Icons     Icons
 	Separator string
 }
 
@@ -56,10 +64,10 @@ func (t *Totals) Keys() []string { return nil }
 func (t *Totals) Render() string {
 	var parts []string
 	if in, ok := t.d.Session.TotalInput(); ok {
-		parts = append(parts, t.d.Paint.Text("↓ "+FormatTokens(in)))
+		parts = append(parts, t.d.Paint.Text(t.d.Icons.Pick("\u2193 ", "\uF019 ")+FormatTokens(in)))
 	}
 	if out, ok := t.d.Session.TotalOutput(); ok {
-		parts = append(parts, t.d.Paint.Text("↑ "+FormatTokens(out)))
+		parts = append(parts, t.d.Paint.Text(t.d.Icons.Pick("\u2191 ", "\uF093 ")+FormatTokens(out)))
 	}
 	return strings.Join(parts, t.d.Separator)
 }

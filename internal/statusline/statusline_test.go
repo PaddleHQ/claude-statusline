@@ -43,31 +43,6 @@ func TestDefaultsAreDocumented(t *testing.T) {
 	}
 }
 
-func TestNow(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		env  map[string]string
-		want int64
-	}{
-		{"uses STATUSLINE_NOW", map[string]string{"STATUSLINE_NOW": "1760000000"}, 1760000000},
-		{"strips leading zeros", map[string]string{"STATUSLINE_NOW": "0000000012"}, 12},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, statusline.Now(env(tt.env)).Unix())
-		})
-	}
-
-	for _, bad := range []string{"", "abc", "-1", "1e9", "1760000000000000"} {
-		before := time.Now().Add(-time.Minute)
-		got := statusline.Now(env(map[string]string{"STATUSLINE_NOW": bad}))
-		assert.False(t, got.Before(before) || got.After(time.Now().Add(time.Minute)), "now() with STATUSLINE_NOW=%q = %v, want the current time", bad, got)
-	}
-}
-
 func TestColumns(t *testing.T) {
 	t.Parallel()
 
@@ -110,6 +85,39 @@ func TestBuild(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, tt.want, statusline.Build([]byte(tt.input), env(tt.env)))
+		})
+	}
+}
+
+func TestBuildExcludesSegments(t *testing.T) {
+	t.Parallel()
+
+	const input = `{"model":{"display_name":"Opus"},"cost":{"total_cost_usd":1},"session_id":"sess1"}`
+
+	tests := []struct {
+		name   string
+		config string
+		hook   string
+		want   string
+	}{
+		{"cost is excluded by default", "", "", "Opus"},
+		{"an empty list excludes nothing", "segments_excluded: []", "", "Opus · $1.00"},
+		{"a built-in is dropped from the user's own list", "segments: [cost, model]\nsegments_excluded: [model]", "", "$1.00"},
+		{"a name that is not listed changes nothing", "segments: [model]\nsegments_excluded: [path]", "", "Opus"},
+		{"the user's list replaces the default, so cost comes back", "segments_excluded: [path]", "", "Opus · $1.00"},
+		{"excluding every listed built-in leaves an empty line", "segments: [model]\nsegments_excluded: [model]", "", ""},
+		{"a custom segment of an excluded name still runs, in its slot", "segments: [cost, model]", "cost", "Opus · mine"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			require.NoError(t, os.MkdirAll(filepath.Join(dir, "claude-statusline"), 0o700))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "claude-statusline", "config.yaml"), []byte(tt.config), 0o600))
+			if tt.hook != "" {
+				writeHook(t, filepath.Join(dir, "statusline.d"), "10-"+tt.hook+".sh", "# statusline-slot: end\nprintf mine")
+			}
+			assert.Equal(t, tt.want, statusline.Build([]byte(input), env(map[string]string{"CLAUDE_CONFIG_DIR": dir, "NO_COLOR": "1"})))
 		})
 	}
 }
@@ -287,8 +295,7 @@ func TestBuildSnapshot(t *testing.T) {
 	})
 }
 
-// Not parallel: t.Chdir changes the working directory of the whole process.
-func TestBuildIgnoresRelativeHookDir(t *testing.T) {
+func TestBuildIgnoresRelativeHookDir(t *testing.T) { //nolint:paralleltest // t.Chdir changes the working directory of the whole process
 	tmp := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(tmp, "rel"), 0o750))
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "rel", "x.sh"), []byte("#!/bin/sh\nprintf PWNED\n"), 0o700)) //nolint:gosec // test hook must be executable
@@ -299,8 +306,7 @@ func TestBuildIgnoresRelativeHookDir(t *testing.T) {
 	assert.NotContains(t, got, "PWNED")
 }
 
-// Not parallel: t.Chdir changes the working directory of the whole process.
-func TestBuildResolvesRelativeSnapshotPath(t *testing.T) {
+func TestBuildResolvesRelativeSnapshotPath(t *testing.T) { //nolint:paralleltest // t.Chdir changes the working directory of the whole process
 	work := t.TempDir()
 	t.Chdir(work)
 	dir := t.TempDir()

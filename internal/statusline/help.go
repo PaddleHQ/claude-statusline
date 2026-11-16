@@ -2,10 +2,12 @@ package statusline
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/PaddleHQ/claude-statusline/internal/config"
 	"github.com/PaddleHQ/claude-statusline/internal/hook"
+	"github.com/PaddleHQ/claude-statusline/internal/icons"
 	"github.com/PaddleHQ/claude-statusline/internal/theme"
 	"github.com/PaddleHQ/claude-statusline/segments"
 )
@@ -17,30 +19,37 @@ type helper struct {
 	env        *segments.Env
 	hooks      []hook.Hook
 	names      []string
+	excluded   []string
 	configPath string
 	problem    *config.Problem
+	options    *config.PluginOptions
+	home       string
+	iconsOn    bool
 }
 
 // Help describes the user's status line in plain text: what is shown now, the custom segments and the built-ins left out.
 // It reads the same config and hook directory as Build, and names the config file with why it cannot be used, if it cannot.
 func Help(getenv func(string) string) string {
 	defaults := segments.Defaults()
-	cfg := config.New("", defaults...)
+	cfg := config.Resolve(getenv, defaults...)
 	path := config.Path(getenv)
-	if path != "" {
-		cfg = config.Load(path, defaults...)
-	}
 	th := theme.Load(cfg.String(keyTheme), getenv("HOME"), config.AppDir(getenv))
 	th = th.WithoutColor()
 	env := segments.NewEnv(segments.Env{Config: cfg, Theme: th, Home: getenv("HOME"), Columns: defaultColumns})
 
+	excluded := cfg.StringsOrNone(keyExcluded)
 	h := &helper{
 		env:        env,
 		hooks:      hook.Discover(hookDir(getenv)),
-		names:      cfg.Strings("segments"),
+		names:      segmentNames(cfg, excluded),
+		excluded:   excluded,
 		configPath: path,
 		problem:    cfg.Problem(),
+		options:    cfg.PluginOptions(),
+		home:       getenv("HOME"),
 	}
+	set := icons.FromConfig(cfg)
+	h.iconsOn = set.Nerd()
 	return h.text()
 }
 
@@ -70,12 +79,22 @@ func (h *helper) text() string {
 		writeList(&b, left)
 	}
 
-	b.WriteString("\n" + h.configFooter())
+	if excluded := h.excludedLines(); len(excluded) > 0 {
+		b.WriteString("\nLeft out by segments_excluded:\n")
+		writeList(&b, excluded)
+	}
+
+	b.WriteString("\n" + h.iconsLine())
+	b.WriteString(h.configFooter())
+	if h.options.Active() {
+		shown := config.Clean(collapseHome(h.options.Path, h.home))
+		fmt.Fprintf(&b, "Plugin options: %s (%s), which win over the config file\n", shown, config.Clean(h.options.Entry))
+	}
 	b.WriteString("Documentation: " + docsURL + "\n")
 	return b.String()
 }
 
-// shown describes what the name stands for in the segments list: the hooks of that name, which replace a built-in, else the built-in.
+// shown describes what a segment name stands for: the hooks of that name, which replace a built-in, else the built-in.
 func (h *helper) shown(name string) []string {
 	var lines []string
 	for i := range h.hooks {
@@ -107,8 +126,21 @@ func (h *helper) unlisted() []string {
 	}
 	var lines []string
 	for _, seg := range h.env.All() {
-		if !listed[seg.Name()] {
+		if !listed[seg.Name()] && !slices.Contains(h.excluded, seg.Name()) {
 			lines = append(lines, seg.Name()+": "+seg.Help())
+		}
+	}
+	return lines
+}
+
+// excludedLines describes each excluded built-in once; segments_excluded leaves hooks and unknown names alone.
+func (h *helper) excludedLines() []string {
+	lines := make([]string, 0, len(h.excluded))
+	seen := map[string]bool{}
+	for _, name := range h.excluded {
+		if seg, ok := h.builtin(name); ok && !seen[name] {
+			seen[name] = true
+			lines = append(lines, name+": "+seg.Help())
 		}
 	}
 	return lines
@@ -149,4 +181,11 @@ func (h *helper) configFooter() string {
 // problemText follows the path: the line, when the parser gave one, and the reason.
 func (h *helper) problemText() string {
 	return lineSuffix(h.problem.Line) + config.Clean(h.problem.Reason)
+}
+
+func (h *helper) iconsLine() string {
+	if h.iconsOn {
+		return "Icons: nerd (Nerd Font icons; needs a Nerd Font v3 or later set as your terminal font). Set icons: none for plain labels.\n"
+	}
+	return "Icons: none (plain labels). Set icons: nerd for Nerd Font icons; that needs a Nerd Font v3 or later set as your terminal font.\n"
 }

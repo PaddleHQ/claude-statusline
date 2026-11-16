@@ -35,11 +35,15 @@ func build(t *testing.T, name string, i info) (seg *diagnostics.Diagnostic, read
 	paint.EXPECT().Bad(mock.Anything).RunAndReturn(func(s string) string { return "<b>" + s + "</>" }).Maybe()
 	paint.EXPECT().Warn(mock.Anything).RunAndReturn(func(s string) string { return "<w>" + s + "</>" }).Maybe()
 
+	icons := mocks.NewIcons(t)
+	icons.EXPECT().Pick(mock.Anything, mock.Anything).RunAndReturn(func(plain, _ string) string { return plain }).Maybe()
+
 	count := 0
 	seg, ok := diagnostics.New(name, diagnostics.Deps{
 		Transcript: func() diagnostics.Transcript { count++; return tr },
 		Paint:      paint,
 		Tokens:     func(n int64) string { return "T" + strconv.FormatInt(n, 10) },
+		Icons:      icons,
 	})
 	require.True(t, ok, name)
 	return seg, &count
@@ -95,4 +99,47 @@ func TestUnknownSegment(t *testing.T) {
 
 	_, ok := diagnostics.New("nope", diagnostics.Deps{})
 	assert.False(t, ok)
+}
+
+func TestDiagnosticsNerdIcons(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		seg  string
+		info info
+		want string
+	}{
+		{"boot", info{boot: 12000}, "\uf135 12.0k"},
+		{"skills", info{skillsChars: 12000}, "\uf013 3.0k"},
+		{"skills_stripped", info{skillsBare: 2, skillsTotal: 10}, "\uf071 skills 2/10"},
+		{"agent_skills", info{subBare: 1, subTotal: 4}, "\uf071 agent skills 1/4"},
+		{"mem", info{memDropped: true}, "\uf071 mem"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.seg, func(t *testing.T) {
+			t.Parallel()
+
+			tr := mocks.NewTranscript(t)
+			tr.EXPECT().BootTokens().Return(tt.info.boot).Maybe()
+			tr.EXPECT().SkillListChars().Return(tt.info.skillsChars).Maybe()
+			tr.EXPECT().SkillCounts().Return(tt.info.skillsBare, tt.info.skillsTotal).Maybe()
+			tr.EXPECT().SubagentSkillCounts().Return(tt.info.subBare, tt.info.subTotal).Maybe()
+			tr.EXPECT().MemoryDropped().Return(tt.info.memDropped).Maybe()
+			paint := mocks.NewPainter(t)
+			paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return s }).Maybe()
+			paint.EXPECT().Bad(mock.Anything).RunAndReturn(func(s string) string { return s }).Maybe()
+			paint.EXPECT().Warn(mock.Anything).RunAndReturn(func(s string) string { return s }).Maybe()
+			icons := mocks.NewIcons(t)
+			icons.EXPECT().Pick(mock.Anything, mock.Anything).RunAndReturn(func(_, nerd string) string { return nerd })
+
+			seg, ok := diagnostics.New(tt.seg, diagnostics.Deps{
+				Transcript: func() diagnostics.Transcript { return tr },
+				Paint:      paint,
+				Tokens:     func(n int64) string { return strconv.FormatFloat(float64(n)/1000, 'f', 1, 64) + "k" },
+				Icons:      icons,
+			})
+			require.True(t, ok)
+			assert.Equal(t, tt.want, seg.Render())
+		})
+	}
 }

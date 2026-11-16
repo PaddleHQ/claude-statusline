@@ -1,0 +1,5 @@
+cost:
+  # Session cost in whole US dollars at or above which the figure turns amber.
+  warn: 5
+  # Session cost in whole US dollars at or above which the figure turns red.
+  bad: 20
