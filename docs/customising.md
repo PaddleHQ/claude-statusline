@@ -47,6 +47,7 @@ A setting you leave out keeps its default (unless a [plugin option](#plugin-opti
 | `rate5h.warn`, `rate7d.warn` | `20`, `10` | Pace deviation, in percentage points, beyond which the fill turns amber. |
 | `rate5h.bad`, `rate7d.bad` | `40`, `20` | Pace deviation, in percentage points, beyond which the fill turns red. |
 | `rate5h.hard_cap`, `rate7d.hard_cap` | `95` | Usage percentage at or above which the fill is always red. |
+| `rate5h.reset`, `rate7d.reset` | `false` | Show when the window resets after the bar, as `resets 14:30 in 2h15m` (`true` or `false`). |
 | `hooks.ttl` | `60` | Seconds a custom segment's result is reused before its script runs again. |
 | `hooks.timeout` | `2` | Seconds a custom segment's script may run before it is killed. |
 | `snapshot.enabled` | `true` | Save the latest session payload for other tools to read (`true` or `false`). |
@@ -181,7 +182,7 @@ With `icons: nerd` the » becomes the Nerd Font warning icon.
 
 ### Bars and widths
 
-The `rate5h` and `rate7d` segments draw your 5 hour and 7 day usage as a bar followed by the percentage. The vertical marker `┃` sits at the point in the window you would reach if you spent your quota evenly. The fill is green while your usage is close to the marker, amber once it drifts more than `warn` points either way, and red beyond `bad` points or at `hard_cap`. A bar disappears once its window has reset. Bars narrow on small terminals: each has a wide width, a `width_medium` used below 160 columns and a `width_narrow` used below 120 (`$COLUMNS`), and a bar is never under 4 or over 200 cells. Readings are shared between sessions; see [Shared rate-limit cache](how_it_works.md#shared-rate-limit-cache).
+The `rate5h` and `rate7d` segments draw your 5 hour and 7 day usage as a bar followed by the percentage. The vertical marker `┃` sits at the point in the window you would reach if you spent your quota evenly. The fill is green while your usage is close to the marker, amber once it drifts more than `warn` points either way, and red beyond `bad` points or at `hard_cap`. A bar disappears once its window has reset. With `reset: true` in a bar's section, the bar is followed by when that happens, in muted text: `resets 14:30 in 2h15m`, the time on your machine's clock and how long is left, rounded down. A reset on another day names the weekday, as in `resets Mon 14:30 in 3d11h`. It is off by default, because it adds about 25 columns to each bar, so the line [wraps](#wrapping) on a wider terminal than before. Bars narrow on small terminals: each has a wide width, a `width_medium` used below 160 columns and a `width_narrow` used below 120 (`$COLUMNS`), and a bar is never under 4 or over 200 cells. Readings are shared between sessions; see [Shared rate-limit cache](how_it_works.md#shared-rate-limit-cache).
 
 ## Custom segments
 
@@ -238,7 +239,7 @@ Results are cached in `cache/hooks/<session id>/` in the status line's state dir
 The line is one row whenever it fits in `$COLUMNS` (visible width, ignoring colour; an unset or zero width never wraps). Otherwise it is laid out in groups:
 
 - **Identity** (`path`, `model`, `ctx` and any hook in the `ctx` slot) packs into as few rows as it can.
-- **Usage** (`tokens`, `cache`, `cost`, `overage`) starts the next row at the left margin. The **rates** (`rate5h` and `rate7d`, which are never split) follow on the same row, padded so that they line up under the second identity segment, or on a row of their own with the same indent if they do not fit.
+- **Usage** (`tokens`, `cache`, `cost`, `overage`) starts the next row at the left margin. The **rates** (`rate5h` and `rate7d`) follow on the same row, padded so that they line up under the second identity segment, or on a row of their own with the same indent if they do not fit. If that row is still too narrow for both bars, each bar takes its own row.
 - Hooks in the `usage` and `end` slots share one last row.
 
 Rows after the first of a group are indented to line up under the segment after the path. The indent starts with a dim `↳`, because Claude Code trims leading spaces but not a glyph. If the indent would leave fewer than 24 columns, rows are not indented.

@@ -134,6 +134,8 @@ type unpainted struct{}
 
 func (u *unpainted) Text(s string) string { return s }
 
+func (u *unpainted) Dim(s string) string { return s }
+
 type renderer struct {
 	th     theme.Theme
 	icons  icons.Set

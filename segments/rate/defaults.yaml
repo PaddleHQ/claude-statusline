@@ -13,6 +13,8 @@ rate5h:
   bad: 40
   # Usage percentage at or above which the fill is always red.
   hard_cap: 95
+  # Show when the window resets after the bar, as "resets 14:30 in 2h15m" (true or false).
+  reset: false
 
 rate7d:
   # Text shown before the 7 day bar.
@@ -29,3 +31,5 @@ rate7d:
   bad: 20
   # Usage percentage at or above which the fill is always red.
   hard_cap: 95
+  # Show when the window resets after the bar, as "resets Mon 14:30 in 3d11h" (true or false).
+  reset: false

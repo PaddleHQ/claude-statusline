@@ -250,10 +250,11 @@ func (c *Config) Bool(key string) bool {
 	return b
 }
 
-// Now is the current time, or the Unix time in STATUSLINE_NOW so tests can pin it.
+// Now is the current time, or the Unix time in STATUSLINE_NOW so tests can pin it. A pinned time is in UTC, so a
+// clock time drawn from it does not depend on the machine's zone.
 func Now(getenv func(string) string) time.Time {
 	if n, ok := ParseNumber(getenv("STATUSLINE_NOW")); ok {
-		return time.Unix(int64(n), 0)
+		return time.Unix(int64(n), 0).UTC()
 	}
 	return time.Now()
 }

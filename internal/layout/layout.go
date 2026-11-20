@@ -16,7 +16,8 @@ const (
 	Identity Group = iota
 	// Usage segments (tokens, cache) sit flush left on the usage row.
 	Usage
-	// Rates segments (the rate-limit bars) stay together and line up under the second identity segment.
+	// Rates segments (the rate-limit bars) line up under the second identity segment, together on one row unless it
+	// is too narrow for them all.
 	Rates
 	// Extra segments take a row of their own.
 	Extra
@@ -125,7 +126,7 @@ func wrap(items []Item, o Options, sepw int) string {
 	}
 	r.flush()
 
-	usage := r.usageRow(strings.Join(by[Usage], o.Separator), strings.Join(by[Rates], o.Separator))
+	usage := r.usageRow(strings.Join(by[Usage], o.Separator), by[Rates])
 	out := r.out.String() + usage
 	if extra := strings.Join(by[Extra], o.Separator); extra != "" {
 		if usage != "" {
@@ -164,7 +165,8 @@ func newRows(o Options, sepw int, firstIdentity string) *rows {
 	return r
 }
 
-func (r *rows) usageRow(tok, rates string) string {
+func (r *rows) usageRow(tok string, bars []string) string {
+	rates := strings.Join(bars, r.o.Separator)
 	switch {
 	case tok != "" && rates != "":
 		tokw, ratew := Width(tok), Width(rates)
@@ -175,13 +177,23 @@ func (r *rows) usageRow(tok, rates string) string {
 		if end <= r.o.Columns {
 			return tok + strings.Repeat(" ", max(r.indw-tokw, 1)) + rates
 		}
-		return tok + "\n" + r.indent + rates
+		return tok + "\n" + r.rateRows(bars)
 	case tok != "":
 		return tok
 	case rates != "":
-		return r.indent + rates
+		return r.rateRows(bars)
 	}
 	return ""
+}
+
+// rateRows keeps the bars on one indented row when they fit there, and otherwise gives each bar a row of its own,
+// so a bar followed by its reset time does not run past the edge of a narrow terminal.
+func (r *rows) rateRows(bars []string) string {
+	joined := strings.Join(bars, r.o.Separator)
+	if r.indw+Width(joined) <= r.o.Columns {
+		return r.indent + joined
+	}
+	return r.indent + strings.Join(bars, "\n"+r.indent)
 }
 
 func (r *rows) emit(s string) {

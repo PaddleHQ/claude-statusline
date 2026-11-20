@@ -117,6 +117,17 @@ func TestBuildHonoursThresholdsFromTheConfig(t *testing.T) {
 	assert.Contains(t, decode(t, out).Rate5h.Bars["10"], "\x1b[32m", "within the raised warn threshold")
 }
 
+func TestBuildIgnoresTheResetSetting(t *testing.T) {
+	t.Parallel()
+
+	plain, err := (&env{cache: cache}).run(t, "--min-cells=4", "--max-cells=5")
+	require.NoError(t, err)
+	withReset, err := (&env{cache: cache, config: "rate5h: {reset: true}\nrate7d: {reset: true}"}).run(t, "--min-cells=4", "--max-cells=5")
+	require.NoError(t, err)
+
+	assert.Equal(t, plain, withReset, "the bars carry no reset time, so a tool that draws them keeps its own layout")
+}
+
 func TestBuildGradientThemeDiffersFromClassic(t *testing.T) {
 	t.Parallel()
 

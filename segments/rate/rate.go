@@ -18,6 +18,10 @@ const (
 	fiveHourSeconds = 5 * 60 * 60
 	sevenDaySeconds = 7 * 24 * 60 * 60
 	percentScale    = 100
+	minutesPerHour  = 60
+	minutesPerDay   = 24 * minutesPerHour
+	clockLayout     = "15:04"
+	weekdayLayout   = "Mon 15:04"
 )
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Limits
@@ -34,6 +38,7 @@ type Limits interface {
 type Config interface {
 	String(key string) string
 	Int(key string) int
+	Bool(key string) bool
 }
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Painter
@@ -41,6 +46,7 @@ type Config interface {
 // Painter colors text.
 type Painter interface {
 	Text(s string) string
+	Dim(s string) string
 }
 
 //go:generate go run github.com/vektra/mockery/v2 --name=Meter
@@ -70,7 +76,7 @@ type Deps struct {
 	Limits func() Limits
 }
 
-// Window draws one usage window as "<label>: <bar> <NN>%".
+// Window draws one usage window as "<label>: <bar> <NN>%", followed by when it resets if the user asks for that.
 type Window struct {
 	d       Deps
 	name    string
@@ -96,14 +102,18 @@ func (w *Window) Name() string { return w.name }
 // Help says what the segment shows, for the help command.
 func (w *Window) Help() string {
 	cfg := w.d.Config
-	return fmt.Sprintf("Your %s usage, with a marker at an even pace. "+
+	help := fmt.Sprintf("Your %s usage, with a marker at an even pace. "+
 		"Amber when more than %d points off it, red beyond %d points or from %d%% used.",
 		w.window, cfg.Int("warn"), cfg.Int("bad"), cfg.Int("hard_cap"))
+	if cfg.Bool("reset") {
+		help += " Followed by when the window resets."
+	}
+	return help
 }
 
 // Keys lists the config keys the segment reads, relative to its section; the widths are read by the Meter.
 func (w *Window) Keys() []string {
-	return []string{"label", "width", "width_medium", "width_narrow", "warn", "bad", "hard_cap"}
+	return []string{"label", "width", "width_medium", "width_narrow", "warn", "bad", "hard_cap", "reset"}
 }
 
 // Render returns the segment's text, or "" to hide it.
@@ -116,7 +126,23 @@ func (w *Window) Render() string {
 	target := elapsedPercent(w.d.Now.Unix(), resetsAt, w.seconds)
 	bar := w.d.Meter.Pace(int(used), target, cfg.Int("warn"), cfg.Int("bad"), cfg.Int("hard_cap"))
 	label := cfg.String("label")
-	return w.d.Paint.Text(w.d.Icons.Pick(label+": ", w.nerdLabel(label))) + bar
+	out := w.d.Paint.Text(w.d.Icons.Pick(label+": ", w.nerdLabel(label))) + bar
+	if cfg.Bool("reset") {
+		out += " " + w.d.Paint.Dim(w.resetText(resetsAt))
+	}
+	return out
+}
+
+// resetText is "resets 14:30 in 2h15m", on the clock of the render time's zone. A reset on another day names its
+// weekday, which is enough because no window is longer than a week.
+func (w *Window) resetText(resetsAt int64) string {
+	now := w.d.Now
+	at := time.Unix(resetsAt, 0).In(now.Location())
+	layout := weekdayLayout
+	if sameDay(at, now) {
+		layout = clockLayout
+	}
+	return "resets " + at.Format(layout) + " in " + remaining(at.Sub(now))
 }
 
 // nerdLabel keeps the window label after the icon, since a clock and a calendar are hard to tell apart alone.
@@ -128,4 +154,25 @@ func (w *Window) nerdLabel(label string) string {
 func elapsedPercent(now, resetsAt, windowSeconds int64) int {
 	elapsed := min(max(now-(resetsAt-windowSeconds), 0), windowSeconds)
 	return int(elapsed * percentScale / windowSeconds)
+}
+
+func sameDay(a, b time.Time) bool {
+	ay, am, ad := a.Date()
+	by, bm, bd := b.Date()
+	return ay == by && am == bm && ad == bd
+}
+
+// remaining shortens a duration to its two largest units, rounded down: "3d11h", "2h15m", "45m".
+func remaining(left time.Duration) string {
+	minutes := int64(max(left, 0) / time.Minute)
+	days, hours := minutes/minutesPerDay, minutes%minutesPerDay/minutesPerHour
+	switch {
+	case days > 0:
+		return fmt.Sprintf("%dd%dh", days, hours)
+	case hours > 0:
+		return fmt.Sprintf("%dh%dm", hours, minutes%minutesPerHour)
+	case minutes > 0:
+		return fmt.Sprintf("%dm", minutes)
+	}
+	return "<1m"
 }

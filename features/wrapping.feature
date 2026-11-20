@@ -135,8 +135,10 @@ Feature: Wrapping to the terminal width
       d               gggdBd
       ↓ 1.5k · ↑ 23.4k · ⧉ 85%
              d         d
-      ↳          5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%
-      d              gggggBdddd     d     ggggdBdddd
+      ↳          5h: ████▌┃░░░░ 45%
+      d              gggggBdddd
+      ↳          7d: ████░┃░░░░ 40%
+      d              ggggdBdddd
 
       1 = bold 256:33
       """
@@ -185,8 +187,10 @@ Feature: Wrapping to the terminal width
            gggdBd
       ↓ 1.5k · ↑ 23.4k · ⧉ 85%
              d         d
-      5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%
-          gggggBdddd     d     ggggdBdddd
+      5h: ████▌┃░░░░ 45%
+          gggggBdddd
+      7d: ████░┃░░░░ 40%
+          ggggdBdddd
 
       1 = bold 256:33
       """

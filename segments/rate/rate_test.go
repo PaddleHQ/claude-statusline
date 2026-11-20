@@ -29,8 +29,10 @@ func newFixture(t *testing.T, cfg map[string]string) *fixture {
 	for key, value := range map[string]int{"warn": 20, "bad": 40, "hard_cap": 95} {
 		config.EXPECT().Int(key).Return(value).Maybe()
 	}
+	config.EXPECT().Bool("reset").Return(cfg["reset"] == "true").Maybe()
 	paint := mocks.NewPainter(t)
 	paint.EXPECT().Text(mock.Anything).RunAndReturn(func(s string) string { return "<t>" + s + "</>" }).Maybe()
+	paint.EXPECT().Dim(mock.Anything).RunAndReturn(func(s string) string { return "<d>" + s + "</>" }).Maybe()
 	icons := mocks.NewIcons(t)
 	icons.EXPECT().Pick(mock.Anything, mock.Anything).RunAndReturn(func(plain, _ string) string { return plain }).Maybe()
 	f.deps = rate.Deps{
@@ -115,8 +117,79 @@ func TestNamesAndKeys(t *testing.T) {
 	f := newFixture(t, nil)
 	for name, seg := range map[string]*rate.Window{"rate5h": rate.NewFiveHour(f.deps), "rate7d": rate.NewSevenDay(f.deps)} {
 		assert.Equal(t, name, seg.Name())
-		assert.Len(t, seg.Keys(), 7, "%s declares %v", name, seg.Keys())
+		assert.Len(t, seg.Keys(), 8, "%s declares %v", name, seg.Keys())
 	}
+}
+
+func TestResetIsOffUnlessAskedFor(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t, map[string]string{"label": "5h"})
+	f.limits.EXPECT().FiveHourReading().Return(45, now+9000, true)
+	f.meter.EXPECT().Pace(45, 50, 20, 40, 95).Return("BAR 45%")
+	seg := rate.NewFiveHour(f.deps)
+
+	assert.Equal(t, "<t>5h: </>BAR 45%", seg.Render())
+	assert.NotContains(t, seg.Help(), "resets")
+}
+
+// The pinned time is Thursday 9 October 2025 at 08:53:20 UTC.
+func TestResetShowsTheClockTimeAndTheTimeLeft(t *testing.T) {
+	t.Parallel()
+
+	const hour = 60 * 60
+	tests := []struct {
+		name     string
+		zone     *time.Location
+		resetsIn int64
+		want     string
+	}{
+		{"hours and minutes", time.UTC, 9000, "resets 11:23 in 2h30m"},
+		{"rounds the time left down", time.UTC, 9000 + 59, "resets 11:24 in 2h30m"},
+		{"a whole hour keeps its minutes", time.UTC, 2 * hour, "resets 10:53 in 2h0m"},
+		{"under an hour", time.UTC, 45 * 60, "resets 09:38 in 45m"},
+		{"under a minute", time.UTC, 30, "resets 08:53 in <1m"},
+		{"tomorrow names the weekday", time.UTC, 20 * hour, "resets Fri 04:53 in 20h0m"},
+		{"days and hours", time.UTC, 302400, "resets Sun 20:53 in 3d12h"},
+		{"the clock is the render time's zone", time.FixedZone("east", 2*hour), 9000, "resets 13:23 in 2h30m"},
+		{"the day is the render time's zone", time.FixedZone("far east", 14*hour), 9000, "resets Fri 01:23 in 2h30m"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			f := newFixture(t, map[string]string{"label": "5h", "reset": "true"})
+			f.deps.Now = time.Unix(now, 0).In(tt.zone)
+			f.limits.EXPECT().FiveHourReading().Return(45, now+tt.resetsIn, true)
+			f.meter.EXPECT().Pace(mock.Anything, mock.Anything, 20, 40, 95).Return("BAR 45%")
+
+			assert.Equal(t, "<t>5h: </>BAR 45% <d>"+tt.want+"</>", rate.NewFiveHour(f.deps).Render())
+		})
+	}
+}
+
+func TestResetFollowsTheSevenDayBarToo(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t, map[string]string{"label": "7d", "reset": "true"})
+	f.deps.Now = time.Unix(now, 0).UTC()
+	f.limits.EXPECT().SevenDayReading().Return(40, now+302400, true)
+	f.meter.EXPECT().Pace(40, 50, 20, 40, 95).Return("BAR 40%")
+	seg := rate.NewSevenDay(f.deps)
+
+	assert.Equal(t, "<t>7d: </>BAR 40% <d>resets Sun 20:53 in 3d12h</>", seg.Render())
+	assert.Contains(t, seg.Help(), "when the window resets")
+}
+
+func TestAResetAlreadyPastCountsAsUnderAMinute(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t, map[string]string{"label": "5h", "reset": "true"})
+	f.deps.Now = time.Unix(now, 0).UTC()
+	f.limits.EXPECT().FiveHourReading().Return(45, now-120, true)
+	f.meter.EXPECT().Pace(45, 100, 20, 40, 95).Return("BAR 45%")
+
+	assert.Equal(t, "<t>5h: </>BAR 45% <d>resets 08:51 in <1m</>", rate.NewFiveHour(f.deps).Render())
 }
 
 func TestHelp(t *testing.T) {
