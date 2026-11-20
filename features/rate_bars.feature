@@ -28,6 +28,37 @@ Feature: Rate-limit bars
                d     yyyyyyyyyyByyyyddddd
       """
 
+  Scenario: With reset turned on, each bar is followed by when its window resets and how long is left
+    Given the session:
+      """json
+      {
+        "model": {
+          "display_name": "Opus 4.7"
+        },
+        "rate_limits": {
+          "five_hour": {
+            "used_percentage": 75,
+            "resets_at": 1760009000
+          },
+          "seven_day": {
+            "used_percentage": 40,
+            "resets_at": 1760302400
+          }
+        }
+      }
+      """
+    And the config:
+      """
+      rate5h: {reset: true}
+      rate7d: {reset: true}
+      """
+    When the status line renders
+    Then the output is:
+      """
+      Opus 4.7 · 5h: ██████████┃████░░░░░ 75% resets 11:23 in 2h30m · 7d: ████████░░┃░░░░░░░░░ 40% resets Sun 20:53 in 3d12h
+               d     yyyyyyyyyyByyyyddddd     ddddddddddddddddddddd d     ggggggggddBddddddddd     ddddddddddddddddddddddddd
+      """
+
   Scenario: The rate-bars command prints both windows as JSON for other tools to draw
     Given the rate-limit cache:
       """
