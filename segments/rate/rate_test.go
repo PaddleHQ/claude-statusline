@@ -129,7 +129,7 @@ func TestResetIsOffUnlessAskedFor(t *testing.T) {
 	f.meter.EXPECT().Pace(45, 50, 20, 40, 95).Return("BAR 45%")
 	seg := rate.NewFiveHour(f.deps)
 
-	assert.NotContains(t, seg.Render(), "resets")
+	assert.Equal(t, "<t>5h: </>BAR 45%", seg.Render())
 	assert.NotContains(t, seg.Help(), "resets")
 }
 
