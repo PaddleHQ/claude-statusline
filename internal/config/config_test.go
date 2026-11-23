@@ -426,7 +426,9 @@ func TestNow(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, config.Now(getenvFrom(tt.env)).Unix())
+			got := config.Now(getenvFrom(tt.env))
+			assert.Equal(t, tt.want, got.Unix())
+			assert.Equal(t, time.UTC, got.Location(), "a pinned time is in UTC")
 		})
 	}
 

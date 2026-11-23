@@ -78,6 +78,7 @@ func TestRenderWrapped(t *testing.T) {
 
 	path, model, ctx := "/srv/app", "Opus 4.7 [high]", "ctx: 42%"
 	tok, rate := "↓ 1.5k · ↑ 23.4k · ⧉ 85%", "5h: 45% · 7d: 40%"
+	five, seven := "5h: 45% resets 11:23 in 2h30m", "7d: 40% resets Sun 20:53 in 3d12h"
 	// path + separator is 11 wide, so continuation rows indent by 11.
 	pad := "          "
 
@@ -110,6 +111,24 @@ func TestRenderWrapped(t *testing.T) {
 			40,
 			[]layout.Item{id(path), id(model), id(ctx), rates(rate)},
 			path + sep + model + sep + ctx + "\n" + anchor + pad + rate,
+		},
+		{
+			"both rates share the indented row when it holds them",
+			40,
+			[]layout.Item{id(path), id(model), usage(tok), rates("5h: 45%"), rates("7d: 40%")},
+			path + sep + model + "\n" + tok + "\n" + anchor + pad + rate,
+		},
+		{
+			"each rate takes a row when the indented row cannot hold both",
+			60,
+			[]layout.Item{id(path), id(model), id(ctx), usage(tok), rates(five), rates(seven)},
+			path + sep + model + sep + ctx + "\n" + tok + "\n" + anchor + pad + five + "\n" + anchor + pad + seven,
+		},
+		{
+			"rates alone split the same way",
+			60,
+			[]layout.Item{id(path), id(model), id(ctx), rates(five), rates(seven)},
+			path + sep + model + sep + ctx + "\n" + anchor + pad + five + "\n" + anchor + pad + seven,
 		},
 		{
 			"tokens alone sit flush left",
@@ -148,6 +167,9 @@ func TestRenderIndentDisabledWhenTooNarrow(t *testing.T) {
 
 	got = render(23, id("/srv/app"), id("Opus 4.7 [high]"), rates("5h: 45%"))
 	assert.Equal(t, "/srv/app\nOpus 4.7 [high]\n5h: 45%", got, "no room left after the indent, so no anchor")
+
+	got = render(23, id("/srv/app"), id("Opus 4.7 [high]"), rates("5h: ████ 45%"), rates("7d: ████ 40%"))
+	assert.Equal(t, "/srv/app\nOpus 4.7 [high]\n5h: ████ 45%\n7d: ████ 40%", got, "rates too wide for one row split without an anchor too")
 }
 
 func TestRenderPacksIdentityRowsGreedily(t *testing.T) {
@@ -230,12 +252,12 @@ func TestRenderTheDefaultLineAtTerminalWidths(t *testing.T) {
 			"/srv/app · Opus 4.7 [high] · ctx: ██▌░░░ 42%\n↓ 1.5k · ↑ 23.4k · ⧉ 85%\n↳          5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%",
 		},
 		{
-			"several rows at 40 columns, the continuation rows marked by an arrow", 40, line(narrowBars, true, true),
-			"/srv/app · Opus 4.7 [high]\n↳          ctx: ██▌░░░ 42%\n↓ 1.5k · ↑ 23.4k · ⧉ 85%\n↳          5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%",
+			"several rows at 40 columns, the continuation rows marked by an arrow and a rate bar on each", 40, line(narrowBars, true, true),
+			"/srv/app · Opus 4.7 [high]\n↳          ctx: ██▌░░░ 42%\n↓ 1.5k · ↑ 23.4k · ⧉ 85%\n↳          5h: ████▌┃░░░░ 45%\n↳          7d: ████░┃░░░░ 40%",
 		},
 		{
-			"every group on its own row at 10 columns", 10, line(narrowBars, true, true),
-			"/srv/app\nOpus 4.7 [high]\nctx: ██▌░░░ 42%\n↓ 1.5k · ↑ 23.4k · ⧉ 85%\n5h: ████▌┃░░░░ 45% · 7d: ████░┃░░░░ 40%",
+			"every group and each rate bar on its own row at 10 columns", 10, line(narrowBars, true, true),
+			"/srv/app\nOpus 4.7 [high]\nctx: ██▌░░░ 42%\n↓ 1.5k · ↑ 23.4k · ⧉ 85%\n5h: ████▌┃░░░░ 45%\n7d: ████░┃░░░░ 40%",
 		},
 		{
 			"no rate limits at 60 columns", 60, line(narrowBars, true, false),
