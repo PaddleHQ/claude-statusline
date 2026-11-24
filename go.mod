@@ -6,7 +6,7 @@ require (
 	github.com/cucumber/godog v0.16.0
 	github.com/mattn/go-runewidth v0.0.31
 	github.com/stretchr/testify v1.12.1
-	github.com/tidwall/gjson v1.20.2
+	github.com/tidwall/gjson v1.20.5
 	github.com/tidwall/pretty v1.3.0
 	go.yaml.in/yaml/v3 v3.0.6
 )
