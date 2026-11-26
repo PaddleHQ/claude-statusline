@@ -274,7 +274,15 @@ Each part is left out when Claude Code does not send it, so older versions show 
 
 With `theme: capsule`, the bars are Nerd Font capsule glyphs (U+EE00 to U+EE05), so the tool that draws them needs a Nerd Font v3 or later too. A one-cell bar uses the theme's plain `▮` and `▯` glyphs, because a capsule needs two cells.
 
-`N` must be at least 1, `M` at most 200 and `N` no more than `M`; both are required. Otherwise the command prints a message to stderr, nothing to stdout, and exits 2. That is the only way it fails: a missing cache is `ok: false`.
+`claude-statusline rate-bars --data` is for tools that draw the bars themselves. It prints the numbers behind each bar instead of painted text, with no colours or glyphs:
+
+```json
+{"rate5h":{"ok":true,"used":75,"target":50,"state":"warn","resets_at":1760009000},"rate7d":{"ok":false}}
+```
+
+`used` is the window's usage and `target` the even-pace marker, both as whole percentages. `state` is `good`, `warn` or `bad`, worked out from the same `warn`, `bad` and `hard_cap` settings the segments use, so the tool can pick its own colour for each. `resets_at` is the Unix time the window resets. A window with no reading, or one that has already reset, is only `{"ok":false}`. `theme`, `icons` and `NO_COLOR` do not change this output.
+
+`N` must be at least 1, `M` at most 200 and `N` no more than `M`; both are required unless `--data` is given, which takes no other flag. Otherwise the command prints a message to stderr, nothing to stdout, and exits 2. That is the only way it fails: a missing cache is `ok: false`.
 
 ## Overage for other tools
 

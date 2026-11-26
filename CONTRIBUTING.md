@@ -34,7 +34,7 @@ Thank you for helping with claude-statusline. This page covers what you need to 
 | `themes` | The built-in themes: one YAML file each, embedded in the binary by a tiny package that only exports them. |
 | `internal/snapshot` | Saves the latest payload for other tools. |
 | `internal/subagent` | Renders the rows of Claude Code's agent panel. |
-| `internal/ratebars` | Prints the 5h and 7d usage bars as JSON, painted in the user's theme, for other tools. |
+| `internal/ratebars` | Prints the 5h and 7d usage bars as JSON for other tools: painted in the user's theme, or with `--data` as numbers and the pace state. |
 | `internal/setup` | Adds `statusLine` and `subagentStatusLine` to `settings.json`, takes over the ones that run an earlier install or the old Paddle shell line, and removes them again for `uninstall`, backing the file up before every write. It also clears the old install layout. |
 | `hooks/` | The plugin's `SessionStart` hook: `hooks.json` and `bootstrap.sh`, which installs the latest release into the plugin data directory (`CLAUDE_PLUGIN_DATA`), and `bootstrap_test.sh`, its shell tests. `run.sh` finds the installed binary and runs it for the slash commands. |
 | `features/` | The Gherkin feature files: readable examples of the whole line, and the scenarios the documentation images are made from. `features_test.go` runs them. |
@@ -202,6 +202,7 @@ A step that takes text ends in a colon and is followed by a `"""` block. The tex
 | `When the config command runs` | Runs the `config` command. |
 | `When the config check runs` | Runs the `config-check` command. |
 | `When the rate bars render for <n> to <m> cells` | Runs the `rate-bars` command with `--min-cells=<n> --max-cells=<m>`. The output is its JSON line. |
+| `When the rate bars render as data` | Runs the `rate-bars` command with `--data`. The output is its JSON line. |
 | `Then the output is:` | The output with its colours and styles, written as rows of text with a style line under each; see [Expected output](#expected-output). |
 | `Then the text is:` | The output with every colour and style removed. Use it when the scenario has no colour at all. |
 | `Then the text starts with:` | The output with every colour and style removed begins with the block. Use it for long output where only the start is the point, such as `config`. |
