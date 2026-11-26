@@ -107,8 +107,9 @@ func (s *Suite) initialize(sc *godog.ScenarioContext) {
 	sc.Step(`^the subagent rows render$`, func(ctx context.Context) error { return worldOf(ctx).renderSubagentRows(ctx) })
 	sc.Step(`^help runs$`, func(ctx context.Context) { worldOf(ctx).renderHelp(ctx) })
 	sc.Step(`^the rate bars render for (\d+) to (\d+) cells$`, func(ctx context.Context, lo, hi string) {
-		worldOf(ctx).renderRateBars(ctx, lo, hi)
+		worldOf(ctx).renderRateBars(ctx, "--min-cells="+lo, "--max-cells="+hi)
 	})
+	sc.Step(`^the rate bars render as data$`, func(ctx context.Context) { worldOf(ctx).renderRateBars(ctx, "--data") })
 	sc.Step(`^the config command runs$`, func(ctx context.Context) { worldOf(ctx).renderConfig(ctx) })
 	sc.Step(`^the config check runs$`, func(ctx context.Context) { worldOf(ctx).renderConfigCheck(ctx) })
 

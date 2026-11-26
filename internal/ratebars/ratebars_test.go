@@ -271,3 +271,123 @@ func TestRateBarsCapsuleWithEitherIcons(t *testing.T) {
 		assert.Regexp(t, "[\uee03\uee00]", decode(t, out).Rate5h.Bars["10"], "icons: %s", set)
 	}
 }
+
+type dataWindow struct {
+	OK       bool   `json:"ok"`
+	Used     *int   `json:"used"`
+	Target   *int   `json:"target"`
+	State    string `json:"state"`
+	ResetsAt *int64 `json:"resets_at"`
+}
+
+type dataResult struct {
+	Rate5h dataWindow `json:"rate5h"`
+	Rate7d dataWindow `json:"rate7d"`
+}
+
+func decodeData(t *testing.T, out string) dataResult {
+	t.Helper()
+
+	require.Equal(t, byte('\n'), out[len(out)-1], "one line ends in a newline")
+	var r dataResult
+	require.NoError(t, json.Unmarshal([]byte(out), &r))
+	return r
+}
+
+func TestBuildDataReportsTheSegmentsPace(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		config   string
+		pick     func(dataResult) dataWindow
+		used     int
+		target   int
+		state    string
+		resetsAt int64
+	}{
+		{"5h 25 points over half elapsed", "", func(r dataResult) dataWindow { return r.Rate5h }, 75, 50, "warn", 1760009000},
+		{"7d close to pace", "", func(r dataResult) dataWindow { return r.Rate7d }, 40, 50, "good", 1760302400},
+		{"5h within raised thresholds", "rate5h:\n  warn: 30\n  bad: 60", func(r dataResult) dataWindow { return r.Rate5h }, 75, 50, "good", 1760009000},
+		{"5h beyond lowered bad", "rate5h:\n  warn: 5\n  bad: 10", func(r dataResult) dataWindow { return r.Rate5h }, 75, 50, "bad", 1760009000},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			out, err := (&env{cache: cache, config: tt.config}).run(t, "--data")
+			require.NoError(t, err)
+			w := tt.pick(decodeData(t, out))
+			assert.True(t, w.OK)
+			require.NotNil(t, w.Used)
+			require.NotNil(t, w.Target)
+			require.NotNil(t, w.ResetsAt)
+			assert.Equal(t, tt.used, *w.Used)
+			assert.Equal(t, tt.target, *w.Target)
+			assert.Equal(t, tt.state, w.State)
+			assert.Equal(t, tt.resetsAt, *w.ResetsAt)
+		})
+	}
+}
+
+func TestBuildDataHasNoEscapesWhateverTheTheme(t *testing.T) {
+	t.Parallel()
+
+	classic, err := (&env{cache: cache}).run(t, "--data")
+	require.NoError(t, err)
+	capsule, err := (&env{cache: cache, config: "theme: capsule\nicons: nerd"}).run(t, "--data")
+	require.NoError(t, err)
+
+	assert.Equal(t, classic, capsule, "the numbers do not depend on how the theme paints them")
+	assert.NotContains(t, classic, `\u001b`)
+	assert.NotContains(t, classic, escapes)
+}
+
+func TestBuildDataWithoutAReadingIsOnlyNotOK(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		cache string
+	}{
+		{"no cache file", ""},
+		{"window already reset", `{"five_hour":{"used":75,"resets_at":1760000000},"seven_day":{"used":40,"resets_at":1759999999}}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			out, err := (&env{cache: tt.cache}).run(t, "--data")
+			require.NoError(t, err)
+			assert.JSONEq(t, `{"rate5h":{"ok":false},"rate7d":{"ok":false}}`, out)
+		})
+	}
+}
+
+func TestBuildDataZeroUsageKeepsItsFields(t *testing.T) {
+	t.Parallel()
+
+	out, err := (&env{cache: `{"five_hour":{"used":0,"resets_at":1760009000}}`}).run(t, "--data")
+	require.NoError(t, err)
+	r := decodeData(t, out)
+	assert.True(t, r.Rate5h.OK)
+	require.NotNil(t, r.Rate5h.Used, "a zero reading is a reading")
+	assert.Equal(t, 0, *r.Rate5h.Used)
+	assert.False(t, r.Rate7d.OK)
+	assert.Nil(t, r.Rate7d.Used)
+}
+
+func TestBuildDataRejectsCellFlags(t *testing.T) {
+	t.Parallel()
+
+	for _, args := range [][]string{
+		{"--data", "--min-cells=3", "--max-cells=4"},
+		{"--data", "--min-cells=3"},
+		{"--data", "extra"},
+		{"--data=maybe"},
+	} {
+		out, err := (&env{cache: cache}).run(t, args...)
+		require.ErrorIs(t, err, ratebars.ErrUsage, "%v", args)
+		assert.Empty(t, out)
+	}
+}

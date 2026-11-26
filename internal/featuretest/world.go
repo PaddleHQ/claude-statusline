@@ -335,9 +335,9 @@ func lineAt(lines []string, i int) (string, bool) {
 	return "", false
 }
 
-func (w *world) renderRateBars(ctx context.Context, minCells, maxCells string) {
+func (w *world) renderRateBars(ctx context.Context, flags ...string) {
 	var out bytes.Buffer
-	args := []string{"rate-bars", "--min-cells=" + minCells, "--max-cells=" + maxCells}
+	args := append([]string{"rate-bars"}, flags...)
 	w.suite.Execute(args, strings.NewReader(""), &out, w.getenv)
 
 	w.ran = true

@@ -102,3 +102,14 @@ Feature: Rate-limit bars
       """
       {"rate5h":{"ok":true,"percent":"75%","bars":{"4":"\u001b[33m██\u001b[0m\u001b[1m┃\u001b[0m\u001b[2m░\u001b[0m","5":"\u001b[33m██\u001b[0m\u001b[1m┃\u001b[0m\u001b[33m▊\u001b[0m\u001b[2m░\u001b[0m"}},"rate7d":{"ok":true,"percent":"40%","bars":{"4":"\u001b[32m█▋\u001b[0m\u001b[1m┃\u001b[0m\u001b[2m░\u001b[0m","5":"\u001b[32m██\u001b[0m\u001b[1m┃\u001b[0m\u001b[2m░░\u001b[0m"}}}
       """
+
+  Scenario: With --data, the rate-bars command prints the numbers and pace state for tools that draw their own bars
+    Given the rate-limit cache:
+      """
+      {"five_hour":{"used":75,"resets_at":1760009000},"seven_day":{"used":40,"resets_at":1760302400}}
+      """
+    When the rate bars render as data
+    Then the raw output is:
+      """
+      {"rate5h":{"ok":true,"used":75,"target":50,"state":"warn","resets_at":1760009000},"rate7d":{"ok":true,"used":40,"target":50,"state":"good","resets_at":1760302400}}
+      """

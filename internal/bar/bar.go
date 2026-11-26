@@ -67,8 +67,9 @@ func WidthOf(columns int, s Sizes) int {
 	return WidthFor(columns, s.Int("width"), s.Int("width_medium"), s.Int("width_narrow"))
 }
 
-// state classifies the bar: distance from the pace target, or absolute usage without a target.
-func (p *Params) state() int {
+// State classifies the bar as theme.StateGood, StateWarn or StateBad: distance from the pace target, or absolute
+// usage without a target.
+func (p *Params) State() int {
 	if p.NoTarget || p.Limited {
 		switch {
 		case p.Reached:
@@ -94,9 +95,9 @@ func (p *Params) state() int {
 // absolute usage without a target. A saber theme takes it from its blade.
 func (p *Params) Fill(th theme.Theme) string {
 	if th.Saber {
-		return th.BladeColor(p.state(), 0, 0)
+		return th.BladeColor(p.State(), 0, 0)
 	}
-	switch p.state() {
+	switch p.State() {
 	case theme.StateBad:
 		return th.BadColor
 	case theme.StateWarn:
@@ -174,7 +175,7 @@ func (p *Params) saberCells(th theme.Theme, targetCell int) string {
 	if tip {
 		lit++
 	}
-	state := p.state()
+	state := p.State()
 
 	var r runs
 	for cell := range p.Width {
