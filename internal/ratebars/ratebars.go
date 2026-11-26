@@ -29,7 +29,7 @@ const (
 )
 
 // ErrUsage is returned for flags that are missing, malformed or out of range.
-var ErrUsage = errors.New("usage: claude-statusline rate-bars --min-cells=N --max-cells=M (1 <= N <= M <= 200) | --data")
+var ErrUsage = errors.New("usage: claude-statusline rate-bars (--min-cells=N --max-cells=M | --data), 1 <= N <= M <= 200")
 
 // stateNames names the pace states in the --data output.
 var stateNames = map[int]string{theme.StateGood: "good", theme.StateWarn: "warn", theme.StateBad: "bad"}
@@ -75,11 +75,11 @@ type Output struct {
 // DataWindow is one usage window as numbers. Without a reading only ok is set: the embedded nil pointer is left out.
 type DataWindow struct {
 	OK bool `json:"ok"`
-	*Reading
+	*DataReading
 }
 
-// Reading is a window's usage, its pace target, both as percentages, the pace state and when the window resets.
-type Reading struct {
+// DataReading is a window's usage, its pace target, both as percentages, the pace state and when the window resets.
+type DataReading struct {
 	Used     int    `json:"used"`
 	Target   int    `json:"target"`
 	State    string `json:"state"`
@@ -127,13 +127,11 @@ func Build(args []string, getenv func(string) string) (string, error) {
 }
 
 func encodeLine(out any) (string, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(out); err != nil {
-		return "", fmt.Errorf("encode rate bars: %w", err)
+	line, err := encode(out)
+	if err != nil {
+		return "", err
 	}
-	return buf.String(), nil
+	return line + "\n", nil
 }
 
 type flags struct {
@@ -154,7 +152,13 @@ func parseFlags(args []string) (flags, error) {
 	}
 	seen := map[string]bool{}
 	fs.Visit(func(fl *flag.Flag) { seen[fl.Name] = true })
-	if f.data && (seen["min-cells"] || seen["max-cells"]) || !f.data && !f.cellsValid(seen) {
+	if f.data {
+		if seen["min-cells"] || seen["max-cells"] {
+			return flags{}, ErrUsage
+		}
+		return f, nil
+	}
+	if !f.cellsValid(seen) {
 		return flags{}, ErrUsage
 	}
 	return f, nil
@@ -214,13 +218,14 @@ func (r *renderer) window(seg *rate.Window) Window {
 
 // data reports the window as numbers, from the same pace arguments the segment draws its bar with.
 func (r *renderer) data(seg *rate.Window, reading func() (used, resetsAt int64, ok bool)) DataWindow {
-	r.meter.params = bar.Params{}
 	_, resetsAt, ok := reading()
-	if !ok || seg.Render() == "" {
+	if !ok {
 		return DataWindow{}
 	}
+	r.meter.params = bar.Params{}
+	seg.Render() // Only for its Meter.Pace call, which records the pace arguments in r.meter.
 	p := r.meter.params
-	return DataWindow{OK: true, Reading: &Reading{Used: p.Usage, Target: p.Target, State: stateNames[p.State()], ResetsAt: resetsAt}}
+	return DataWindow{OK: true, DataReading: &DataReading{Used: p.Usage, Target: p.Target, State: stateNames[p.State()], ResetsAt: resetsAt}}
 }
 
 func (r *renderer) absent() Window {
@@ -232,12 +237,14 @@ func (r *renderer) absent() Window {
 	return Window{OK: false, Percent: r.th.Paint(r.th.Muted, absent), Bars: Series{Min: r.lo, Bars: bars}}
 }
 
-func encode(s string) (string, error) {
+// encode is JSON without HTML escaping, so the painted escape sequences stay readable as \u001b, and without the
+// encoder's trailing newline.
+func encode(v any) (string, error) {
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
 	enc.SetEscapeHTML(false)
-	if err := enc.Encode(s); err != nil {
-		return "", fmt.Errorf("encode bar: %w", err)
+	if err := enc.Encode(v); err != nil {
+		return "", fmt.Errorf("encode rate bars: %w", err)
 	}
 	return string(bytes.TrimSuffix(b.Bytes(), []byte("\n"))), nil
 }
